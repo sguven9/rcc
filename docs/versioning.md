@@ -7,7 +7,7 @@ RCForge separates application releases, simulation compatibility, file formats a
 | Version                  | Current value                   | When it changes                                                             |
 | ------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
 | Application              | 0.8.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
-| Physics and recordings   | 0.9.0                           | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
+| Physics and recordings   | 0.9.1                           | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
 | Aircraft definition      | `schemaVersion: 1`              | An incompatible aircraft file format change                                 |
 | Aircraft history archive | `formatVersion: 1`              | An incompatible backup format change                                        |
 | Documentation            | `next` (development)            | Current guides update with source; releases get immutable `X.Y.Z` snapshots |
@@ -75,6 +75,15 @@ Contributors normally leave version numbers alone. Maintainers prepare a release
 6. Commit the new snapshot and rerun `npm run release:check`. Inspect the version selector and links at `/docs/X.Y.Z/`. The snapshot is release documentation; it does not emulate an older simulator or publish anything.
 7. Review and merge the release PR. Tag the tested release commit as `vX.Y.Z`, publish release notes and deploy its tested build. Tagging, publishing and deployment are explicit maintainer actions; changing package metadata or freezing docs does not perform them.
 8. Verify the header version, docs version, assets and first-run workflows at the deployed address. Follow [deployment](deployment.md). Never overwrite a published documentation snapshot; corrections belong to the next release.
+
+## Slipstream compatibility (0.9.1)
+
+Simulation **0.9.1** replaces the propeller-slipstream estimate with an
+actuator-disk model and adds optional motor `downThrustDeg` and
+`rightThrustDeg`. Slipstream loads change wherever a surface sits behind a
+running propeller, so 0.9.0 recordings are rejected. Aircraft files without
+the new fields load unchanged. See
+[propeller slipstream and thrust line](component-models.md#propeller-slipstream-and-thrust-line-091).
 
 ## Near-ground atmosphere compatibility
 

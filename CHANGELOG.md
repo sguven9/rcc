@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Replace the propeller-slipstream estimate with an actuator-disk model (correct span coverage, slipstream development and contraction, no tuned decay). Add optional motor `downThrustDeg` and `rightThrustDeg`. Simulation compatibility advances to 0.9.1 and rejects 0.9.0 replays; aircraft files remain compatible.
+
 - Fixed-wing launch trim now solves airspeed in the mean wind. Crosswind starts drift with the air instead of beginning in a sideslip, and placed launches turn only the air-relative velocity.
 - Add documentation charts for ground effect, the wind gradient and Dryden turbulence. They are computed from the simulator's own functions and checked by `docs:check`.
 - Manisa: windows, furrowed ploughed land and a dashed main-road centre line.

@@ -322,6 +322,9 @@ export const AircraftSchema = z
           spin: z.enum(["cw", "ccw"]).optional(),
           torquePerThrustM: finite.min(0).max(1).default(0.015),
           propDiameterM: positive.max(2).default(0.2032),
+          /** Fixed-wing installation angles: thrust tilted down and to the right (deg). */
+          downThrustDeg: finite.min(-10).max(10).optional(),
+          rightThrustDeg: finite.min(-10).max(10).optional(),
         })
         .strict(),
     ),

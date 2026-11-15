@@ -2,6 +2,7 @@ import { ObstacleCollisions, type Obstacle } from "./obstacles";
 import { initialVtolState, vtolCommands, vtolRotorLoads } from "./vtol";
 import type { VtolCommand, VtolState } from "./vtol-config";
 import { surfacePolar, STANDARD_AIR_VISCOSITY } from "./aerodynamics";
+import { diskInducedVelocity, slipstreamAt, spanCoverage } from "./propwash";
 import {
   DrydenTurbulence,
   groundEffectLiftRatio,
@@ -219,38 +220,41 @@ export class Simulation {
     for (const [surfaceIndex, wing] of this.aircraft.surfaces.entries()) {
       const r = sub(wing.positionM, this.properties.cg),
         v = add(flow, cross(s.omega, r));
-      for (let i = 0; i < this.aircraft.motors.length; i++) {
-        const motor = this.aircraft.motors[i],
-          dx = motor.positionM[0] - wing.positionM[0];
-        const radius = motor.propDiameterM / 2;
-        if (!this.aircraft.vtol && dx > 0 && dx < 1.5) {
-          const radial = Math.hypot(
-            wing.positionM[1] - motor.positionM[1],
-            wing.positionM[2] - motor.positionM[2],
-          );
-          const overlap = clamp(
-            (radius + wing.spanM / 2 - radial) / Math.max(wing.spanM, 0.01),
-            0,
-            1,
-          );
-          const thrust =
-            power.thrust[i] *
-            clamp(1 - Math.max(0, flow[0]) / motor.zeroThrustSpeedMps, 0, 1);
-          const induced =
-            Math.sqrt(
-              Math.max(
-                0,
-                flow[0] * flow[0] +
-                  (2 * thrust) /
-                    (this.environment.densityKgM3 * Math.PI * radius * radius),
-              ),
-            ) - Math.max(0, flow[0]);
-          v[0] += induced * overlap * Math.exp(-dx * 0.7);
-        }
-      }
       const orient = axisQ([1, 0, 0], radians(wing.rollDeg));
       const normal = rotate(orient, [0, 0, -1]),
         span = rotate(orient, [0, 1, 0]);
+      // Tractor slipstream: raise the surface's mean axial dynamic pressure by
+      // the span fraction inside each contracted actuator-disk slipstream.
+      if (!this.aircraft.vtol && this.aircraft.vehicleType !== "multirotor") {
+        const axial = Math.max(0, v[0]);
+        let extra = 0;
+        for (let i = 0; i < this.aircraft.motors.length; i++) {
+          const motor = this.aircraft.motors[i],
+            dx = motor.positionM[0] - wing.positionM[0];
+          if (!(dx > 0 && dx < 1.5)) continue;
+          const radius = motor.propDiameterM / 2,
+            thrust =
+              power.thrust[i] *
+              clamp(1 - Math.max(0, flow[0]) / motor.zeroThrustSpeedMps, 0, 1);
+          const induced = diskInducedVelocity(
+            thrust,
+            axial,
+            this.environment.densityKgM3,
+            radius,
+          );
+          if (!(induced > 0)) continue;
+          const slip = slipstreamAt(dx, induced, axial, radius);
+          const offset = sub(motor.positionM, wing.positionM);
+          const fraction = spanCoverage(
+            dot(offset, span),
+            dot(offset, normal),
+            slip.radius,
+            wing.spanM,
+          );
+          extra += fraction * ((axial + slip.increment) ** 2 - axial * axial);
+        }
+        if (extra > 0) v[0] = Math.sqrt(axial * axial + extra);
+      }
       const planar = sub(v, scale(span, dot(v, span))),
         speed = length(planar),
         direction = unit(planar);
@@ -378,7 +382,17 @@ export class Simulation {
           power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
       } else {
         const thrust = power.thrust[i] * speedFactor;
-        apply([thrust, 0, 0], m.positionM);
+        // Down- and right-thrust tilt the thrust line, as on real airframes.
+        const down = radians(m.downThrustDeg ?? 0),
+          right = radians(m.rightThrustDeg ?? 0);
+        apply(
+          [
+            thrust * Math.cos(down) * Math.cos(right),
+            thrust * Math.cos(down) * Math.sin(right),
+            thrust * Math.sin(down),
+          ],
+          m.positionM,
+        );
         if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
       }

@@ -27,11 +27,13 @@ inspect the [tested source revision](https://github.com/adithya-s-k/RCForge/tree
 
 **After this snapshot:** simulation 0.9.0 added ground effect, an optional wind
 gradient and Dryden turbulence ([equations](atmosphere-and-ground-effect.md)).
-A local re-run of the JSBSim comparison on 0.9.0 passed the same 56 cases and
-616 checks. Ground effect is exactly zero above two spans, where those cases
-fly. The NASA comparison was not re-run because its source was unreachable from
-that environment. No new dated snapshot has been published, so the table above
-still describes 0.8.1.
+Simulation 0.9.1 replaced the propeller-slipstream estimate
+([details](component-models.md#propeller-slipstream-and-thrust-line-091)).
+Local re-runs of the JSBSim comparison on both versions passed the same 56
+cases and 616 checks. Ground effect is exactly zero above two spans, where those
+cases fly. The NASA comparison was not re-run because its source was
+unreachable from that environment. No new dated snapshot has been published, so
+the table above still describes 0.8.1.
 
 These totals should not be added together or turned into a percentage of realism.
 A test can check one small behavior; several comparisons can exercise the same

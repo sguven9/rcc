@@ -6,7 +6,9 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.9.0** adds [wing/rotor ground effect, a logarithmic wind gradient
+Simulation **0.9.1** replaces the propeller-slipstream estimate with an
+[actuator-disk model and adds optional down/right thrust](component-models.md#propeller-slipstream-and-thrust-line-091);
+it rejects 0.9.0 recordings. Simulation 0.9.0 added [wing/rotor ground effect, a logarithmic wind gradient
 and MIL-F-8785C Dryden turbulence](atmosphere-and-ground-effect.md); it rejects
 0.8.1 recordings. It retains the 0.8.1 obstacle-collision snapshots and retains the
 tricopter VTOL actuator/controller state and replay commands introduced in 0.8.0. Aircraft format-1 definitions still load; the optional `vtol` extension
@@ -63,7 +65,7 @@ Check the following when changing browser integration:
 
 ## What is modeled
 
-Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response and speed falloff, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, approximate axial propwash, and wheel contact with rolling/lateral friction.
+Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response and speed falloff, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, actuator-disk propeller slipstream over surfaces behind a tractor propeller, optional down/right thrust angles, and wheel contact with rolling/lateral friction.
 
 ## What is not modeled
 

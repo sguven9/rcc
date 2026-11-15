@@ -48,6 +48,46 @@ Optional control `responseSeconds` and `rateLimitDegS` model first-order servo r
 
 Optional `bodyDragAreaM2: [CdAx,CdAy,CdAz]` replaces scalar body drag with directional quadratic drag. Each component is a drag coefficient times projected area, not just geometric area. The 6S example uses estimates. Fixed-wing motors with `spin` specified also generate reaction roll torque from `torquePerThrustM` (CW/CCW viewed along the positive thrust axis); no propeller gyroscopic or P-factor model is provided.
 
+## Propeller slipstream and thrust line (0.9.1)
+
+Surfaces behind a tractor propeller (within 1.5 m) see a faster slipstream
+from axial momentum theory. The disk induced velocity is
+`v_i = −V/2 + √((V/2)² + T/(2ρA))`. The increment grows from `v_i` at the disk
+to `2·v_i` downstream as `v_i·(1 + x/√(x² + R²))`, and the slipstream radius
+contracts by continuity. Each surface receives the span-weighted mean dynamic
+pressure of the part of its span that crosses that circle; a V-tail panel uses
+its own span and normal directions. Swirl, viscous mixing and fuselage blockage
+are not modeled.
+
+The earlier estimate covered at least half of any surface centred behind a
+propeller, however small the propeller was. It then compensated with an
+arbitrary `exp(−0.7·dx)` decay. The new model has no tuned decay term.
+
+Optional motor `downThrustDeg` and `rightThrustDeg` tilt the thrust line, as a
+builder angles a firewall. Both default to 0, and bundled aircraft do not set
+them because no source gives their values.
+
+### Full throttle with the trim held
+
+Applying full throttle from a trimmed cruise, without moving the elevator, makes
+an aircraft climb. The pitch-up is strong when thrust nearly equals weight at
+low airspeed. With the trim CL held, a near-vertical climb has no equilibrium,
+so lift carries the aircraft over the top. Real models balloon or loop in the
+same way unless downthrust, wing/tail incidence or the pilot counters it.
+
+The bundled presets' estimated power is high. Fresh-pack static thrust-to-weight
+is about 1.4 for the Simple Trainer, 1.2 for the Bronco and 1.3 for the Tiny
+Trainer. Hands-off full-throttle tests from trimmed cruise give:
+
+| Aircraft       | Result over 16 s                                        | Main contributors                                   |
+| -------------- | ------------------------------------------------------- | --------------------------------------------------- |
+| Tiny Trainer   | Settles into a 17–20° climb at constant speed           | Moderate thrust at speed (22 m/s zero-thrust speed) |
+| FT Bronco      | Loops; with 1.5° downthrust settles into a 30–40° climb | Blown inner wing and tail                           |
+| Simple Trainer | Loops even with 5° downthrust                           | Thrust ≈ weight below 6 m/s; thrust line below CG   |
+
+These are tests of estimated presets, not flight measurements. Measured static
+thrust and a measured downthrust angle would change them.
+
 ## Scenery and environment
 
 Northfield club, Alpine meadow, Desert mesa and [Manisa](manisa-field.md) have distinct terrain, vegetation, sky/sun and runway surface. Their temperature/elevation presets calculate dry-air density from a standard pressure-versus-elevation atmosphere. Altitude in flight remains local AGL, not elevation above sea level. Density is uniform within each session; humidity, thermals, terrain wind and altitude-varying air density are not modeled. Wind/gust settings remain user controlled.
