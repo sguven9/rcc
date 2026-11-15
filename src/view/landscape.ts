@@ -1,6 +1,6 @@
 import { skyPhotograph } from "./sky-photograph";
 import * as T from "three";
-import type { Scenery } from "../core/scenery";
+import { isClearArea, type Scenery } from "../core/scenery";
 import { seededRandom, terrainNoise as noise } from "./terrain-material";
 
 import { renderBudget } from "./render-budget";
@@ -165,6 +165,12 @@ export function addLandscape(
     const x = -100 + rand() * 400;
     let z = (rand() - 0.5) * 300;
     if (Math.abs(z) < 15) z = Math.sign(z || 1) * (15 + rand() * 40);
+    // Built sites: keep rocks off roads, pads and buildings (south side is open field).
+    if (isClearArea(profile, x, z)) z = 20 + rand() * 40;
+    if (profile.rockBandZ) {
+      const [z0, z1] = profile.rockBandZ;
+      z = z0 + ((z - -150) / 300) * (z1 - z0);
+    }
     const size = i < 25 ? 0.4 + rand() * 0.8 : 0.04 + rand() * 0.22;
     dummy.position.set(x, size * 0.12, z);
     dummy.scale.set(size * (0.9 + rand()), size, size * (0.8 + rand()));

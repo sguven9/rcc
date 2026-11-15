@@ -50,7 +50,7 @@ Optional `bodyDragAreaM2: [CdAx,CdAy,CdAz]` replaces scalar body drag with direc
 
 ## Scenery and environment
 
-Northfield club, Alpine meadow and Desert mesa have distinct terrain, vegetation, sky/sun and runway surface. Their temperature/elevation presets calculate dry-air density from a standard pressure-versus-elevation atmosphere. Altitude in flight remains local AGL, not elevation above sea level. Density is uniform within each session; humidity, thermals, terrain wind and altitude-varying air density are not modeled. Wind/gust settings remain user controlled.
+Northfield club, Alpine meadow, Desert mesa and [Manisa](manisa-field.md) have distinct terrain, vegetation, sky/sun and runway surface. Their temperature/elevation presets calculate dry-air density from a standard pressure-versus-elevation atmosphere. Altitude in flight remains local AGL, not elevation above sea level. Density is uniform within each session; humidity, thermals, terrain wind and altitude-varying air density are not modeled. Wind/gust settings remain user controlled.
 
 The selected surface changes rolling/lateral friction (estimated asphalt/grass/dirt coefficients). Collision is still a **flat field plane**, including outside the runway. Distant mountains, trees and buildings are visual scenery, not collidable terrain. Do not use these sites for slope-soaring or obstacle-clearance validation.
 

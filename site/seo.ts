@@ -68,6 +68,8 @@ const descriptions: Record<string, string> = {
     "Run deterministic RCForge physics experiments, inspect trim and flight envelopes, and compare telemetry when changing aircraft definitions.",
   benchmarks:
     "Read RCForge's simulation benchmarks: gravity checks, JSBSim comparisons, NASA rotation references, unsolved trim conditions and remaining realism limits.",
+  "manisa-field":
+    "Fly RCForge's Manisa site: a measured, procedural model of the 10/28 concrete runway, hangar and club buildings, with sources and assumptions.",
   "atmosphere-and-ground-effect":
     "How RCForge models MIL-F-8785C Dryden turbulence, the near-ground wind gradient, and wing and rotor ground effect, with equations, sources and limits.",
   "physics-reference":

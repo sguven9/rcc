@@ -1,5 +1,10 @@
 import * as T from "three";
-import type { Scenery } from "../core/scenery";
+import {
+  isClearArea,
+  isDryGround,
+  runwayOf,
+  type Scenery,
+} from "../core/scenery";
 import { seededRandom, surfaceTexture, terrainNoise } from "./terrain-material";
 import { renderBudget } from "./render-budget";
 import { landscapeSurfaceHeight } from "./landscape";
@@ -98,7 +103,9 @@ function grassTuft(dry: boolean) {
 
 export function addVegetation(field: T.Group, profile: Scenery) {
   const dry = profile.surface === "dirt",
-    alpine = profile.surface === "grass";
+    alpine = profile.surface === "grass",
+    dryTufts = isDryGround(profile),
+    planted = profile.plantedTrees ?? [];
   const rand = seededRandom(profile.seed + 380),
     dummy = new T.Object3D();
   const atlas = surfaceTexture("vegetation-v2.png", true);
@@ -217,16 +224,24 @@ export function addVegetation(field: T.Group, profile: Scenery) {
     for (let i = 0; i < count; i++) {
       const cluster = clusters[plantIndex % clusters.length];
       const spread = dry ? 180 : 85;
-      const x = cluster[0] + (rand() + rand() - 1) * spread;
+      let x = cluster[0] + (rand() + rand() - 1) * spread;
       let z = cluster[1] + (rand() + rand() - 1) * spread;
       if (Math.abs(z) < 60 && x > -120 && x < 260)
         z = Math.sign(z || 1) * (70 + rand() * 55);
-      const height =
+      // Keep generated groves off built areas and roads by moving them outward.
+      for (let tries = 0; tries < 8 && isClearArea(profile, x, z); tries++) {
+        const r = Math.hypot(x, z) || 1;
+        x += (x / r) * 60;
+        z += (z / r) * 60;
+      }
+      let height =
         kind >= 4
           ? (dry ? 0.5 : 1.2) + rand() * 2.0
           : kind === 2
             ? 12 + rand() * 12
             : 7 + rand() * 11;
+      const fixed = planted[plantIndex];
+      if (fixed) [x, z, height] = fixed;
       const ground = Math.max(0, landscapeSurfaceHeight(x, z, profile));
       dummy.position.set(x, ground - 0.06, z);
       dummy.rotation.set(0, rand() * Math.PI * 2, 0);
@@ -262,31 +277,38 @@ export function addVegetation(field: T.Group, profile: Scenery) {
     vertexColors: true,
     side: T.DoubleSide,
   });
-  const count = dry ? renderBudget.dryGrassTufts : renderBudget.grassTufts;
-  const grass = new T.InstancedMesh(grassTuft(dry), material, count);
+  const count = dryTufts ? renderBudget.dryGrassTufts : renderBudget.grassTufts;
+  const grass = new T.InstancedMesh(grassTuft(dryTufts), material, count);
+  const runway = runwayOf(profile),
+    // 8.7 m on the 7 m club runway: the original mown-strip exclusion.
+    stripHalf = runway.width / 2 + 5.2,
+    stripStart = runway.x - runway.length / 2 - 18,
+    stripEnd = runway.x + runway.length / 2 + 37;
   for (let i = 0; i < count; i++) {
     const close = i < count * 0.9;
     const x = -8 + (rand() - 0.5) * (close ? 48 : 250),
       z = -14 + (rand() - 0.5) * (close ? 40 : 160);
     // Mown landing strip, equipment footprint, and observer path stay clear.
     const excluded =
-      (Math.abs(z) < 8.7 && x > -55 && x < 170) ||
-      (x > -42 && x < -18 && z > -33 && z < -20);
+      (Math.abs(z) < stripHalf && x > stripStart && x < stripEnd) ||
+      (x > -42 && x < -18 && z > -33 && z < -20) ||
+      isClearArea(profile, x, z) ||
+      (profile.site === "manisa" && Math.abs(x) < 4.5 && z < 0 && z > -42);
     const patchiness = terrainNoise(x * 0.18, z * 0.18);
     dummy.position.set(x, excluded ? -3 : -0.015, z);
     dummy.rotation.set(0, rand() * Math.PI * 2, 0);
-    const height = (dry ? 0.6 : 0.65) + rand() * (dry ? 1.3 : 0.8);
+    const height = (dryTufts ? 0.6 : 0.65) + rand() * (dryTufts ? 1.3 : 0.8);
     dummy.scale.setScalar(
       height *
         (0.6 + patchiness * 0.8) *
-        T.MathUtils.smoothstep(Math.abs(z), 8.7, 13),
+        T.MathUtils.smoothstep(Math.abs(z), stripHalf, stripHalf + 4.3),
     );
     dummy.updateMatrix();
     grass.setMatrixAt(i, dummy.matrix);
     grass.setColorAt(
       i,
       new T.Color().setHSL(
-        dry ? 0.09 : 0.18,
+        dryTufts ? 0.09 : 0.18,
         0.12 + rand() * 0.15,
         0.65 + rand() * 0.28,
       ),

@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Add the **Manisa** flying site: a procedural model of the 10/28 concrete runway, hangar, clubhouse and red-roofed buildings of Manisa Havacılık Sporları Tesisi, laid out from measured aerial screenshots. Runway layout, heading reference and site details are now per-site; the existing three fields are unchanged.
+
 - Add near-ground physics: McCormick wing ground effect, Cheeseman–Bennett multirotor ground effect, an optional logarithmic wind gradient and optional seeded MIL-F-8785C Dryden turbulence. Simulation compatibility advances to 0.9.0 and rejects 0.8.1 replays; aircraft files remain compatible.
 
 - Add bounded crash breakup using the aircraft's own geometry, with reset restoring the intact model.

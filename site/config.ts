@@ -103,6 +103,12 @@ export const pages = [
     file: "docs/physics-validation.md",
   },
   {
+    slug: "manisa-field",
+    title: "Manisa flying site",
+    group: "Understand the simulation",
+    file: "docs/manisa-field.md",
+  },
+  {
     slug: "atmosphere-and-ground-effect",
     title: "Turbulence and ground effect",
     group: "Understand the simulation",

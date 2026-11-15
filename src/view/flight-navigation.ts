@@ -1,5 +1,27 @@
 import { degrees, euler, rotate, type Quat, type Vec3 } from "../core/math";
 import { $ } from "../app/dom";
+import { runwayOf, type Scenery } from "../core/scenery";
+
+/** Current field: runway ends in local metres and the true bearing of local +X. */
+const field = { start: -37, end: 133, width: 7, headingOffsetDeg: 0 };
+const bearing = (deg: number) =>
+  `${String(Math.round(((deg % 360) + 360) % 360) % 360).padStart(3, "0")}°`;
+/** Update minimap runway and heading reference for a flying site. */
+export function setNavigationField(profile: Scenery) {
+  const runway = runwayOf(profile);
+  field.start = runway.x - runway.length / 2;
+  field.end = runway.x + runway.length / 2;
+  field.width = runway.width;
+  field.headingOffsetDeg = profile.headingOffsetDeg ?? 0;
+  const path = document.getElementById("nav-runway");
+  path?.setAttribute("d", `M0 ${-field.start}V${-field.end}`);
+  path?.setAttribute("stroke-width", String(field.width));
+  const up = document.getElementById("nav-map-up");
+  if (up)
+    up.textContent = field.headingOffsetDeg
+      ? `↑ ${bearing(field.headingOffsetDeg)}`
+      : "↑ N";
+}
 
 export function attitude(q: Quat) {
   const [roll, pitch] = euler(q),
@@ -15,8 +37,9 @@ export function mapRadius(position: Vec3, pilot: { x: number; z: number }) {
     85,
     Math.abs(position[1] - pilot.z),
     Math.abs(position[0] - pilot.x) / 0.68,
-    Math.abs(133 - pilot.x) / 0.68,
-    Math.abs(-37 - pilot.x) / 0.68,
+    // Long runways are framed only near the pilot (club strip: unchanged).
+    Math.abs(Math.min(field.end, pilot.x + 140) - pilot.x) / 0.68,
+    Math.abs(Math.max(field.start, pilot.x - 140) - pilot.x) / 0.68,
     Math.abs(pilot.z),
   );
   const target = extent * 1.2,
@@ -39,9 +62,9 @@ export function flightNavigationMarkup() {
         </svg><div class="nav-attitude-values"><span id="nav-roll" title="Roll / bank angle">R 0°</span><span id="nav-pitch" title="Pitch angle">P 0°</span></div>
       </div>
       <button class="nav-map" id="nav-open-position" aria-label="Open position controls from minimap" title="Open Position & view">
-        <span class="nav-map-heading"><span>↑ N</span><span id="nav-heading">000°</span></span>
+        <span class="nav-map-heading"><span id="nav-map-up" title="Map up direction (true bearing)">↑ N</span><span id="nav-heading">000°</span></span>
         <svg id="flight-minimap" viewBox="-200 -136 400 272" role="img" aria-label="North-up map: amber aircraft, blue pilot, runway">
-          <path d="M0 37V-133" stroke="#a8b3b2" stroke-width="7"/>
+          <path id="nav-runway" d="M0 37V-133" stroke="#a8b3b2" stroke-width="7"/>
           <path id="nav-trail" fill="none" stroke="#cfa975" stroke-width="1" opacity=".55" vector-effect="non-scaling-stroke"/>
           <path id="nav-sightline" fill="none" stroke="#84bddf" stroke-dasharray="3 4" stroke-width=".75" vector-effect="non-scaling-stroke"/>
           <g id="nav-pilot"><circle r="3.5" fill="#89cbf5" stroke="#172630" stroke-width="1"/></g>
@@ -84,8 +107,8 @@ export function createFlightNavigation(openPosition: () => void) {
     );
     $("nav-roll").textContent = `R ${format(roll)}`;
     $("nav-pitch").textContent = `P ${format(pitch)}`;
-    $("nav-heading").textContent =
-      `${String(Math.round(heading) % 360).padStart(3, "0")}°`;
+    // The map stays runway-up; the readout is the true heading.
+    $("nav-heading").textContent = bearing(heading + field.headingOffsetDeg);
     const r = mapRadius(state.position, pilot),
       p = state.position,
       scale = r / 80;
