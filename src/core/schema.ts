@@ -74,6 +74,16 @@ export const AircraftSchema = z
       .strict()
       .optional(),
     pilotResponse: PilotResponseSchema.optional(),
+    /** Optional paint scheme for the generic renderer; plan models keep their own. */
+    livery: z
+      .object({
+        body: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        wing: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        tail: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      })
+      .strict()
+      .optional(),
     fpv: z
       .object({
         partId: z.string().min(1),

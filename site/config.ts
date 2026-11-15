@@ -145,6 +145,12 @@ export const pages = [
     file: "docs/flite-test-reconstruction.md",
   },
   {
+    slug: "catalog-aircraft",
+    title: "Generated catalog aircraft",
+    group: "Understand the simulation",
+    file: "docs/catalog-aircraft.md",
+  },
+  {
     slug: "vortex-simple-trainer",
     title: "Simple Trainer references",
     group: "Understand the simulation",

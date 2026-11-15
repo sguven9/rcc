@@ -421,9 +421,19 @@ export function buildAircraft(
       ? foam
       : new T.MeshStandardMaterial({ color: "#e2e5e7", roughness: 0.8 });
   const marking = new T.MeshStandardMaterial({
-    color: isBronco ? "#e9e7df" : "#285982",
+    color: a.livery?.accent ?? (isBronco ? "#e9e7df" : "#285982"),
     roughness: 0.7,
   });
+  // Optional livery for generated presets; without one every surface keeps baseColor.
+  const paint = (color?: string) =>
+    color && !planModel
+      ? new T.MeshStandardMaterial({ color, roughness: 0.75 })
+      : baseColor;
+  const bodyPaint = paint(a.livery?.body),
+    wingPaint = paint(a.livery?.wing),
+    tailPaint = paint(a.livery?.tail);
+  const surfacePaint = (kind: string) =>
+    kind === "wing" ? wingPaint : tailPaint;
   const hardware = a.vtol ? vtolHardware() : undefined;
   const propellerMaterials = new Map<string, T.Material>();
   const servoMaterials = new Map<string, T.Material>();
@@ -444,7 +454,7 @@ export function buildAircraft(
           bottom: z + s.bottom * h,
           topColor: s.topColor,
         })),
-        baseColor,
+        bodyPaint,
         y,
       );
       if (isBronco && p.id === "fuselage") broncoCabin(group, p);
@@ -769,7 +779,7 @@ export function buildAircraft(
         planModel
           ? foldedWing(s.chordM, s.spanM, s.control ? hinge : 1, side, isTiny)
           : airfoil(s.chordM, s.spanM, 0.105, s.control ? 0.72 : 1),
-        baseColor,
+        wingPaint,
         surface,
       );
       // Distinct tip/underside markings preserve orientation at realistic viewing distances.
@@ -804,7 +814,7 @@ export function buildAircraft(
               s.kind === "vertical-tail",
             )
           : airfoil(s.chordM, s.spanM, 0.045, s.control ? 0.72 : 1),
-        baseColor,
+        tailPaint,
         surface,
       );
       box(
@@ -833,14 +843,14 @@ export function buildAircraft(
             (-side * s.spanM * fraction) / 2,
             0,
           ],
-          baseColor,
+          surfacePaint(s.kind),
         );
       surface.add(pivot);
       box(
         pivot,
         [controlChord, s.spanM * fraction, 0.005],
         [-controlChord / 2, center, 0],
-        s.kind === "wing" ? baseColor : baseColor,
+        surfacePaint(s.kind),
       );
       box(
         pivot,

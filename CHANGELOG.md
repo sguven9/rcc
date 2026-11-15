@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Add six catalog aircraft generated from published specifications: FT Simple Cub, FT Explorer, FT Spitfire, FT Mighty Mini Arrow, E-flite Night Radian 2.0 m and Apprentice STS 1.5 m. Thrust/current tables come from a DC motor model calibrated against published bench points; down-thrust is solved with the builder's power test. Add an optional aircraft `livery` for the generic renderer.
+
 - Replace the propeller-slipstream estimate with an actuator-disk model (correct span coverage, slipstream development and contraction, no tuned decay). Add optional motor `downThrustDeg` and `rightThrustDeg`. Simulation compatibility advances to 0.9.1 and rejects 0.9.0 replays; aircraft files remain compatible.
 
 - Fixed-wing launch trim now solves airspeed in the mean wind. Crosswind starts drift with the air instead of beginning in a sideslip, and placed launches turn only the air-relative velocity.
