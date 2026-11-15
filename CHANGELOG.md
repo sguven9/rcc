@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Add near-ground physics: McCormick wing ground effect, Cheeseman–Bennett multirotor ground effect, an optional logarithmic wind gradient and optional seeded MIL-F-8785C Dryden turbulence. Simulation compatibility advances to 0.9.0 and rejects 0.8.1 replays; aircraft files remain compatible.
+
 - Add bounded crash breakup using the aircraft's own geometry, with reset restoring the intact model.
 - Add recorded scenery collisions for trees, buildings, rocks, tables, cones and fences; simulation compatibility advances to 0.8.1 and rejects older replays. Aircraft files remain compatible.
 - Restore a compact photographic sky across all three maps, improve canopy cutouts/shadows and reduce oversized ground colour patches.

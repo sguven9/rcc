@@ -103,6 +103,12 @@ export const pages = [
     file: "docs/physics-validation.md",
   },
   {
+    slug: "atmosphere-and-ground-effect",
+    title: "Turbulence and ground effect",
+    group: "Understand the simulation",
+    file: "docs/atmosphere-and-ground-effect.md",
+  },
+  {
     slug: "physics-reference",
     title: "Compare with JSBSim",
     group: "Understand the simulation",

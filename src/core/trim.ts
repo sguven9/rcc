@@ -26,6 +26,9 @@ export function findTrim(
   flightPathDeg = 0,
   vtolMode: "hover" | "cruise" = "hover",
 ) {
+  // Trim the mean flow: a random turbulence sample is not an operating point.
+  if (environment.turbulence)
+    environment = { ...environment, turbulence: undefined };
   if (a.vtol && vtolMode === "hover") return findVtolHoverTrim(a, environment);
   const sim = new Simulation(a, environment);
   const prepareCruise = (s: ReturnType<typeof initialState>) => {
