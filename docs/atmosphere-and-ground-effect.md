@@ -20,6 +20,8 @@ needs a little less throttle in the last few centimetres of a landing.
 
 ## Wind gradient
 
+![Wind fraction against height for smooth paving, open grass and ploughed fields; all curves meet at 10 m](images/chart-wind-gradient.svg)
+
 The neutral-stability logarithmic profile scales only the horizontal mean wind:
 
 ```text
@@ -33,6 +35,8 @@ The browser uses `h_ref = 10 m` and roughness length `z0 = 0.03 m`, the WMO
 below it). Height is the CG height above the flat collision plane.
 
 ## Dryden turbulence (MIL-F-8785C, low altitude)
+
+![Twenty seconds of seeded longitudinal and vertical Dryden gusts at 30 m in a 6 m/s wind, with dashed plus and minus one sigma bands](images/chart-dryden.svg)
 
 Below 1000 ft the specification ties intensity and scale length to height `h`
 in feet and the mean wind `W20` at 20 ft (6.1 m):
@@ -61,6 +65,8 @@ The existing **Variable gusts** option is still a deterministic sinusoid. It can
 be combined with turbulence.
 
 ## Wing in ground effect
+
+![Wing induced-drag factor and lift-slope ratio against height over span, and multirotor thrust ratio against rotor height over radius](images/chart-ground-effect.svg)
 
 For each roughly horizontal surface (vertical tails and panels rolled more than
 45° are excluded), with span `b` and quarter-chord height `h`:

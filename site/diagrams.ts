@@ -1,4 +1,5 @@
 import { lightDiagram } from "./diagram-theme";
+import { physicsCharts } from "./physics-charts";
 import { trainerNanoDiagram } from "./trainer-visual";
 import { staticBalanceDiagram } from "./balance-visual";
 import { hardwareIllustration as hardware } from "./hardware-illustrations";
@@ -574,6 +575,7 @@ export function documentationDiagrams() {
       "diagram-workflow.svg": workflow(),
       "diagram-mass-cg.svg": balance(),
       "diagram-vtol-layout.svg": vtolLayout(),
+      ...physicsCharts(),
     }),
   );
   for (const [name, svg] of [...diagrams])

@@ -9,7 +9,9 @@ import {
   type Controls,
   GRAVITY,
 } from "./simulation";
+import { meanWindAt } from "./atmosphere";
 import {
+  add,
   rotate,
   invert,
   matVec,
@@ -18,6 +20,8 @@ import {
   type Vec3,
   type Mat3,
 } from "./math";
+/** Fixed-wing trim states are built at this height above the field. */
+export const TRIM_HEIGHT_M = 18;
 /** Solve longitudinal steady flight only; not an autopilot or a fidelity guarantee. */
 export function findTrim(
   a: Aircraft,
@@ -70,13 +74,15 @@ export function findTrim(
     };
   }
   const flightPath = radians(flightPathDeg);
-  const velocity: Vec3 = [
-    speed * Math.cos(flightPath),
-    0,
-    -speed * Math.sin(flightPath),
-  ];
+  // Steady flight moves with the air mass: the requested speed is airspeed
+  // along local +X, and the ground velocity adds the mean wind at trim height.
+  // A crosswind therefore produces drift, never a trimmed sideslip.
+  const velocity: Vec3 = add(
+    [speed * Math.cos(flightPath), 0, -speed * Math.sin(flightPath)],
+    meanWindAt(environment.windMps, TRIM_HEIGHT_M, environment.windProfile),
+  );
   const residual = (x: Vec3): Vec3 => {
-    const s = initialState(a, speed, 18, x[0]);
+    const s = initialState(a, speed, TRIM_HEIGHT_M, x[0]);
     s.velocity = [...velocity];
     s.motors.fill(x[2]);
     prepareCruise(s);
@@ -111,7 +117,7 @@ export function findTrim(
     }
   }
   const controls: Controls = { roll: 0, pitch: x[1], yaw: 0, throttle: x[2] };
-  const state = initialState(a, speed, 18, x[0]);
+  const state = initialState(a, speed, TRIM_HEIGHT_M, x[0]);
   state.velocity = [...velocity];
   state.motors.fill(x[2]);
   prepareCruise(state);

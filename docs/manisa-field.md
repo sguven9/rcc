@@ -49,6 +49,13 @@ positions with this transform. Their footprints are approximate to a few metres.
   distant hills are illustrative. The south compound and its boundary fence are
   simplified.
 
+## Visual details
+
+Window rows, the dashed main-road centre line and the furrow pattern on the
+ploughed land are generic illustrations. They are not traced from the
+screenshots. The furrows run parallel to the runway, as they appear in the
+aerial view, and the crop colours beyond the main road are approximate.
+
 ## Collision and physics
 
 Buildings collide through 4 m axis-aligned cells that cover each rotated

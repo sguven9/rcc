@@ -1,8 +1,25 @@
 import type { Aircraft } from "./schema";
 import { massProperties } from "./aircraft";
-import { calmEnvironment, initialState, type State } from "./simulation";
-import { findTrim } from "./trim";
-import { axisQ, rotate, sub } from "./math";
+import {
+  calmEnvironment,
+  initialState,
+  type Environment,
+  type State,
+} from "./simulation";
+import { findTrim, TRIM_HEIGHT_M } from "./trim";
+import { meanWindAt } from "./atmosphere";
+import { add, axisQ, rotate, sub, type Vec3 } from "./math";
+/** Mean (non-turbulent) wind at a height; launch states carry it in their ground velocity. */
+export const launchWind = (environment: Environment, heightM: number): Vec3 =>
+  meanWindAt(environment.windMps, heightM, environment.windProfile);
+/** Move a trimmed state to a new height, keeping its airspeed in a sheared wind. */
+function rehome(s: State, position: Vec3, environment: Environment) {
+  s.velocity = add(
+    sub(s.velocity, launchWind(environment, -s.position[2])),
+    launchWind(environment, -position[2]),
+  );
+  s.position = position;
+}
 export type LaunchMode = "ground" | "hand" | "airborne";
 export function launchAirspeed(a: Aircraft, mode: LaunchMode) {
   return mode === "hand" ? 8.5 : (a.reference.trimSpeedMps ?? 12);
@@ -74,12 +91,13 @@ export function launchState(
   }
   if (mode === "airborne") {
     const s = trim.state;
-    s.position = [18, 0, -22];
+    rehome(s, [18, 0, -22], environment);
     return s;
   }
   if (mode === "hand") {
+    // The throw gives flying speed through the air at release.
     const s = trim.state;
-    s.position = [-5, -10, -1.7];
+    rehome(s, [-5, -10, -1.7], environment);
     return s;
   }
   if (!a.contactPoints.some((p) => p.kind === "wheel"))

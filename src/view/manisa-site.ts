@@ -69,6 +69,66 @@ function overlay(
   return mesh;
 }
 
+const glass = new T.MeshStandardMaterial({
+  color: "#27323b",
+  roughness: 0.18,
+  metalness: 0.5,
+});
+
+/** Tileable furrow stripes (1.6 m pitch) for ploughed ground, as an alpha overlay.
+ * Smooth sinusoidal rows and low contrast avoid moiré where mipmaps blend them. */
+function furrowMaterial() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y++) {
+    const wave = Math.sin((2 * Math.PI * y) / 16);
+    ctx.fillStyle =
+      wave > 0
+        ? `rgba(52,38,26,${(0.16 * wave).toFixed(3)})`
+        : `rgba(236,216,190,${(-0.07 * wave).toFixed(3)})`;
+    ctx.fillRect(0, y, 256, 1);
+  }
+  const map = new T.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = T.RepeatWrapping;
+  map.colorSpace = T.SRGBColorSpace;
+  map.anisotropy = 8;
+  return new T.MeshStandardMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    roughness: 1,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+}
+
+/** Dashed white centre line (3 m dash, 6 m gap) for a two-lane road. */
+function centreLineMaterial(length: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 4;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, 64, 4);
+  ctx.fillStyle = "#e9e7df";
+  ctx.fillRect(0, 0, 21, 4);
+  const map = new T.CanvasTexture(canvas);
+  map.wrapS = T.RepeatWrapping;
+  map.repeat.set(length / 9, 1);
+  map.colorSpace = T.SRGBColorSpace;
+  return new T.MeshStandardMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.7,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
+  });
+}
+
 function flatMaterial(color: string, roughness = 0.95) {
   return new T.MeshStandardMaterial({
     color,
@@ -101,6 +161,8 @@ function building(
     /** Ridge along the footprint width (default) or depth. */
     ridgeAlongDepth?: boolean;
     door?: { width: number; height: number; material: T.Material };
+    /** Evenly spaced windows on both long (±Z) faces, skipping the door. */
+    windows?: { count: number; width: number; height: number; sill: number };
     name: string;
   },
 ) {
@@ -163,6 +225,29 @@ function building(
     );
     door.position.set(0, options.door.height / 2, f.depth / 2 + 0.03);
     group.add(door);
+  }
+  if (options.windows) {
+    const w = options.windows,
+      spots: [number, number][] = [];
+    for (const side of [-1, 1])
+      for (let i = 0; i < w.count; i++) {
+        const x = -f.width / 2 + ((i + 0.5) * f.width) / w.count;
+        const doorHalf = options.door ? options.door.width / 2 + 0.4 : -1;
+        if (side > 0 && Math.abs(x) < doorHalf + w.width / 2) continue;
+        spots.push([x, side * (f.depth / 2 + 0.03)]);
+      }
+    const panes = new T.InstancedMesh(
+      new T.BoxGeometry(w.width, w.height, 0.06),
+      glass,
+      spots.length,
+    );
+    const dummy = new T.Object3D();
+    spots.forEach(([x, z], i) => {
+      dummy.position.set(x, w.sill + w.height / 2, z);
+      dummy.updateMatrix();
+      panes.setMatrixAt(i, dummy.matrix);
+    });
+    group.add(panes);
   }
   addColliders(field, f, options.wallHeight + options.roofRise, options.name);
 }
@@ -268,6 +353,28 @@ export function addManisaSite(field: T.Group) {
     asphalt,
     0.04,
   );
+  overlay(
+    field,
+    {
+      x: MAIN_ROAD.x,
+      z: MAIN_ROAD.z,
+      width: 3000,
+      depth: 0.15,
+      yaw: MAIN_ROAD.yaw,
+    },
+    centreLineMaterial(3000),
+    0.045,
+  );
+  // Furrows on the ploughed land either side of the runway strip, laid
+  // parallel to the runway as in the aerial view. Roads and pads sit above.
+  for (const [z, depth] of [
+    [-166, 300],
+    [166, 300],
+  ] as const) {
+    const furrows = furrowMaterial();
+    furrows.map!.repeat.set(900 / 25.6, depth / 25.6);
+    overlay(field, { x: 0, z, width: 900, depth, yaw: 0 }, furrows, 0.012);
+  }
   // Access road from the taxiway to the main road (measured ≈ 6–8 m wide).
   overlay(
     field,
@@ -336,6 +443,7 @@ export function addManisaSite(field: T.Group) {
       roofKind: "barrel",
       ridgeAlongDepth: true,
       door: { width: 20, height: 5.2, material: darkDoor },
+      windows: { count: 10, width: 1.6, height: 0.7, sill: 4.6 },
       name: "manisa-hangar",
     },
   );
@@ -349,6 +457,7 @@ export function addManisaSite(field: T.Group) {
       roof: paleRoof,
       roofKind: "hip",
       door: { width: 1.8, height: 2.3, material: darkDoor },
+      windows: { count: 6, width: 1.3, height: 1.2, sill: 1 },
       name: "manisa-clubhouse",
     },
   );
@@ -362,6 +471,7 @@ export function addManisaSite(field: T.Group) {
       roof: redRoof,
       roofKind: "gable",
       door: { width: 2, height: 2.4, material: darkDoor },
+      windows: { count: 7, width: 1.3, height: 1.2, sill: 1 },
       name: "manisa-red-building",
     },
   );
@@ -376,6 +486,7 @@ export function addManisaSite(field: T.Group) {
       roofKind: "gable",
       ridgeAlongDepth: true,
       door: { width: 2, height: 2.4, material: darkDoor },
+      windows: { count: 7, width: 1.3, height: 1.2, sill: 1 },
       name: "manisa-red-building",
     },
   );
@@ -388,6 +499,7 @@ export function addManisaSite(field: T.Group) {
       wall: white,
       roof: paleRoof,
       roofKind: "gable",
+      windows: { count: 1, width: 0.9, height: 0.8, sill: 1.2 },
       name: "manisa-shed",
     },
   );
@@ -401,6 +513,7 @@ export function addManisaSite(field: T.Group) {
       wall: white,
       roof: paleRoof,
       roofKind: "gable",
+      windows: { count: 4, width: 1.2, height: 1.1, sill: 1 },
       name: "manisa-south-building",
     },
   );

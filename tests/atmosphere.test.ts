@@ -27,6 +27,7 @@ import {
   replayRecording,
 } from "../src/core/experiment";
 import { findTrim } from "../src/core/trim";
+import { placedLaunch } from "../src/core/placement";
 
 describe("logarithmic wind gradient", () => {
   const profile = defaultWindProfile();
@@ -239,5 +240,60 @@ describe("replay with near-ground atmosphere", () => {
       }),
     );
     expect(() => parseRecording(JSON.parse(JSON.stringify(r)))).toThrow();
+  });
+});
+
+describe("launch trim in wind", () => {
+  const a = parseAircraft(trainer);
+  const sideslip = (s: ReturnType<typeof initialState>, env: Environment) => {
+    const sim = new Simulation(a, env, s);
+    const air = sim.airVelocity(s);
+    const flow = [0, 1, 2].map((i) => s.velocity[i] - air[i]);
+    // Rotate to body axes via the yaw of a level, wings-level trim state.
+    const q = s.orientation,
+      yaw = Math.atan2(
+        2 * (q[3] * q[2] + q[0] * q[1]),
+        1 - 2 * (q[1] * q[1] + q[2] * q[2]),
+      );
+    return -flow[0] * Math.sin(yaw) + flow[1] * Math.cos(yaw);
+  };
+  it("trims airspeed, not groundspeed, so a crosswind gives drift without sideslip", () => {
+    const calm = findTrim(a, 12, calmEnvironment());
+    for (const windMps of [
+      [0, 6, 0],
+      [-6, 0, 0],
+      [4, -5, 0],
+    ] as [number, number, number][]) {
+      const env: Environment = { ...calmEnvironment(), windMps };
+      const t = findTrim(a, 12, env);
+      expect(t.converged).toBe(true);
+      expect(t.controls.throttle).toBeCloseTo(calm.controls.throttle, 6);
+      expect(t.controls.pitch).toBeCloseTo(calm.controls.pitch, 6);
+      expect(Math.abs(sideslip(t.state, env))).toBeLessThan(1e-9);
+      const sim = new Simulation(a, env, t.state);
+      for (let i = 0; i < 120; i++) sim.step(t.controls);
+      // One second later the aircraft is still near its trimmed attitude.
+      expect(Math.abs(sim.state.omega[1])).toBeLessThan(0.05);
+      expect(sim.state.position[1]).toBeCloseTo(windMps[1], 0);
+    }
+  });
+  it("keeps the wind fixed when a placed launch is turned or moved in a gradient", () => {
+    const env: Environment = {
+      ...calmEnvironment(),
+      windMps: [0, 5, 0],
+      windProfile: defaultWindProfile(),
+    };
+    const s = placedLaunch(
+      a,
+      "airborne",
+      { northM: 10, eastM: 0, altitudeM: 40, headingDeg: 90 },
+      env,
+    );
+    const air = new Simulation(a, env, s).airVelocity(s);
+    const flow = [0, 1, 2].map((i) => s.velocity[i] - air[i]);
+    // Heading 90°: air-relative velocity points east, the wind is unchanged.
+    expect(flow[0]).toBeCloseTo(0, 6);
+    expect(flow[1]).toBeGreaterThan(8);
+    expect(Math.abs(sideslip(s, env))).toBeLessThan(1e-9);
   });
 });

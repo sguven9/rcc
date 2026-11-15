@@ -4,6 +4,10 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Fixed-wing launch trim now solves airspeed in the mean wind. Crosswind starts drift with the air instead of beginning in a sideslip, and placed launches turn only the air-relative velocity.
+- Add documentation charts for ground effect, the wind gradient and Dryden turbulence. They are computed from the simulator's own functions and checked by `docs:check`.
+- Manisa: windows, furrowed ploughed land and a dashed main-road centre line.
+
 - Add the **Manisa** flying site: a procedural model of the 10/28 concrete runway, hangar, clubhouse and red-roofed buildings of Manisa Havacılık Sporları Tesisi, laid out from measured aerial screenshots. Runway layout, heading reference and site details are now per-site; the existing three fields are unchanged.
 
 - Add near-ground physics: McCormick wing ground effect, Cheeseman–Bennett multirotor ground effect, an optional logarithmic wind gradient and optional seeded MIL-F-8785C Dryden turbulence. Simulation compatibility advances to 0.9.0 and rejects 0.8.1 replays; aircraft files remain compatible.

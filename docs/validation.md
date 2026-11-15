@@ -37,7 +37,10 @@ bench or flight measurements were supplied for these checks.
 - Level-flight trim for two materially different airframes.
 - High-angle finite forces, quaternion normalization and ground contact.
 - Timestep convergence during a pitch maneuver.
-- Air-relative velocity in wind.
+- Air-relative velocity in wind, and launch trim in wind: fixed-wing trim
+  solves airspeed, so a crosswind start drifts with the air instead of
+  beginning in a sideslip. Before this change a 6 m/s crosswind start pitched
+  about 33° in the first second, and a 6.6 m/s crosswind could not be trimmed.
 - Seeded repeatability and exact replay within the same environment.
 - Recording versions, malformed frames and motor count mismatches.
 - Custom controller axis order, asymmetric calibration, throttle, deadzone, expo and profile persistence.
