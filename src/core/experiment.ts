@@ -222,6 +222,18 @@ export function parseRecording(raw: unknown): Recording {
           sceneryId: z.string().optional(),
           obstacles: ObstaclesSchema.optional(),
           surface: z.enum(["asphalt", "grass", "dirt"]).optional(),
+          windProfile: z
+            .object({
+              referenceHeightM: finite.min(1).max(100),
+              roughnessLengthM: finite.min(1e-5).max(2),
+            })
+            .strict()
+            .refine(
+              (p) => p.roughnessLengthM < p.referenceHeightM,
+              "Roughness length must be below the reference height",
+            )
+            .optional(),
+          turbulence: z.literal("dryden").optional(),
         })
         .strict(),
       initialState: z

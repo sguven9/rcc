@@ -72,8 +72,11 @@ not collidable objects. There is no additional shadow-map pass or postprocessing
 | 6        | Shared terrain/contact model.                                                                                                                      | One height/normal/material query for wheels, placement, observer height, AGL, minimap and shadows. Validate slopes, touchdown and runway-to-grass friction transitions together. Do not add visual bumps that wheels pass through. |
 | 7        | Independent comparison and held-out flight data.                                                                                                   | Run the same physical inputs in a second implementation; then compare flights excluded from parameter fitting. Record bias, RMSE, maximum error, uncertainty and repeatability per maneuver.                                       |
 
-The current sinusoidal gusts are deterministic disturbances, not a validated
-turbulence spectrum. Thermals, terrain wind, dynamic stall, spins, rotor vortex
+Simulation 0.9.0 adds bounded wing/rotor ground effect, a logarithmic wind
+gradient and optional MIL-F-8785C Dryden turbulence; see
+[turbulence and ground effect](atmosphere-and-ground-effect.md). The legacy
+sinusoidal gusts remain deterministic disturbances. Dryden follows a published
+spectrum, but it is not a measured site turbulence record. Thermals, terrain wind, dynamic stall, spins, rotor vortex
 ring state, flexible structures and damage need separate models. Adding a name
 or a coefficient without test evidence would not establish those effects.
 

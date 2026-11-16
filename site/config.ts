@@ -103,6 +103,18 @@ export const pages = [
     file: "docs/physics-validation.md",
   },
   {
+    slug: "manisa-field",
+    title: "Manisa flying site",
+    group: "Understand the simulation",
+    file: "docs/manisa-field.md",
+  },
+  {
+    slug: "atmosphere-and-ground-effect",
+    title: "Turbulence and ground effect",
+    group: "Understand the simulation",
+    file: "docs/atmosphere-and-ground-effect.md",
+  },
+  {
     slug: "physics-reference",
     title: "Compare with JSBSim",
     group: "Understand the simulation",
@@ -131,6 +143,12 @@ export const pages = [
     title: "Flite Test model references",
     group: "Understand the simulation",
     file: "docs/flite-test-reconstruction.md",
+  },
+  {
+    slug: "catalog-aircraft",
+    title: "Generated catalog aircraft",
+    group: "Understand the simulation",
+    file: "docs/catalog-aircraft.md",
   },
   {
     slug: "vortex-simple-trainer",

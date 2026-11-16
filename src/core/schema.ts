@@ -74,6 +74,16 @@ export const AircraftSchema = z
       .strict()
       .optional(),
     pilotResponse: PilotResponseSchema.optional(),
+    /** Optional paint scheme for the generic renderer; plan models keep their own. */
+    livery: z
+      .object({
+        body: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        wing: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        tail: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      })
+      .strict()
+      .optional(),
     fpv: z
       .object({
         partId: z.string().min(1),
@@ -322,6 +332,9 @@ export const AircraftSchema = z
           spin: z.enum(["cw", "ccw"]).optional(),
           torquePerThrustM: finite.min(0).max(1).default(0.015),
           propDiameterM: positive.max(2).default(0.2032),
+          /** Fixed-wing installation angles: thrust tilted down and to the right (deg). */
+          downThrustDeg: finite.min(-10).max(10).optional(),
+          rightThrustDeg: finite.min(-10).max(10).optional(),
         })
         .strict(),
     ),

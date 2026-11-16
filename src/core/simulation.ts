@@ -2,6 +2,15 @@ import { ObstacleCollisions, type Obstacle } from "./obstacles";
 import { initialVtolState, vtolCommands, vtolRotorLoads } from "./vtol";
 import type { VtolCommand, VtolState } from "./vtol-config";
 import { surfacePolar, STANDARD_AIR_VISCOSITY } from "./aerodynamics";
+import { diskInducedVelocity, slipstreamAt, spanCoverage } from "./propwash";
+import {
+  DrydenTurbulence,
+  groundEffectLiftRatio,
+  meanWindAt,
+  rotorGroundEffect,
+  wingGroundEffect,
+  type WindProfile,
+} from "./atmosphere";
 import { powertrain } from "./powertrain";
 import { rotorCommands } from "./multirotor";
 import { surfaceCommand } from "./surface-control";
@@ -52,6 +61,10 @@ export interface Environment {
   sceneryId?: string;
   obstacles?: Obstacle[];
   surface?: "asphalt" | "grass" | "dirt";
+  /** Logarithmic wind gradient; `windMps` is then the wind at the reference height. */
+  windProfile?: WindProfile;
+  /** Seeded MIL-F-8785C low-altitude Dryden turbulence scaled by the mean wind. */
+  turbulence?: "dryden";
 }
 export const calmEnvironment = (): Environment => ({
   windMps: [0, 0, 0],
@@ -81,6 +94,8 @@ export interface SurfaceForce {
   coefficientSource: "analytical" | "polar-table" | "reynolds-table";
   outsidePolarEnvelope: boolean;
   stalled: boolean;
+  /** McCormick induced-drag factor; 1 outside ground effect. */
+  groundEffect: number;
 }
 export interface Forces {
   force: Vec3;
@@ -104,10 +119,13 @@ export const initialState = (
   ...(a.vtol ? { vtol: initialVtolState([0, 0, -altitude]) } : {}),
   status: "flying",
 });
-export function windAt(t: number, e: Environment): Vec3 {
+/** Mean wind (sheared when `heightM` and a profile are given) plus legacy sinusoidal gusts. */
+export function windAt(t: number, e: Environment, heightM?: number): Vec3 {
   const p = e.seed * 0.371;
   return add(
-    e.windMps,
+    heightM === undefined
+      ? e.windMps
+      : meanWindAt(e.windMps, heightM, e.windProfile),
     scale(
       [
         Math.sin(t * 0.73 + p),
@@ -143,6 +161,7 @@ export function cleanControls(c: Controls): Controls {
 export class Simulation {
   readonly properties: ReturnType<typeof massProperties>;
   private collisions: ObstacleCollisions;
+  private turbulence?: DrydenTurbulence;
   readonly actuations: ReturnType<typeof surfaceActuation>[];
   state: State;
   lastForces: Forces = {
@@ -166,11 +185,24 @@ export class Simulation {
       this.state.vtol = initialVtolState(this.state.position);
     if (aircraft.battery && this.state.batterySoc === undefined)
       this.state.batterySoc = aircraft.battery.initialSoc;
+    if (environment.turbulence === "dryden") {
+      this.turbulence = new DrydenTurbulence(environment.seed);
+      this.turbulence.initialize(
+        -this.state.position[2],
+        environment.windMps,
+        environment.windProfile,
+      );
+    }
+  }
+  /** World air velocity at the CG: sheared mean wind, gusts and turbulence. */
+  airVelocity(s: State): Vec3 {
+    const wind = windAt(s.time, this.environment, -s.position[2]);
+    return this.turbulence ? add(wind, this.turbulence.gust) : wind;
   }
   forces(s: State, c: Controls): Forces {
     const flow = rotate(
       inverseQ(s.orientation),
-      sub(s.velocity, windAt(s.time, this.environment)),
+      sub(s.velocity, this.airVelocity(s)),
     );
     const power = powertrain(
       this.aircraft,
@@ -188,38 +220,41 @@ export class Simulation {
     for (const [surfaceIndex, wing] of this.aircraft.surfaces.entries()) {
       const r = sub(wing.positionM, this.properties.cg),
         v = add(flow, cross(s.omega, r));
-      for (let i = 0; i < this.aircraft.motors.length; i++) {
-        const motor = this.aircraft.motors[i],
-          dx = motor.positionM[0] - wing.positionM[0];
-        const radius = motor.propDiameterM / 2;
-        if (!this.aircraft.vtol && dx > 0 && dx < 1.5) {
-          const radial = Math.hypot(
-            wing.positionM[1] - motor.positionM[1],
-            wing.positionM[2] - motor.positionM[2],
-          );
-          const overlap = clamp(
-            (radius + wing.spanM / 2 - radial) / Math.max(wing.spanM, 0.01),
-            0,
-            1,
-          );
-          const thrust =
-            power.thrust[i] *
-            clamp(1 - Math.max(0, flow[0]) / motor.zeroThrustSpeedMps, 0, 1);
-          const induced =
-            Math.sqrt(
-              Math.max(
-                0,
-                flow[0] * flow[0] +
-                  (2 * thrust) /
-                    (this.environment.densityKgM3 * Math.PI * radius * radius),
-              ),
-            ) - Math.max(0, flow[0]);
-          v[0] += induced * overlap * Math.exp(-dx * 0.7);
-        }
-      }
       const orient = axisQ([1, 0, 0], radians(wing.rollDeg));
       const normal = rotate(orient, [0, 0, -1]),
         span = rotate(orient, [0, 1, 0]);
+      // Tractor slipstream: raise the surface's mean axial dynamic pressure by
+      // the span fraction inside each contracted actuator-disk slipstream.
+      if (!this.aircraft.vtol && this.aircraft.vehicleType !== "multirotor") {
+        const axial = Math.max(0, v[0]);
+        let extra = 0;
+        for (let i = 0; i < this.aircraft.motors.length; i++) {
+          const motor = this.aircraft.motors[i],
+            dx = motor.positionM[0] - wing.positionM[0];
+          if (!(dx > 0 && dx < 1.5)) continue;
+          const radius = motor.propDiameterM / 2,
+            thrust =
+              power.thrust[i] *
+              clamp(1 - Math.max(0, flow[0]) / motor.zeroThrustSpeedMps, 0, 1);
+          const induced = diskInducedVelocity(
+            thrust,
+            axial,
+            this.environment.densityKgM3,
+            radius,
+          );
+          if (!(induced > 0)) continue;
+          const slip = slipstreamAt(dx, induced, axial, radius);
+          const offset = sub(motor.positionM, wing.positionM);
+          const fraction = spanCoverage(
+            dot(offset, span),
+            dot(offset, normal),
+            slip.radius,
+            wing.spanM,
+          );
+          extra += fraction * ((axial + slip.increment) ** 2 - axial * axial);
+        }
+        if (extra > 0) v[0] = Math.sqrt(axial * axial + extra);
+      }
       const planar = sub(v, scale(span, dot(v, span))),
         speed = length(planar),
         direction = unit(planar);
@@ -252,6 +287,35 @@ export class Simulation {
         { cl, cd, cm },
       );
       ({ cl, cd, cm } = coefficients);
+      // Wing-in-ground effect for roughly horizontal surfaces (image-vortex theory).
+      let groundEffect = 1;
+      if (wing.kind !== "vertical-tail" && Math.abs(wing.rollDeg) <= 45) {
+        groundEffect = wingGroundEffect(
+          -(s.position[2] + rotate(s.orientation, r)[2]),
+          wing.spanM,
+        );
+        if (groundEffect < 1) {
+          const attached = 1 - blend,
+            k = Math.PI * wing.aspectRatio * wing.efficiency;
+          const ratio =
+            1 +
+            (groundEffectLiftRatio(
+              wing.liftSlope,
+              wing.aspectRatio,
+              wing.efficiency,
+              groundEffect,
+            ) -
+              1) *
+              attached;
+          const clGround = cl * ratio;
+          cd = Math.max(
+            0,
+            cd +
+              (attached * (groundEffect * clGround * clGround - cl * cl)) / k,
+          );
+          cl = clGround;
+        }
+      }
       const pressure =
         0.5 *
         this.environment.densityKgM3 *
@@ -276,6 +340,7 @@ export class Simulation {
         coefficientSource: coefficients.source,
         outsidePolarEnvelope: coefficients.outsideEnvelope,
         stalled: Math.abs(alpha) > stall,
+        groundEffect,
       });
     }
     if (this.aircraft.vtol) {
@@ -301,12 +366,33 @@ export class Simulation {
           1,
         );
       if (this.aircraft.vehicleType === "multirotor") {
-        const thrust = power.thrust[i];
+        const axis = rotate(s.orientation, [0, 0, 1]),
+          rotorHeight = -(
+            s.position[2] +
+            rotate(s.orientation, sub(m.positionM, this.properties.cg))[2]
+          );
+        const thrust =
+          power.thrust[i] *
+          (axis[2] > 0.1
+            ? rotorGroundEffect(rotorHeight / axis[2], m.propDiameterM / 2)
+            : 1);
         apply([0, 0, -thrust], m.positionM);
-        torque[2] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
+        // Ground effect adds thrust at equal shaft power, so reaction torque is unchanged.
+        torque[2] +=
+          power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
       } else {
         const thrust = power.thrust[i] * speedFactor;
-        apply([thrust, 0, 0], m.positionM);
+        // Down- and right-thrust tilt the thrust line, as on real airframes.
+        const down = radians(m.downThrustDeg ?? 0),
+          right = radians(m.rightThrustDeg ?? 0);
+        apply(
+          [
+            thrust * Math.cos(down) * Math.cos(right),
+            thrust * Math.cos(down) * Math.sin(right),
+            thrust * Math.sin(down),
+          ],
+          m.positionM,
+        );
         if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
       }
@@ -374,6 +460,16 @@ export class Simulation {
       return this.state;
     const c = cleanControls(raw),
       s = this.state;
+    if (this.turbulence) {
+      const height = -s.position[2];
+      this.turbulence.advance(
+        dt,
+        length(sub(s.velocity, windAt(s.time, this.environment, height))),
+        height,
+        this.environment.windMps,
+        this.environment.windProfile,
+      );
+    }
     const hybrid = this.aircraft.vtol
       ? vtolCommands(
           this.aircraft,
@@ -381,10 +477,7 @@ export class Simulation {
           c,
           this.properties,
           this.environment,
-          rotate(
-            inverseQ(s.orientation),
-            sub(s.velocity, windAt(s.time, this.environment)),
-          ),
+          rotate(inverseQ(s.orientation), sub(s.velocity, this.airVelocity(s))),
           this.forces(s, c),
           dt,
         )

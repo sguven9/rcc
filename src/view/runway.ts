@@ -1,5 +1,5 @@
 import * as T from "three";
-import type { Scenery } from "../core/scenery";
+import { runwayOf, type RunwayLayout, type Scenery } from "../core/scenery";
 import {
   noiseGLSL,
   seededRandom,
@@ -8,8 +8,66 @@ import {
 } from "./terrain-material";
 import { surfaceDetailGLSL } from "./surface-detail";
 
-// View dimensions in metres. +X is north; 36 and 18 face opposing approaches.
+// View dimensions in metres. +X is local north; on the club strip 36 and 18
+// face opposing approaches. Other sites supply their own layout.
 export const runwayLayout = { x: 48, length: 170, width: 7 };
+
+/** Jointed concrete slabs (≈5 × 4 m) with per-slab tone, stains and tyre marks. */
+function concreteMaterial(layout: RunwayLayout) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
+  const rand = seededRandom(733);
+  // Canvas spans 40 m along × 16 m across: 8 × 4 slabs.
+  const sx = canvas.width / 40,
+    sz = canvas.height / 16;
+  for (let i = 0; i < 8; i++)
+    for (let j = 0; j < 4; j++) {
+      const tone = 176 + Math.round((rand() - 0.5) * 22);
+      ctx.fillStyle = `rgb(${tone + 4},${tone + 1},${tone - 6})`;
+      ctx.fillRect(i * 5 * sx, j * 4 * sz, 5 * sx, 4 * sz);
+    }
+  // Small weathering marks (≤ 0.25 m); larger blotches read as moiré at range.
+  for (let n = 0; n < 700; n++) {
+    ctx.fillStyle = `rgba(${rand() < 0.5 ? "70,66,58" : "220,216,206"},${0.02 + rand() * 0.04})`;
+    const r = 1.5 + rand() * 5;
+    ctx.beginPath();
+    ctx.ellipse(
+      rand() * canvas.width,
+      rand() * canvas.height,
+      r,
+      r * (0.4 + rand() * 0.6),
+      rand() * Math.PI,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(60,58,54,0.55)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * 5 * sx, 0);
+    ctx.lineTo(i * 5 * sx, canvas.height);
+    ctx.stroke();
+  }
+  for (let j = 0; j <= 4; j++) {
+    ctx.beginPath();
+    ctx.moveTo(0, j * 4 * sz);
+    ctx.lineTo(canvas.width, j * 4 * sz);
+    ctx.stroke();
+  }
+  // Faint tyre marks near the centre line.
+  ctx.fillStyle = "rgba(40,38,36,0.08)";
+  for (const z of [6.6, 9.4]) ctx.fillRect(0, z * sz, canvas.width, 0.5 * sz);
+  const map = new T.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = T.RepeatWrapping;
+  map.repeat.set(layout.length / 40, layout.width / 16);
+  map.colorSpace = T.SRGBColorSpace;
+  map.anisotropy = 8;
+  return new T.MeshStandardMaterial({ map, roughness: 0.93 });
+}
 
 /** Paint mask stays on the runway material, avoiding coplanar decal flicker. */
 function paintMask() {
@@ -122,18 +180,23 @@ function asphaltMaterial() {
 }
 
 export function addRunway(field: T.Group, profile: Scenery) {
-  const paved = profile.surface === "asphalt";
-  const material = paved
-    ? asphaltMaterial()
-    : terrainMaterial(profile.surface === "dirt", true);
+  const layout = runwayOf(profile);
+  const material =
+    layout.material === "concrete"
+      ? concreteMaterial(layout)
+      : layout.material === "asphalt"
+        ? asphaltMaterial()
+        : terrainMaterial(profile.surface === "dirt", true);
   const runway = new T.Mesh(
-    new T.PlaneGeometry(runwayLayout.length, runwayLayout.width),
+    new T.PlaneGeometry(layout.length, layout.width),
     material,
   );
   runway.rotation.x = -Math.PI / 2;
-  runway.position.x = runwayLayout.x;
+  runway.position.x = layout.x;
   runway.receiveShadow = true;
   field.add(runway);
+  // Unmarked concrete sites have no club edge boards.
+  if (layout.material === "concrete") return;
 
   // Low, white edge boards give unpaved strips a readable boundary from approach.
   // These are outside the flying surface; cones remain on the pilot safety line.

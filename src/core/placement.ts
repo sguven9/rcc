@@ -1,7 +1,7 @@
 import { calmEnvironment } from "./simulation";
 import type { Aircraft } from "./schema";
-import { launchState, type LaunchMode } from "./launch";
-import { axisQ, mulQ, radians, rotate } from "./math";
+import { launchState, launchWind, type LaunchMode } from "./launch";
+import { add, axisQ, mulQ, radians, rotate, sub } from "./math";
 export interface Placement {
   northM: number;
   eastM: number;
@@ -34,11 +34,16 @@ export function placedLaunch(
   if (!p) return s;
   validatePlacement(p);
   const yaw = axisQ([0, 0, 1], radians(p.headingDeg));
+  // Turn only the air-relative velocity; the wind keeps its direction.
+  const air = sub(s.velocity, launchWind(environment, -s.position[2]));
   s.position[0] = p.northM;
   s.position[1] = p.eastM;
   if (mode !== "ground") s.position[2] = -p.altitudeM;
   s.orientation = mulQ(yaw, s.orientation);
-  s.velocity = rotate(yaw, s.velocity);
+  s.velocity =
+    s.status === "grounded" || a.vehicleType === "multirotor" || a.vtol
+      ? rotate(yaw, s.velocity)
+      : add(rotate(yaw, air), launchWind(environment, -s.position[2]));
   if (s.vtol) {
     s.vtol.positionTarget = [...s.position];
     s.vtol.altitudeTargetM = -s.position[2];

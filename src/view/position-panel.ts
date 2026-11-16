@@ -1,3 +1,4 @@
+import { runwayOf, type Scenery } from "../core/scenery";
 const aircraftIcon =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 14 10 21 15V17L14 15 13 20 16 22H8L11 20 10 15 3 17V15L10 10Z" fill="currentColor"/></svg>';
 const personIcon =
@@ -16,16 +17,16 @@ export function positionPanelMarkup() {
           <defs><pattern id="position-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#63776a" stroke-width=".3" opacity=".24"/></pattern></defs>
           <rect x="-7000" y="-7000" width="14000" height="14000" fill="#283a33"/>
           <rect x="-7000" y="-7000" width="14000" height="14000" fill="url(#position-grid)"/>
-          <rect x="-11" y="-168" width="22" height="220" fill="#485844" opacity=".6"/>
+          <rect id="position-map-strip" x="-11" y="-168" width="22" height="220" fill="#485844" opacity=".6"/>
           <rect id="position-map-runway" x="-3.5" y="-133" width="7" height="170" rx=".4" fill="#778187"/>
-          <path d="M0-129V33" fill="none" stroke="#e0e2d8" stroke-width=".4" stroke-dasharray="4 6"/>
+          <path id="position-map-centerline" d="M0-129V33" fill="none" stroke="#e0e2d8" stroke-width=".4" stroke-dasharray="4 6"/>
           <path d="M-7.5 22V-25" stroke="#d7a264" stroke-width=".6" stroke-dasharray="2 3"/>
           <path id="position-sightline" fill="none" stroke="#81b6d8" opacity=".5"/>
           <g id="position-aircraft-actual" aria-hidden="true" opacity=".35"><path d="M0-12 2-3 11 3V5L2 3 1 9 4 11H-4L-1 9-2 3-11 5V3L-2-3Z" fill="#d8e4ec"/></g>
           <g id="position-aircraft" role="button" tabindex="0" aria-label="Aircraft position" data-position-pin="aircraft"><circle r="19" fill="transparent"/><circle class="pin-halo" r="17" fill="#e9b567" fill-opacity=".12"/><path d="M0-12 2-3 11 3V5L2 3 1 9 4 11H-4L-1 9-2 3-11 5V3L-2-3Z" fill="#e9b567" stroke="#182129" stroke-width="1"/></g>
           <g id="position-pilot" role="button" tabindex="0" aria-label="Pilot position" data-position-pin="pilot"><circle r="19" fill="transparent"/><circle class="pin-halo" r="16" fill="#85c6f2" fill-opacity=".14"/><circle r="6" fill="#85c6f2" stroke="#142431" stroke-width="2"/><path d="M-5-10 0-16 5-10" fill="none" stroke="#85c6f2" stroke-width="2"/></g>
         </svg>
-        <span class="position-north" aria-hidden="true">↑ N</span>
+        <span id="position-north" class="position-north" aria-hidden="true">↑ N</span>
         <div class="position-map-actions"><button id="position-zoom-in" aria-label="Zoom map in">+</button><button id="position-zoom-out" aria-label="Zoom map out">−</button><button id="position-fit" aria-label="Fit aircraft and pilot on map">Fit</button></div>
         <span id="position-map-scale" class="position-map-scale">100 m</span>
       </div>
@@ -47,4 +48,34 @@ export function positionPanelMarkup() {
     </div>
     <footer class="position-footer"><span id="position-feedback" role="status">Choose a spot on the map</span><button id="apply-placement" class="primary">Place aircraft</button><button id="position-done" hidden>Done</button></footer>
   </aside>`;
+}
+
+/** Draw the selected site's runway and map-up bearing on the positioning map. */
+export function setPositionField(profile: Scenery) {
+  const r = runwayOf(profile),
+    start = r.x - r.length / 2,
+    end = r.x + r.length / 2;
+  const set = (id: string, attributes: Record<string, number | string>) => {
+    const el = document.getElementById(id);
+    for (const [k, v] of Object.entries(attributes))
+      el?.setAttribute(k, String(v));
+  };
+  set("position-map-runway", {
+    x: -r.width / 2,
+    y: -end,
+    width: r.width,
+    height: r.length,
+  });
+  set("position-map-strip", {
+    x: -(r.width + 15) / 2,
+    y: -(end + 35),
+    width: r.width + 15,
+    height: r.length + 50,
+  });
+  set("position-map-centerline", { d: `M0${-(end - 4)}V${-(start + 4)}` });
+  const north = document.getElementById("position-north");
+  if (north)
+    north.textContent = profile.headingOffsetDeg
+      ? `↑ ${Math.round(profile.headingOffsetDeg)}°`
+      : "↑ N";
 }

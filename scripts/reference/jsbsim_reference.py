@@ -474,7 +474,16 @@ def model_xml(aircraft, density, mode="airframe"):
                 axis, axial = [value(0), value(0), value(-1)], value(0)
                 reaction_sign = 1 if m["spin"] == "cw" else -1
             else:
-                axis, axial = [value(1), value(0), value(0)], uvw[0]
+                # Installed down/right thrust tilts the thrust line; the
+                # speed falloff still uses body-axis airspeed, as in RCForge.
+                down = math.radians(m.get("downThrustDeg", 0))
+                right = math.radians(m.get("rightThrustDeg", 0))
+                axis = [
+                    value(math.cos(down) * math.cos(right)),
+                    value(math.cos(down) * math.sin(right)),
+                    value(math.sin(down)),
+                ]
+                axial = uvw[0]
                 reaction_sign = -1 if m.get("spin") == "cw" else 1
             factor = op(
                 "max",
@@ -485,14 +494,21 @@ def model_xml(aircraft, density, mode="airframe"):
                     op("quotient", op("max", 0, axial), m["zeroThrustSpeedMps"]),
                 ),
             )
+            tilted = not vtol and aircraft["vehicleType"] != "multirotor"
             for j, direction in enumerate(axis):
                 f = op("product", t, factor, direction)
                 unit = [int(j == k) for k in range(3)]
                 load(f"motor-{i}-{j}", f, unit, m["positionM"])
-                if m.get("spin"):
+                # Fixed-wing reaction torque acts about body X from the thrust
+                # magnitude, independent of a small installation tilt.
+                if m.get("spin") and (not tilted or j == 0):
                     load(
                         f"reaction-{i}-{j}",
-                        op("product", f, m["torquePerThrustM"] * reaction_sign),
+                        op(
+                            "product",
+                            op("product", t, factor) if tilted else f,
+                            m["torquePerThrustM"] * reaction_sign,
+                        ),
                         unit,
                     )
 

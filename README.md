@@ -65,7 +65,7 @@ The [Bronco tricopter VTOL](docs/bronco-vtol.md) adds front conversion rotors an
 | Controllers | Keyboard, gamepad, flight stick, RC USB adapter and optional Uno/Nano serial bridge; mapping and calibration |
 | Experiments | Repeatable scenarios, CSV telemetry, recordings, replay and numerical verification                           |
 
-The catalog includes both FT Bronco tail configurations, FT Tiny Trainer Sport, FT-22 Raptor, **Simple Trainer by Vortex RC**, and three Quad X assemblies. See [plans and design credits](docs/plans.md) for their references and assumptions.
+The catalog includes both FT Bronco tail configurations, FT Tiny Trainer Sport, FT-22 Raptor, **Simple Trainer by Vortex RC**, six [generated catalog aircraft](docs/catalog-aircraft.md) (FT Simple Cub, FT Explorer, FT Spitfire, FT Mighty Mini Arrow, E-flite Night Radian 2.0 m and Apprentice STS 1.5 m), and three Quad X assemblies. See [plans and design credits](docs/plans.md) for their references and assumptions.
 
 Browser edits stay local until exported. **Aircraft → History** saves and compares checkpoints; **Export history** creates a portable backup. [Edit an aircraft](docs/aircraft-editor.md) · [Connect a radio visually](docs/radio-setup.md) · [Versioning](docs/versioning.md).
 

@@ -26,7 +26,10 @@ import { renderControlTest, updateControlTest } from "./app/control-test";
 import { PilotResponseFilter, withPitchTrim } from "./core/pilot-response";
 import { ResponsePanel } from "./app/pilot-response";
 import "./view/flight-navigation.css";
-import { createFlightNavigation } from "./view/flight-navigation";
+import {
+  createFlightNavigation,
+  setNavigationField,
+} from "./view/flight-navigation";
 import { setupArduino } from "./app/arduino";
 import { renderBudget } from "./view/render-budget";
 import {
@@ -47,6 +50,7 @@ import {
 } from "./app/aircraft-storage";
 import { ControllerActions, navigateSetting } from "./app/controller-actions";
 import { rotate } from "./core/math";
+import { defaultWindProfile } from "./core/atmosphere";
 import { placedLaunch, type Placement } from "./core/placement";
 import { placementUI } from "./app/placement";
 import "./style.css";
@@ -55,6 +59,7 @@ import "./view/editor-workspace.css";
 import "./view/light-theme.css";
 import { setupEditorWorkspace } from "./app/editor-workspace";
 import "./view/position-panel.css";
+import { setPositionField } from "./view/position-panel";
 import "./view/flight-feedback.css";
 import { ZodError } from "zod";
 import { aircraftCredit } from "./app/aircraft-credit";
@@ -290,6 +295,8 @@ function showScenery(env: typeof environment) {
   $("scenery-label").textContent = site.name.toUpperCase();
   $("scenery-conditions").textContent =
     `${site.temperatureC} °C · ${site.elevationM} m elevation · ${env.densityKgM3.toFixed(3)} kg/m³`;
+  setNavigationField(site);
+  setPositionField(site);
 }
 function reset() {
   const cameraMode = flightCamera;
@@ -835,7 +842,13 @@ $<HTMLInputElement>("import-aircraft").onchange = async (e) => {
   }
   (e.target as HTMLInputElement).value = "";
 };
-for (const id of ["wind-speed", "wind-direction", "gusts"])
+for (const id of [
+  "wind-speed",
+  "wind-direction",
+  "gusts",
+  "turbulence",
+  "wind-gradient",
+])
   $(id).onchange = () => {
     const speed = Number($<HTMLInputElement>("wind-speed").value),
       angle =
@@ -848,6 +861,12 @@ for (const id of ["wind-speed", "wind-direction", "gusts"])
       ...environment,
       windMps: [-speed * Math.cos(angle), speed * Math.sin(angle), 0],
       gustMps: $<HTMLInputElement>("gusts").checked ? 1 : 0,
+      turbulence: $<HTMLInputElement>("turbulence").checked
+        ? "dryden"
+        : undefined,
+      windProfile: $<HTMLInputElement>("wind-gradient").checked
+        ? defaultWindProfile()
+        : undefined,
     };
     reset();
     invalidate();

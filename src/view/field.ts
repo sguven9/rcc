@@ -1,5 +1,11 @@
 import { collectFieldObstacles } from "./field-collisions";
-import { sceneries, type Scenery } from "../core/scenery";
+import {
+  isDryGround,
+  runwayOf,
+  sceneries,
+  type Scenery,
+} from "../core/scenery";
+import { addManisaSite, manisaWindsock } from "./manisa-site";
 import { addFieldDetails } from "./field-details";
 import * as T from "three";
 import { terrainMaterial } from "./terrain-material";
@@ -44,39 +50,58 @@ function patch(
 export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
   const field = new T.Group();
   scene.add(field);
-  addFieldDetails(field);
+  const manisa = profile.site === "manisa";
+  if (manisa) addManisaSite(field);
+  else addFieldDetails(field);
   addVegetation(field, profile);
-  const groundMaterial = terrainMaterial(profile.surface === "dirt");
+  const groundMaterial = terrainMaterial(isDryGround(profile));
   addLandscape(field, profile, groundMaterial.map!);
+  // Mown strip 15 m before and 35 m beyond the runway; for the club layout this
+  // reproduces the original 220 × 22 m strip at x = 58.
+  const runway = runwayOf(profile),
+    stripStart = runway.x - runway.length / 2 - 15,
+    stripLength = runway.length + 50,
+    stripWidth = runway.width + 15,
+    stripX = stripStart + stripLength / 2;
   const ground = new T.Mesh(
-    patch(6000, 6000, { x: 58, width: 220, height: 22 }),
+    patch(6000, 6000, { x: stripX, width: stripLength, height: stripWidth }),
     groundMaterial,
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   field.add(ground);
   const strip = new T.Mesh(
-    patch(220, 22, { x: -10, width: 172, height: 8.4 }),
+    patch(stripLength, stripWidth, {
+      x: runway.x - stripX,
+      width: runway.length + 2,
+      height: runway.width + 1.4,
+    }),
     groundMaterial,
   );
   strip.rotation.x = -Math.PI / 2;
-  strip.position.set(58, 0, 0);
+  strip.position.set(stripX, 0, 0);
   strip.receiveShadow = true;
   field.add(strip);
   const shoulderMaterial = terrainMaterial(profile.surface !== "grass");
   shoulderMaterial.color.set(
-    profile.surface === "asphalt"
-      ? "#b3b5ab"
-      : profile.surface === "grass"
-        ? "#d1d8b5"
-        : "#fff3dd",
+    runway.material === "concrete"
+      ? "#d6cbb8"
+      : profile.surface === "asphalt"
+        ? "#b3b5ab"
+        : profile.surface === "grass"
+          ? "#d1d8b5"
+          : "#fff3dd",
   );
   const shoulder = new T.Mesh(
-    patch(172, 8.4, { x: 0, width: 170, height: 7 }),
+    patch(runway.length + 2, runway.width + 1.4, {
+      x: 0,
+      width: runway.length,
+      height: runway.width,
+    }),
     shoulderMaterial,
   );
   shoulder.rotation.x = -Math.PI / 2;
-  shoulder.position.x = 48;
+  shoulder.position.x = runway.x;
   shoulder.receiveShadow = true;
   field.add(shoulder);
   addRunway(field, profile);
@@ -86,13 +111,14 @@ export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
     metalness: 0.45,
     roughness: 0.55,
   });
-  for (let x = -16; x <= 12; x += 4) {
+  // Club spectator line; Manisa has its own buildings and fences instead.
+  for (let x = -16; x <= 12 && !manisa; x += 4) {
     const p = new T.Mesh(new T.CylinderGeometry(0.025, 0.025, 0.8, 8), metal);
     p.position.set(x, 0.4, 11);
     p.userData.collision = "solid";
     field.add(p);
   }
-  for (const y of [0.3, 0.7]) {
+  for (const y of manisa ? [] : [0.3, 0.7]) {
     const rail = new T.Mesh(new T.CylinderGeometry(0.012, 0.012, 28, 8), metal);
     rail.rotation.z = Math.PI / 2;
     rail.position.set(-2, y, 11);
@@ -106,20 +132,21 @@ export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
   table.position.set(-12, 0.82, 16);
   table.castShadow = true;
   table.userData.collision = "solid";
-  field.add(table);
-  for (const dx of [-0.65, 0.65])
+  if (!manisa) field.add(table);
+  for (const dx of manisa ? [] : [-0.65, 0.65])
     for (const dz of [-0.2, 0.2]) {
       const leg = new T.Mesh(new T.BoxGeometry(0.04, 0.8, 0.04), metal);
       leg.position.set(-12 + dx, 0.4, 16 + dz);
       leg.userData.collision = "solid";
       field.add(leg);
     }
+  const sockAt = manisa ? manisaWindsock : { x: 12, z: 15 };
   const pole = new T.Mesh(new T.CylinderGeometry(0.025, 0.035, 4, 12), metal);
-  pole.position.set(12, 2, 15);
+  pole.position.set(sockAt.x, 2, sockAt.z);
   pole.userData.collision = "solid";
   field.add(pole);
   const sock = new T.Group();
-  sock.position.set(12, 4, 15);
+  sock.position.set(sockAt.x, 4, sockAt.z);
   field.add(sock);
   for (let i = 0; i < 5; i++) {
     const cone = new T.Mesh(

@@ -1,3 +1,4 @@
+import { sceneries } from "../src/core/scenery";
 import { expect, it } from "vitest";
 import trainer from "./fixtures/generic-trainer.json";
 import { parseAircraft } from "../src/core/schema";
@@ -159,7 +160,8 @@ it("reports failed trim and source coverage instead of treating finite output as
   });
   delete a.battery; // This deliberately underpowered fixture has no electrical model.
   const survey = surveyEnvelope(a);
-  expect(survey.points).toHaveLength(45);
+  // Five speeds × three mass cases at every selectable flying site.
+  expect(survey.points).toHaveLength(Object.keys(sceneries).length * 15);
   expect(survey.points.some((p) => !p.trimmed)).toBe(true);
   expect(survey.points.some((p) => p.surfaces.some((s) => s.outsideData))).toBe(
     true,
