@@ -1,0 +1,153 @@
+/* On-screen display: goggle-style white monospace with a thin dark outline. */
+.osd {
+  position: absolute;
+  inset: 172px 20px 200px 20px;
+  pointer-events: none;
+  color: #fff;
+  font:
+    600 15px/1.25 "DejaVu Sans Mono",
+    ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0.22em;
+  text-shadow:
+    -1px -1px 0 #000a,
+    1px -1px 0 #000a,
+    -1px 1px 0 #000a,
+    1px 1px 0 #000a;
+  z-index: 4;
+}
+.osd b {
+  font-weight: 600;
+}
+.osd-pos {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+}
+.osd-tl {
+  left: 0;
+  top: 0;
+  font-size: 13px;
+}
+.osd-tc {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  flex-direction: row;
+  align-items: center;
+}
+.osd-tr {
+  right: 0;
+  top: 0;
+}
+.osd-batt {
+  left: 4%;
+  top: 26%;
+}
+.osd-speed {
+  left: 24%;
+  top: 36%;
+}
+.osd-wind {
+  left: 22%;
+  top: 60%;
+  flex-direction: row;
+  align-items: center;
+}
+.osd-alt {
+  right: 22%;
+  top: 36%;
+  text-align: right;
+  align-items: flex-end;
+}
+.osd-pwr {
+  right: 4%;
+  top: 26%;
+  text-align: right;
+  align-items: flex-end;
+}
+.osd-hdg {
+  left: 50%;
+  top: 28%;
+  transform: translateX(-50%);
+}
+.osd-mode {
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  letter-spacing: 0.4em;
+}
+.osd-odo {
+  left: 34%;
+  bottom: 0;
+  font-size: 13px;
+}
+.osd-arrow {
+  display: inline-block;
+  letter-spacing: 0;
+  transition: transform 80ms linear;
+}
+.osd-cross {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+.osd-horizon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  height: 0;
+  border-top: 2px dashed #fff;
+  filter: drop-shadow(0 0 1px #000);
+  transform-origin: 50% 0;
+}
+.osd-compass {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 420px;
+  height: 34px;
+  transform: translateX(-50%);
+}
+@media (max-width: 760px) {
+  .osd {
+    inset: 56px 8px 230px 8px;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+  .osd-tl,
+  .osd-odo {
+    display: none;
+  }
+  .osd-compass {
+    width: 280px;
+  }
+}
+/* Cockpit instrument panel over the cockpit camera. */
+/* Cockpit view: as in the reference footage, the goggle OSD's bottom rows
+   (mode, compass strip) overlay the scale cockpit panel near the bottom. */
+.osd.with-cockpit .osd-compass,
+.osd.with-cockpit .osd-odo {
+  bottom: -104px;
+}
+.osd.with-cockpit .osd-mode {
+  bottom: -64px;
+}
+.cockpit-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 82px;
+  width: 100%;
+  height: 36%;
+  pointer-events: none;
+  z-index: 3;
+}

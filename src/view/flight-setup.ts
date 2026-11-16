@@ -28,6 +28,8 @@ export function flightSetupMarkup() {
       <div class="two-col"><div><label for="gust-rate">Discrete gusts · <output id="gust-rate-value">off</output></label><input id="gust-rate" type="range" min="0" max="6" step="0.5" value="0" aria-label="Average discrete gusts per minute"/></div><div><label for="gust-strength">Gust peak · <output id="gust-strength-value">3.0 m/s</output></label><input id="gust-strength" type="range" min="0.5" max="8" step="0.5" value="3" aria-label="Discrete gust peak speed, metres per second"/></div></div>
       <button id="trigger-gust" type="button" class="wide">Trigger a gust now <kbd>U</kbd></button>
       <label class="check-label"><input type="checkbox" id="wind-gradient"/> Wind gradient near ground (wind set at 10 m)</label>
+      <label class="check-label"><input type="checkbox" id="osd-toggle"/> On-screen display (OSD) <kbd>O</kbd></label>
+      <div class="two-col"><div><label for="osd-speed-unit">OSD speed</label><select id="osd-speed-unit"><option value="kmh">km/h</option><option value="mps">m/s</option><option value="kt">knots</option></select></div><div><label for="osd-alt-unit">OSD altitude</label><select id="osd-alt-unit"><option value="m">m</option><option value="ft">ft</option></select></div></div>
       <label class="check-label"><input type="checkbox" id="physics-debug"/> Physics debug: force arrows and energy graph <kbd>G</kbd></label>
       <p class="setup-change-note">Changing the aircraft, launch mode or field resets this flight.</p>
     </section>

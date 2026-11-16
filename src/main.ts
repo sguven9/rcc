@@ -38,6 +38,7 @@ import {
   airDensity,
   airKinematicViscosity,
   type SceneryId,
+  type Scenery,
 } from "./core/scenery";
 import { powertrain } from "./core/powertrain";
 import { batteryUsage } from "./core/components";
@@ -66,6 +67,18 @@ import {
   PHYSICS_DEBUG_LEGEND,
   rotorDebugLines,
 } from "./view/physics-debug";
+import "./view/osd.css";
+import { Osd } from "./view/osd";
+import { CockpitPanel } from "./view/cockpit-panel";
+import {
+  ALTITUDE_UNITS,
+  GaugeSmoother,
+  SPEED_UNITS,
+  formatOsd,
+  readInstruments,
+  type AltitudeUnit,
+  type SpeedUnit,
+} from "./core/instruments";
 import { PHYSICS } from "./core/physics-config";
 import { setPositionField } from "./view/position-panel";
 import "./view/flight-feedback.css";
@@ -164,7 +177,10 @@ let sim = new Simulation(
   recording = createRecording(sim),
   editorSim = sim;
 let scene: FlightScene | undefined;
-let flightCamera: "ground" | "chase" | "fpv" = "ground";
+type FlightCamera = "ground" | "chase" | "fpv" | "cockpit";
+let flightCamera: FlightCamera = "ground";
+/** Camera to return to when the cockpit view is toggled off (Y). */
+let outsideCamera: FlightCamera = "ground";
 let locatorUntil = 0;
 const audio = new FlightAudio();
 let pauseReason = "";
@@ -316,6 +332,72 @@ function showScenery(env: typeof environment) {
 }
 // Physics debug overlay: force arrows in the scene plus a rolling energy graph.
 const energyGraph = new EnergyGraph($<HTMLCanvasElement>("energy-graph"));
+// On-screen display and cockpit panel, both fed by readInstruments().
+const osd = new Osd();
+const cockpitPanel = new CockpitPanel($<HTMLCanvasElement>("cockpit-panel"));
+const gaugeSmoother = new GaugeSmoother();
+let osdHome: [number, number] = [0, 0];
+const osdUnits = (): { speed: SpeedUnit; altitude: AltitudeUnit } => ({
+  speed: $<HTMLSelectElement>("osd-speed-unit").value as SpeedUnit,
+  altitude: $<HTMLSelectElement>("osd-alt-unit").value as AltitudeUnit,
+});
+function applyOsdSettings() {
+  osd.visible = $<HTMLInputElement>("osd-toggle").checked;
+  try {
+    localStorage.setItem(
+      "rcforge.osd",
+      JSON.stringify({ on: osd.visible, ...osdUnits() }),
+    );
+  } catch {
+    /* Preferences are optional. */
+  }
+}
+try {
+  const saved = JSON.parse(localStorage.getItem("rcforge.osd") ?? "null");
+  if (saved) {
+    $<HTMLInputElement>("osd-toggle").checked = !!saved.on;
+    if (saved.speed in SPEED_UNITS)
+      $<HTMLSelectElement>("osd-speed-unit").value = saved.speed;
+    if (saved.altitude in ALTITUDE_UNITS)
+      $<HTMLSelectElement>("osd-alt-unit").value = saved.altitude;
+  }
+} catch {
+  /* Ignore unreadable preferences. */
+}
+for (const id of ["osd-toggle", "osd-speed-unit", "osd-alt-unit"])
+  $(id).onchange = applyOsdSettings;
+applyOsdSettings();
+function updateOsdAndCockpit(dt: number) {
+  const cockpit = flightCamera === "cockpit";
+  if (!osd.visible && !cockpit) return;
+  const site = sceneries[
+    (environment.sceneryId ?? "club") as SceneryId
+  ] as Scenery;
+  const readings = readInstruments(sim, {
+    headingOffsetDeg: site.headingOffsetDeg ?? 0,
+    home: osdHome,
+    location: site.location,
+  });
+  const units = osdUnits();
+  if (osd.visible) {
+    osd.update(readings, formatOsd(readings, units), {
+      mode: sim.aircraft.vtol
+        ? (sim.state.vtol?.phase ?? "vtol").toUpperCase()
+        : $<HTMLSelectElement>("quick-response").value.toUpperCase(),
+      verticalFovDeg: scene?.camera.fov ?? 50,
+      odometerFactor: 1,
+      odometerLabel: "km",
+      viewRect: $("viewport").getBoundingClientRect(),
+      cockpit: flightCamera === "cockpit",
+    });
+  }
+  if (cockpit)
+    cockpitPanel.draw(
+      gaugeSmoother.step(readings, dt),
+      units,
+      Math.max(20, (sim.aircraft.reference.trimSpeedMps ?? 12) * 2.5),
+    );
+}
 $("physics-debug-legend").innerHTML = PHYSICS_DEBUG_LEGEND.map(
   (v) =>
     `<li><i style="background:#${v.color.toString(16).padStart(6, "0")}"></i>${v.label}</li>`,
@@ -329,6 +411,8 @@ $("physics-debug").onchange = () =>
   setPhysicsDebug($<HTMLInputElement>("physics-debug").checked);
 function reset() {
   energyGraph.reset();
+  osd.reset();
+  gaugeSmoother.reset();
   const cameraMode = flightCamera;
   showScenery(environment);
   environment = { ...environment, obstacles: scene?.fieldObstacles ?? [] };
@@ -364,6 +448,7 @@ function reset() {
   input.throttle = controls.throttle;
   sim.lastForces = sim.forces(sim.state, controls);
   recording = createRecording(sim);
+  osdHome = [sim.state.position[0], sim.state.position[1]];
   scene?.setAircraft(page === "aircraft" ? editor.draft : a);
   if (page === "aircraft") scene?.setCamera("orbit");
   else setFlightCamera(cameraMode);
@@ -961,7 +1046,7 @@ for (const id of [
     reset();
     invalidate();
   };
-function setFlightCamera(camera: "ground" | "chase" | "fpv") {
+function setFlightCamera(camera: FlightCamera) {
   if (camera === "fpv" && !sim.aircraft.fpv) camera = "ground";
   flightCamera = camera;
   if (camera !== "ground") {
@@ -969,7 +1054,10 @@ function setFlightCamera(camera: "ground" | "chase" | "fpv") {
     if (scene) scene.walking = false;
     $<HTMLInputElement>("walk-mode").checked = false;
   }
-  $("locate-aircraft").hidden = camera === "fpv";
+  $("locate-aircraft").hidden = camera === "fpv" || camera === "cockpit";
+  if (camera !== "cockpit") outsideCamera = camera;
+  $("cockpit-panel").hidden = camera !== "cockpit";
+  gaugeSmoother.reset();
   $("aircraft-locator").hidden = true;
   locatorUntil = 0;
   scene?.setCamera(camera);
@@ -981,16 +1069,18 @@ function setFlightCamera(camera: "ground" | "chase" | "fpv") {
       button.setAttribute("aria-pressed", String(selected));
     });
   $("camera-description").textContent =
-    camera === "fpv"
-      ? `Onboard FPV · ${sim.aircraft.fpv?.fovDeg}° vertical view`
-      : camera === "chase"
-        ? "Following aircraft · chase view"
-        : "Pilot view · eye height 1.7 m";
+    camera === "cockpit"
+      ? "Cockpit view · live instrument panel · Y for outside view"
+      : camera === "fpv"
+        ? `Onboard FPV · ${sim.aircraft.fpv?.fovDeg}° vertical view`
+        : camera === "chase"
+          ? "Following aircraft · chase view"
+          : "Pilot view · eye height 1.7 m";
 }
 function cycleFlightCamera() {
-  const views: ("ground" | "chase" | "fpv")[] = sim.aircraft.fpv
-    ? ["ground", "chase", "fpv"]
-    : ["ground", "chase"];
+  const views: FlightCamera[] = sim.aircraft.fpv
+    ? ["ground", "chase", "fpv", "cockpit"]
+    : ["ground", "chase", "cockpit"];
   setFlightCamera(views[(views.indexOf(flightCamera) + 1) % views.length]);
 }
 function openFpvEditor() {
@@ -1002,7 +1092,8 @@ function openFpvEditor() {
 }
 $("setup-fpv-camera").onclick = openFpvEditor;
 function locateAircraft() {
-  if (flightCamera === "fpv") setFlightCamera("ground");
+  if (flightCamera === "fpv" || flightCamera === "cockpit")
+    setFlightCamera("ground");
   if (!scene) return;
   scene.locateAircraft();
   $<HTMLInputElement>("track-plane").checked = true;
@@ -1102,6 +1193,13 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyV" && !e.repeat) cycleFlightCamera();
   if (e.code === "KeyU" && !e.repeat) triggerGust();
+  if (e.code === "KeyY" && !e.repeat)
+    setFlightCamera(flightCamera === "cockpit" ? outsideCamera : "cockpit");
+  if (e.code === "KeyO" && !e.repeat) {
+    const box = $<HTMLInputElement>("osd-toggle");
+    box.checked = !box.checked;
+    applyOsdSettings();
+  }
   if (e.code === "KeyC" && !e.repeat && !replay) responsePanel.cycle();
   if (e.code === "KeyP" && !e.repeat) {
     e.preventDefault();
@@ -1478,6 +1576,7 @@ function frame(now: number) {
       const viewDt = Math.min((now - lastDraw) / 1000, 0.1);
       if (page === "fly") {
         scene?.render(sim, controls, viewDt);
+        updateOsdAndCockpit(viewDt);
         const target =
           now < locatorUntil
             ? scene?.aircraftScreenPoint(sim.state.position)
@@ -1587,6 +1686,18 @@ function frame(now: number) {
 }
 try {
   scene = new FlightScene($("viewport"));
+  // Development-only handle for scripted screenshots and inspection.
+  if (import.meta.env.DEV)
+    Object.assign(window, {
+      __rcforge: {
+        get scene() {
+          return scene;
+        },
+        get sim() {
+          return sim;
+        },
+      },
+    });
   const applyTheme = () =>
     scene?.setTheme(document.documentElement.dataset.theme === "light");
   applyTheme();

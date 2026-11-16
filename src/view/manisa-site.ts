@@ -1,5 +1,7 @@
 import * as T from "three";
-import { terrainMaterial } from "./terrain-material";
+import { surfaceTexture, terrainMaterial } from "./terrain-material";
+import { MANISA_PROPS, manisaAnchors } from "../core/site-props";
+import { addSiteProps } from "./site-props";
 
 /**
  * Manisa Havacılık Sporları Tesisi, Manisa (38.7017° N, 27.4546° E).
@@ -70,9 +72,9 @@ function overlay(
 }
 
 const glass = new T.MeshStandardMaterial({
-  color: "#27323b",
-  roughness: 0.18,
-  metalness: 0.5,
+  color: "#5d707c",
+  roughness: 0.12,
+  metalness: 0.35,
 });
 
 /** Tileable furrow stripes (1.6 m pitch) for ploughed ground, as an alpha overlay.
@@ -395,12 +397,39 @@ export function addManisaSite(field: T.Group) {
     concrete,
     0.035,
   );
+  // Hangar apron with door rail, taxi line and parking boxes (see apronMaterial).
   overlay(
     field,
     { x: -0.9, z: -52.2, width: 27, depth: 14, yaw },
-    concrete,
+    apronMaterial(27, 14, hangarApronMarkings),
     0.036,
   );
+  // Clubhouse forecourt and the concrete path lined with parked models.
+  const club = manisaAnchors.clubhouse;
+  const at = (u: number, v: number) => ({
+    x: club.x + u * Math.cos(yaw) + v * Math.sin(yaw),
+    z: club.z - u * Math.sin(yaw) + v * Math.cos(yaw),
+  });
+  overlay(
+    field,
+    { ...at(0, 11), width: 22, depth: 6, yaw },
+    apronMaterial(22, 6, clubPathMarkings),
+    0.037,
+  );
+  // Gravel parking west of the clubhouse.
+  overlay(
+    field,
+    { ...at(-17.2, 2.2), width: 14, depth: 7, yaw },
+    gravel,
+    0.033,
+  );
+  // Mown grass around the buildings and along the runway (soft-edged).
+  for (const [f, seed] of [
+    [{ x: 8, z: -66, width: 92, depth: 58, yaw }, 3],
+    [{ x: 0, z: -24, width: 420, depth: 30, yaw: 0 }, 7],
+    [{ x: 0, z: 24, width: 420, depth: 30, yaw: 0 }, 11],
+  ] as [Footprint, number][])
+    overlay(field, f, grassPatchMaterial(f.width, f.depth, seed), 0.016);
   const pad: Footprint = { x: 63.1, z: -110.4, width: 63.5, depth: 28.6, yaw };
   overlay(field, pad, concrete, 0.034);
 
@@ -432,35 +461,9 @@ export function addManisaSite(field: T.Group) {
       depthWrite: false,
       side: T.DoubleSide,
     });
-  building(
-    field,
-    { x: -12.8, z: -67.6, width: 28, depth: 24, yaw },
-    {
-      wallHeight: 6,
-      roofRise: 2.4,
-      wall: white,
-      roof: paleRoof,
-      roofKind: "barrel",
-      ridgeAlongDepth: true,
-      door: { width: 20, height: 5.2, material: darkDoor },
-      windows: { count: 10, width: 1.6, height: 0.7, sill: 4.6 },
-      name: "manisa-hangar",
-    },
-  );
-  building(
-    field,
-    { x: 30.8, z: -82.6, width: 17, depth: 16, yaw },
-    {
-      wallHeight: 3.6,
-      roofRise: 2.2,
-      wall: white,
-      roof: paleRoof,
-      roofKind: "hip",
-      door: { width: 1.8, height: 2.3, material: darkDoor },
-      windows: { count: 6, width: 1.3, height: 1.2, sill: 1 },
-      name: "manisa-clubhouse",
-    },
-  );
+  hangar(field, { x: -12.8, z: -67.6, width: 28, depth: 24, yaw });
+  clubhouse(field, { x: 30.8, z: -82.6, width: 17, depth: 16, yaw });
+  addSiteProps(field, MANISA_PROPS);
   building(
     field,
     { x: 52.9, z: -103.9, width: 22, depth: 13, yaw },
@@ -534,3 +537,390 @@ export function addManisaSite(field: T.Group) {
 
 /** Wind-sock mast beside the taxiway, clear of the pilot position. */
 export const manisaWindsock = { x: 14, z: -22 };
+
+// --------------------------------------------------------------------------
+// Details from the 2026-11-16 reference photos (drone and FPV): textured
+// aprons with markings, mown grass, the gable steel hangar and the two-storey
+// teal clubhouse with its open ground floor. Colours are approximate; no
+// signage, logo or text from the photos is reproduced.
+
+/** Light/dark vertical ribs of profiled steel sheet (≈0.25 m pitch). */
+function corrugatedMaterial(color: string, lengthM: number, roughness = 0.6) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 4;
+  const ctx = canvas.getContext("2d")!;
+  for (let x = 0; x < 32; x++) {
+    const shade = 0.86 + 0.14 * Math.cos((2 * Math.PI * x) / 32);
+    const v = Math.round(255 * shade);
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(x, 0, 1, 4);
+  }
+  const map = new T.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = T.RepeatWrapping;
+  map.repeat.set(Math.round(lengthM / 0.25), 1);
+  map.colorSpace = T.SRGBColorSpace;
+  map.anisotropy = 4;
+  return new T.MeshStandardMaterial({ color, map, roughness, metalness: 0.15 });
+}
+
+type Markings = (ctx: CanvasRenderingContext2D, w: number, d: number) => void;
+
+/**
+ * Concrete apron texture in metres: 4 m slabs with sealed joints, per-slab
+ * tone, oil stains, then markings. Canvas x runs along the footprint width
+ * (u), canvas y toward its front (+v, the runway side).
+ */
+function apronMaterial(width: number, depth: number, markings: Markings) {
+  const px = 24,
+    canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * px);
+  canvas.height = Math.round(depth * px);
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(px, px);
+  let seed = Math.round(width * 31 + depth * 7);
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let x = 0; x < width; x += 4)
+    for (let y = 0; y < depth; y += 4) {
+      const t = 196 + Math.round((rand() - 0.5) * 14);
+      ctx.fillStyle = `rgb(${t + 6},${t + 3},${t - 4})`;
+      ctx.fillRect(x, y, 4, 4);
+    }
+  for (let i = 0; i < width * depth * 0.6; i++) {
+    ctx.fillStyle = `rgba(${rand() < 0.6 ? "78,72,64" : "232,228,218"},${0.04 + rand() * 0.06})`;
+    ctx.beginPath();
+    ctx.ellipse(
+      rand() * width,
+      rand() * depth,
+      0.05 + rand() * 0.35,
+      0.04 + rand() * 0.2,
+      rand() * Math.PI,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(70,66,60,0.55)";
+  ctx.lineWidth = 0.05;
+  for (let x = 4; x < width; x += 4) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, depth);
+    ctx.stroke();
+  }
+  for (let y = 4; y < depth; y += 4) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  markings(ctx, width, depth);
+  const map = new T.CanvasTexture(canvas);
+  map.colorSpace = T.SRGBColorSpace;
+  map.anisotropy = 8;
+  return new T.MeshStandardMaterial({
+    map,
+    roughness: 0.9,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+}
+
+/**
+ * Hangar apron (27 × 14 m, its centre 2.9 m right of the door axis): sliding
+ * door rails, a yellow lead-in line from the door and parking boxes under
+ * the parked models (core/site-props.ts).
+ */
+const hangarApronMarkings: Markings = (ctx, w) => {
+  const doorAxis = w / 2 - 2.88; // apron x of hangar u = 0
+  ctx.fillStyle = "#3b3d3e";
+  for (const y of [0.12, 0.42]) ctx.fillRect(doorAxis - 10.2, y, 20.4, 0.08);
+  ctx.fillStyle = "rgba(226,182,44,0.88)";
+  ctx.fillRect(doorAxis - 0.08, 0.8, 0.16, 13.2);
+  ctx.strokeStyle = "rgba(240,240,232,0.8)";
+  ctx.lineWidth = 0.1;
+  for (const u of [-7.5, -4.3, -1.1, 2.1])
+    ctx.strokeRect(doorAxis + u - 1.05, 2.95 - 0.95, 2.1, 1.9);
+};
+const clubPathMarkings: Markings = (ctx, w, d) => {
+  ctx.fillStyle = "rgba(240,240,232,0.55)";
+  ctx.fillRect(0.2, d - 0.35, w - 0.4, 0.1);
+};
+
+/**
+ * Mown grass from the local turf scan with soft, irregular edges blending into
+ * the soil (alpha mask), and broad fresh/dry variation from world-space noise
+ * so the scan's repeat is not visible at range.
+ */
+function grassPatchMaterial(width: number, depth: number, seed: number) {
+  const size = 256,
+    canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const pixels = new Uint8ClampedArray(size * size * 4);
+  const hash = (x: number, y: number) => {
+    const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+    return n - Math.floor(n);
+  };
+  const noise = (x: number, y: number) => {
+    const ix = Math.floor(x),
+      iy = Math.floor(y),
+      fx = x - ix,
+      fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx),
+      sy = fy * fy * (3 - 2 * fy);
+    const a = hash(ix, iy),
+      b = hash(ix + 1, iy),
+      c = hash(ix, iy + 1),
+      d = hash(ix + 1, iy + 1);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  };
+  const feather = Math.min(8, Math.min(width, depth) * 0.3);
+  for (let j = 0; j < size; j++)
+    for (let i = 0; i < size; i++) {
+      const x = ((i + 0.5) / size) * width,
+        y = ((j + 0.5) / size) * depth;
+      const edge = Math.min(x, width - x, y, depth - y);
+      const wobble = (noise(x * 0.15, y * 0.15) - 0.5) * feather * 1.2;
+      const a = Math.max(0, Math.min(1, (edge + wobble) / feather));
+      // Bare patches inside the grass (worn spots, molehills).
+      const bare = noise(x * 0.4 + 9, y * 0.4 + 3) > 0.86 ? 0.7 : 1;
+      const v = Math.round(255 * a * a * (3 - 2 * a) * bare);
+      pixels.set([v, v, v, 255], (j * size + i) * 4);
+    }
+  // Test canvases may not implement image data; the mask is then plain.
+  const image = ctx.createImageData?.(size, size);
+  if (image?.data) {
+    image.data.set(pixels);
+    ctx.putImageData(image, 0, 0);
+  }
+  const alphaMap = new T.CanvasTexture(canvas);
+  const map = surfaceTexture("lite/turf-color.jpg", true);
+  map.repeat.set(width / 2.2, depth / 2.2);
+  const material = new T.MeshStandardMaterial({
+    map,
+    alphaMap,
+    transparent: true,
+    depthWrite: false,
+    roughness: 1,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vGrassWorld;",
+      )
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvGrassWorld = (modelMatrix * vec4(position, 1.0)).xyz;",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vGrassWorld;",
+      )
+      .replace(
+        "#include <map_fragment>",
+        `#include <map_fragment>
+        vec2 gp = vGrassWorld.xz;
+        float gn = sin(gp.x * 0.071 + sin(gp.y * 0.053) * 2.3) * 0.5 + 0.5;
+        float gm = sin(gp.y * 0.19 + sin(gp.x * 0.17) * 1.7) * 0.5 + 0.5;
+        float dry = smoothstep(0.35, 0.85, gn * 0.7 + gm * 0.3);
+        // Olive green (≈#7a8250) to straw (≈#b9a877), as photographed; the
+        // scan only supplies blade-scale brightness detail.
+        float grassLum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)) / 0.134;
+        vec3 palette = mix(vec3(0.17, 0.20, 0.075), vec3(0.40, 0.33, 0.16), dry);
+        diffuseColor.rgb = palette * clamp(grassLum, 0.55, 1.45) * (0.92 + 0.16 * gm);`,
+      );
+  };
+  material.customProgramCacheKey = () => "manisa-grass-v1";
+  return material;
+}
+
+/** Gable steel hangar: profiled walls, twin sliding doors on a rail, high windows. */
+function hangar(field: T.Group, f: Footprint) {
+  const wallHeight = 6,
+    roofRise = 2.6;
+  const group = new T.Group();
+  group.position.set(f.x, 0, f.z);
+  group.rotation.y = f.yaw;
+  field.add(group);
+  const walls = new T.Mesh(
+    new T.BoxGeometry(f.width, wallHeight, f.depth),
+    corrugatedMaterial("#e3e5e2", f.width),
+  );
+  walls.position.y = wallHeight / 2;
+  walls.castShadow = walls.receiveShadow = true;
+  group.add(walls);
+  // Gable roof, ridge toward the doors (door in the gable end, as photographed).
+  const half = f.width / 2 + 0.4;
+  const shape = new T.Shape();
+  shape.moveTo(-half, 0);
+  shape.lineTo(half, 0);
+  shape.lineTo(0, roofRise);
+  shape.closePath();
+  const roofGeometry = new T.ExtrudeGeometry(shape, {
+    depth: f.depth + 0.8,
+    bevelEnabled: false,
+  }).translate(0, 0, -(f.depth + 0.8) / 2);
+  const roof = new T.Mesh(
+    roofGeometry,
+    corrugatedMaterial("#cdd1d0", f.depth, 0.5),
+  );
+  roof.position.y = wallHeight;
+  roof.castShadow = roof.receiveShadow = true;
+  group.add(roof);
+  const doorMaterial = corrugatedMaterial("#b7bcbc", 10, 0.45);
+  for (const [x, offset] of [
+    [-4.95, 0.06],
+    [4.95, 0.16],
+  ] as const) {
+    const door = new T.Mesh(new T.BoxGeometry(9.9, 5.4, 0.08), doorMaterial);
+    door.position.set(x, 2.7, f.depth / 2 + offset);
+    door.castShadow = true;
+    group.add(door);
+  }
+  const rail = new T.Mesh(
+    new T.BoxGeometry(20.6, 0.22, 0.22),
+    new T.MeshStandardMaterial({
+      color: "#5c6062",
+      metalness: 0.5,
+      roughness: 0.5,
+    }),
+  );
+  rail.position.set(0, 5.55, f.depth / 2 + 0.2);
+  group.add(rail);
+  const personnel = new T.Mesh(
+    new T.BoxGeometry(1, 2.1, 0.06),
+    new T.MeshStandardMaterial({ color: "#6f7476", roughness: 0.5 }),
+  );
+  personnel.position.set(12.2, 1.05, f.depth / 2 + 0.04);
+  group.add(personnel);
+  const spots: [number, number, number][] = [];
+  for (const side of [-1, 1])
+    for (let i = 0; i < 6; i++)
+      spots.push([
+        side * (f.width / 2 + 0.03),
+        4.6,
+        -f.depth / 2 + 2.5 + i * 3.8,
+      ]);
+  const panes = new T.InstancedMesh(
+    new T.BoxGeometry(0.06, 0.7, 1.8),
+    glass,
+    spots.length,
+  );
+  const dummy = new T.Object3D();
+  spots.forEach(([x, y, z], i) => {
+    dummy.position.set(x, y, z);
+    dummy.updateMatrix();
+    panes.setMatrixAt(i, dummy.matrix);
+  });
+  group.add(panes);
+  addColliders(field, f, wallHeight + roofRise, "manisa-hangar");
+}
+
+/**
+ * Two-storey teal clubhouse: open ground floor on pillars (seating and
+ * models underneath), enclosed upper floor with a wide window, low hip roof
+ * of grey profiled sheet with a maroon eave trim, and an outside stair.
+ */
+function clubhouse(field: T.Group, f: Footprint) {
+  const group = new T.Group();
+  group.position.set(f.x, 0, f.z);
+  group.rotation.y = f.yaw;
+  field.add(group);
+  const teal = new T.MeshStandardMaterial({
+      color: "#7fcfc2",
+      roughness: 0.92,
+    }),
+    trim = new T.MeshStandardMaterial({ color: "#6d2b25", roughness: 0.7 }),
+    slabMaterial = new T.MeshStandardMaterial({
+      color: "#d9d5cc",
+      roughness: 0.9,
+    });
+  const add = (
+    geometry: T.BufferGeometry,
+    material: T.Material,
+    x: number,
+    y: number,
+    z: number,
+  ) => {
+    const mesh = new T.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+  const halfD = f.depth / 2;
+  // Ground floor: enclosed rear rooms, open front bay on pillars.
+  add(new T.BoxGeometry(f.width, 3, 9), teal, 0, 1.5, -halfD + 4.5);
+  for (const u of [-8.1, -2.7, 2.7, 8.1])
+    add(new T.BoxGeometry(0.45, 3, 0.45), teal, u, 1.5, halfD - 0.4);
+  add(
+    new T.BoxGeometry(f.width + 0.2, 0.35, f.depth + 0.2),
+    slabMaterial,
+    0,
+    3.175,
+    0,
+  );
+  // Upper floor and its windows.
+  add(new T.BoxGeometry(f.width, 3, f.depth), teal, 0, 4.85, 0);
+  add(new T.BoxGeometry(7, 2, 0.06), glass, -2, 4.9, halfD + 0.03);
+  add(new T.BoxGeometry(2.4, 1.4, 0.06), glass, 5.4, 5, halfD + 0.03);
+  for (const z of [-4, 2])
+    for (const side of [-1, 1])
+      add(
+        new T.BoxGeometry(0.06, 1.3, 1.8),
+        glass,
+        side * (f.width / 2 + 0.03),
+        5,
+        z,
+      );
+  add(new T.BoxGeometry(2.6, 2.2, 0.06), glass, -4, 1.3, -halfD + 9.03);
+  // Low hip roof with a maroon eave band.
+  const pyramid = new T.ConeGeometry(Math.SQRT1_2, 1, 4, 1);
+  pyramid.rotateY(Math.PI / 4);
+  const roof = new T.Mesh(
+    pyramid,
+    corrugatedMaterial("#c8cccb", f.width, 0.55),
+  );
+  roof.scale.set(f.width + 1, 1.3, f.depth + 1);
+  roof.position.y = 6.35 + 0.65;
+  roof.castShadow = roof.receiveShadow = true;
+  group.add(roof);
+  add(new T.BoxGeometry(f.width + 1, 0.28, 0.12), trim, 0, 6.3, halfD + 0.5);
+  add(new T.BoxGeometry(f.width + 1, 0.28, 0.12), trim, 0, 6.3, -halfD - 0.5);
+  add(
+    new T.BoxGeometry(0.12, 0.28, f.depth + 1),
+    trim,
+    f.width / 2 + 0.5,
+    6.3,
+    0,
+  );
+  add(
+    new T.BoxGeometry(0.12, 0.28, f.depth + 1),
+    trim,
+    -f.width / 2 - 0.5,
+    6.3,
+    0,
+  );
+  // Outside stair along the east wall.
+  const steps = new T.InstancedMesh(
+    new T.BoxGeometry(1.1, 0.18, 0.3),
+    slabMaterial,
+    16,
+  );
+  const dummy = new T.Object3D();
+  for (let i = 0; i < 16; i++) {
+    dummy.position.set(f.width / 2 + 0.6, 0.09 + i * 0.2, 6 - i * 0.3);
+    dummy.updateMatrix();
+    steps.setMatrixAt(i, dummy.matrix);
+  }
+  steps.castShadow = true;
+  group.add(steps);
+  addColliders(field, f, 7.7, "manisa-clubhouse");
+}

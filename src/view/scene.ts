@@ -30,7 +30,7 @@ const conversion = new T.Quaternion().setFromAxisAngle(
   new T.Vector3(1, 0, 0),
   Math.PI / 2,
 );
-export type CameraMode = "ground" | "chase" | "fpv" | "orbit";
+export type CameraMode = "ground" | "chase" | "fpv" | "cockpit" | "orbit";
 /** Fixed physical pilot position; head tracking uses bounded optical focus at distance. */
 export class FlightScene {
   renderer: T.WebGLRenderer;
@@ -94,6 +94,7 @@ export class FlightScene {
   private impactVelocity = new T.Vector3();
   private focusFov = 55;
   private fpv?: ReturnType<typeof fpvMount>;
+  private cockpitMount?: NonNullable<ReturnType<typeof fpvMount>>;
   private cg: Vec3 = [0, 0, 0];
   private span = 1.086;
   private shadowRadius = 1;
@@ -309,6 +310,15 @@ export class FlightScene {
       Math.max(bounds.min.length(), bounds.max.length()) + 0.25;
     this.cg = massProperties(a).cg;
     this.fpv = fpvMount(a, this.cg);
+    // Cockpit view: the FPV lens when one is mounted, otherwise a pilot's eye
+    // just above the fuselage, ahead of the CG.
+    const top = Math.min(...a.parts.map((p) => p.positionM[2] - p.sizeM[2] / 2));
+    this.cockpitMount = this.fpv ?? {
+      position: new T.Vector3(0.12, 0, Math.min(-0.06, top - this.cg[2] - 0.02)),
+      forward: new T.Vector3(1, 0, 0),
+      up: new T.Vector3(0, 0, -1),
+      fov: 100,
+    };
     this.setComponentInspection(
       a.parts.find((p) => p.id === this.selectedComponent?.id),
       this.inspectComponents,
@@ -436,6 +446,12 @@ export class FlightScene {
       return null;
     return { x: (point.x + 1) * 50, y: (1 - point.y) * 50, distance };
   }
+  /** Development only: render from a fixed scene-space viewpoint. */
+  debugView?: {
+    position: [number, number, number];
+    target: [number, number, number];
+    fov?: number;
+  };
   get fieldObstacles() {
     return this.field.obstacles;
   }
@@ -763,10 +779,24 @@ export class FlightScene {
     }
     if (this.mode === "fpv" && this.fpv && !this.studio) {
       placeFpvCamera(this.camera, this.fpv, pos, this.visual.group.quaternion);
+    } else if (this.mode === "cockpit" && this.cockpitMount && !this.studio) {
+      placeFpvCamera(
+        this.camera,
+        this.cockpitMount,
+        pos,
+        this.visual.group.quaternion,
+      );
     } else {
       this.camera.near = 0.15;
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(target);
+    }
+    // Development screenshot hook: a fixed world-space viewpoint.
+    if (this.debugView) {
+      this.camera.position.set(...this.debugView.position);
+      this.camera.up.set(0, 1, 0);
+      this.camera.fov = this.debugView.fov ?? 50;
+      this.camera.lookAt(new T.Vector3(...this.debugView.target));
     }
     this.camera.updateProjectionMatrix();
     let viewCamera: T.Camera = this.camera;

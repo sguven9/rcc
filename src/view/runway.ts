@@ -69,6 +69,93 @@ function concreteMaterial(layout: RunwayLayout) {
   return new T.MeshStandardMaterial({ map, roughness: 0.93 });
 }
 
+/**
+ * Faded markings on a weathered concrete runway (the reference footage shows
+ * them worn almost away): edge lines, threshold bars, designators for the
+ * runway's true heading, a dashed centre line, rubber in both touchdown zones
+ * and hairline cracks. Transparent overlay; metres map 1:1 to canvas units.
+ */
+function concretePaintMaterial(layout: RunwayLayout) {
+  const L = layout.length,
+    W = layout.width,
+    sx = 4096 / L,
+    sz = 256 / W;
+  const canvas = document.createElement("canvas");
+  canvas.width = 4096;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.setTransform(sx, 0, 0, sz, 0, canvas.height / 2);
+  const rand = seededRandom(919);
+  // Rubber deposits: thin dark streaks around the two touchdown zones.
+  for (const [start, dir] of [
+    [-L / 2 + 25, 1],
+    [L / 2 - 25, -1],
+  ] as const)
+    for (let i = 0; i < 260; i++) {
+      const x = start + dir * rand() * 70,
+        z = (rand() < 0.5 ? -1 : 1) * (0.3 + rand() * 1.6),
+        len = 2 + rand() * 9;
+      ctx.fillStyle = `rgba(28,26,24,${0.05 + rand() * 0.12})`;
+      ctx.fillRect(dir > 0 ? x : x - len, z, len, 0.05 + rand() * 0.12);
+    }
+  // Hairline cracks.
+  ctx.strokeStyle = "rgba(48,45,40,0.35)";
+  ctx.lineWidth = 0.035;
+  for (let i = 0; i < 120; i++) {
+    let x = -L / 2 + rand() * L,
+      z = (rand() - 0.5) * W;
+    ctx.beginPath();
+    ctx.moveTo(x, z);
+    for (let k = 0; k < 5; k++) {
+      x += (rand() - 0.5) * 1.6;
+      z += (rand() - 0.5) * 1.2;
+      ctx.lineTo(x, Math.max(-W / 2, Math.min(W / 2, z)));
+    }
+    ctx.stroke();
+  }
+  // Paint, worn: white at partial opacity with speckled loss below.
+  ctx.fillStyle = "rgba(236,234,226,0.75)";
+  for (const z of [-W / 2 + 0.5, W / 2 - 0.8])
+    ctx.fillRect(-L / 2 + 3, z, L - 6, 0.3);
+  for (const end of [-1, 1]) {
+    const x0 = end < 0 ? -L / 2 + 3 : L / 2 - 9;
+    for (let k = -3; k < 3; k++) ctx.fillRect(x0, k * 1.6 + 0.35, 6, 0.9);
+  }
+  for (let x = -L / 2 + 40; x < L / 2 - 40; x += 10)
+    ctx.fillRect(x, -0.15, 5, 0.3);
+  for (const [x, label, angle] of [
+    [-L / 2 + 16, "10", Math.PI / 2],
+    [L / 2 - 16, "28", -Math.PI / 2],
+  ] as const) {
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.rotate(angle);
+    ctx.font = "bold 7px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 0, 0, 6);
+    ctx.restore();
+  }
+  // Paint loss: erase speckles so the markings read as worn.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  for (let i = 0; i < 6000; i++)
+    ctx.fillRect(rand() * 4096, rand() * 256, 1 + rand() * 3, 1 + rand() * 2);
+  const map = new T.CanvasTexture(canvas);
+  map.colorSpace = T.SRGBColorSpace;
+  map.anisotropy = 8;
+  return new T.MeshStandardMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.85,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
+  });
+}
+
 /** Paint mask stays on the runway material, avoiding coplanar decal flicker. */
 function paintMask() {
   const canvas = document.createElement("canvas");
@@ -195,8 +282,19 @@ export function addRunway(field: T.Group, profile: Scenery) {
   runway.position.x = layout.x;
   runway.receiveShadow = true;
   field.add(runway);
-  // Unmarked concrete sites have no club edge boards.
-  if (layout.material === "concrete") return;
+  // Concrete sites: faded paint, rubber and cracks as one overlay; no boards.
+  if (layout.material === "concrete") {
+    const paint = new T.Mesh(
+      new T.PlaneGeometry(layout.length, layout.width),
+      concretePaintMaterial(layout),
+    );
+    paint.rotation.x = -Math.PI / 2;
+    paint.position.set(layout.x, 0.008, 0);
+    paint.receiveShadow = true;
+    paint.name = "runway-paint";
+    field.add(paint);
+    return;
+  }
 
   // Low, white edge boards give unpaved strips a readable boundary from approach.
   // These are outside the flying surface; cones remain on the pilot safety line.
