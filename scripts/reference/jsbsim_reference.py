@@ -41,6 +41,59 @@ def prop(name):
     return f"<property>{escape(name)}</property>"
 
 
+# PHYSICS.rotor in src/core/physics-config.ts (dynamic shaft speed).
+ROTOR_MIN_SPEED_FRACTION = 0.05
+ROTOR_REDLINE_FACTOR = 1.3
+ROTOR_LIMITER_BAND = 0.03
+ROTOR_TORQUE_ZERO_FACTOR = 1.2
+ROTOR_COULOMB = 0.01
+ROTOR_VISCOUS = 0.02
+ROTOR_SMOOTHING = 0.02
+
+
+def rotor_constants(m, vtol):
+    """Dynamic shaft-speed constants (docs/physics-engine.md), or None."""
+    if not (
+        m.get("motorPowerW")
+        and m.get("propInertiaKgM2")
+        and m.get("maxRpm")
+        and m.get("spin")
+    ) or vtol:
+        return None
+    if m.get("propGovernor"):
+        raise ValueError("Constant-speed governor is not mirrored by the adapter")
+    w_max = m["maxRpm"] * 2 * math.pi / 60
+    power = m["motorPowerW"]
+    rho_ref = m.get("performance", {}).get("referenceDensityKgM3", 1.225)
+    c0, c1 = ROTOR_COULOMB * power / w_max, ROTOR_VISCOUS * power / w_max**2
+    ws = ROTOR_SMOOTHING * w_max
+    aq = (power / w_max - (c0 * w_max / (w_max + ws) + c1 * w_max)) / (
+        rho_ref * w_max**2
+    )
+    red = m.get("redlineRpm", m["maxRpm"] * ROTOR_REDLINE_FACTOR) * 2 * math.pi / 60
+    return {
+        "w_max": w_max,
+        "rho_ref": rho_ref,
+        "c0": c0,
+        "c1": c1,
+        "ws": ws,
+        "aq": aq,
+        "at": m["maxThrustN"] / (rho_ref * w_max**2),
+        "red": red,
+        "inertia": m["propInertiaKgM2"] + m.get("motorInertiaKgM2", 0),
+        "piston": m.get("engine") == "piston",
+    }
+
+
+def friction(c, w):
+    """Q_f = c0*w/(w+ws) + c1*w as a JSBSim expression."""
+    return op(
+        "sum",
+        op("quotient", op("product", c["c0"], w), op("sum", w, c["ws"])),
+        op("product", c["c1"], w),
+    )
+
+
 # PHYSICS.propeller in src/core/physics-config.ts.
 P_FACTOR_FADE_SPEED = 3
 P_FACTOR_TIP_SPEED_FRACTION = 0.1
@@ -132,6 +185,7 @@ def model_xml(aircraft, density, mode="airframe"):
         "tilt-rear",
     ]
     declarations.extend(f"motor-{i}" for i in range(len(aircraft["motors"])))
+    declarations.extend(f"rotor-{i}" for i in range(len(aircraft["motors"])))
 
     def variable(name, expression):
         name = "reference/" + name
@@ -529,16 +583,73 @@ def model_xml(aircraft, density, mode="airframe"):
                 if battery
                 else 1
             )
-            t = variable(
-                f"motor-{i}/thrust",
+            dyn = rotor_constants(m, vtol)
+            omega = prop(f"reference/rotor-{i}")
+            # Quasi-static rpm of the command: sqrt(bench / max) x voltage ratio.
+            command_rpm = variable(
+                f"motor-{i}/command-rpm-ratio",
                 op(
                     "product",
-                    thrust[i],
-                    op("pow", ratio, 2),
-                    density
-                    / m.get("performance", {}).get("referenceDensityKgM3", 1.225),
+                    op("pow", op("quotient", thrust[i], m["maxThrustN"]), 0.5),
+                    ratio,
                 ),
             )
+            if dyn:
+                # Dynamic shaft speed: static thrust T = A_t * rho * Omega^2.
+                t = variable(
+                    f"motor-{i}/thrust",
+                    op("product", dyn["at"] * density, op("pow", omega, 2)),
+                )
+                # Q_motor = P(c) / max(Omega, Omega_min) x redline limiter, with
+                # P(c) = (A_q rho_ref w_c^2 + Q_f(w_c)) w_c, w_c = w_max x rpm(c).
+                w_c = variable(f"motor-{i}/command-omega", op("product", dyn["w_max"], command_rpm))
+                p_avail = op(
+                    "product",
+                    op(
+                        "sum",
+                        op("product", dyn["aq"] * dyn["rho_ref"], op("pow", w_c, 2)),
+                        friction(dyn, w_c),
+                    ),
+                    w_c,
+                    density / dyn["rho_ref"] if dyn["piston"] else 1,
+                )
+                limiter = op(
+                    "min",
+                    1,
+                    op(
+                        "max",
+                        0,
+                        op(
+                            "quotient",
+                            op("difference", dyn["red"], omega),
+                            ROTOR_LIMITER_BAND * dyn["red"],
+                        ),
+                    ),
+                )
+                q_motor = op(
+                    "product",
+                    op(
+                        "quotient",
+                        p_avail,
+                        op("max", omega, ROTOR_MIN_SPEED_FRACTION * dyn["w_max"]),
+                    ),
+                    limiter,
+                )
+                q_shaft = variable(
+                    f"motor-{i}/shaft-torque",
+                    op("difference", q_motor, friction(dyn, omega)),
+                )
+            else:
+                t = variable(
+                    f"motor-{i}/thrust",
+                    op(
+                        "product",
+                        thrust[i],
+                        op("pow", ratio, 2),
+                        density
+                        / m.get("performance", {}).get("referenceDensityKgM3", 1.225),
+                    ),
+                )
             if vtol:
                 if m["id"] == vtol["rearMotorId"]:
                     angle = op("product", prop("reference/tilt-rear"), math.pi / 180)
@@ -583,11 +694,7 @@ def model_xml(aircraft, density, mode="airframe"):
                 # above it the propeller brakes (negative factor).
                 rpm = variable(
                     f"motor-{i}/rpm-ratio",
-                    op(
-                        "product",
-                        op("pow", op("quotient", thrust[i], m["maxThrustN"]), 0.5),
-                        ratio,
-                    ),
+                    op("quotient", omega, dyn["w_max"]) if dyn else command_rpm,
                 )
                 factor = op(
                     "ifthen",
@@ -623,7 +730,7 @@ def model_xml(aircraft, density, mode="airframe"):
                 load(f"motor-{i}-{j}", f, unit, m["positionM"])
                 # Fixed-wing reaction torque acts about body X from the thrust
                 # magnitude, independent of a small installation tilt.
-                if m.get("spin") and (not tilted or j == 0):
+                if m.get("spin") and not dyn and (not tilted or j == 0):
                     load(
                         f"reaction-{i}-{j}",
                         op(
@@ -643,21 +750,29 @@ def model_xml(aircraft, density, mode="airframe"):
                 sign = (1 if m["spin"] == "cw" else -1) * (1 if tilted else -1)
                 spin_axis = [op("product", sign, d) for d in axis]
                 units = [[int(j == k) for k in range(3)] for j in range(3)]
-                rpm_ratio = (
-                    rpm
-                    if tilted
-                    else op(
-                        "product",
-                        op("pow", op("quotient", thrust[i], m["maxThrustN"]), 0.5),
-                        ratio,
-                    )
+                rpm_ratio = rpm if tilted else command_rpm
+                # Shaft speed (rad/s): the state for dynamic rotors, otherwise
+                # the rpm law (zero without maxRpm), as in RCForge.
+                shaft = (
+                    omega
+                    if dyn
+                    else op("product", m.get("maxRpm", 0) * 2 * math.pi / 60, rpm_ratio)
                 )
-                # Shaft speed (rad/s); zero without maxRpm, as in RCForge.
-                shaft = op("product", m.get("maxRpm", 0) * 2 * math.pi / 60, rpm_ratio)
+                if dyn:
+                    # Shaft reaction on the airframe: -(Q_motor - Q_f) s
+                    # (propeller load plus spin-up torque).
+                    for j, d in enumerate(spin_axis):
+                        load(
+                            f"shaft-{i}-{j}",
+                            op("product", -1, q_shaft, d),
+                            units[j],
+                        )
                 if inertia and m.get("maxRpm"):
                     momentum = variable(
                         f"motor-{i}/spin-momentum",
-                        op(
+                        op("product", dyn["inertia"], omega)
+                        if dyn
+                        else op(
                             "product",
                             inertia * m["maxRpm"] * 2 * math.pi / 60,
                             rpm_ratio,
@@ -770,6 +885,8 @@ def initialize(f, condition):
         "tiltDeg", [0, 0]
     )
     f["reference/tilt-rear"] = condition.get("rearTiltDeg", 0)
+    for i, v in enumerate(condition.get("rotorRadS", [])):
+        f[f"reference/rotor-{i}"] = v
     if not f.run_ic():
         raise RuntimeError("JSBSim initialization failed")
     # RunIC restores the IC wind. Apply the physical NED wind after that reset,

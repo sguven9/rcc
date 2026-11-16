@@ -61,7 +61,11 @@ import "./view/light-theme.css";
 import { setupEditorWorkspace } from "./app/editor-workspace";
 import "./view/position-panel.css";
 import "./view/physics-debug.css";
-import { EnergyGraph, PHYSICS_DEBUG_LEGEND } from "./view/physics-debug";
+import {
+  EnergyGraph,
+  PHYSICS_DEBUG_LEGEND,
+  rotorDebugLines,
+} from "./view/physics-debug";
 import { PHYSICS } from "./core/physics-config";
 import { setPositionField } from "./view/position-panel";
 import "./view/flight-feedback.css";
@@ -1518,6 +1522,9 @@ function frame(now: number) {
         if (!$("physics-debug-panel").hidden) {
           energyGraph.push(sim);
           energyGraph.draw();
+          const rotorLines = rotorDebugLines(sim);
+          $("rotor-debug").hidden = !rotorLines.length;
+          $("rotor-debug").textContent = rotorLines.join("\n");
         }
       }
       const hardware = input.source === "controller";

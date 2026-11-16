@@ -94,15 +94,19 @@ export function propellerMoments(
     rpmRatio: number;
     thrustN: number;
     localFlow?: Vec3;
+    /** Dynamic shaft: Ω (rad/s) and I_tot (kg·m²) replace the rpm law and I_p. */
+    spinRadS?: number;
+    inertiaKgM2?: number;
   },
 ) {
   const zero: Vec3 = [0, 0, 0];
   const axis = propellerSpinAxis(options.thrustAxis, motor.spin, options.rotor);
   if (!axis) return { gyro: zero, pFactor: zero };
-  const spin = propellerSpeedRadS(motor, options.rpmRatio);
+  const spin = options.spinRadS ?? propellerSpeedRadS(motor, options.rpmRatio);
+  const inertia = options.inertiaKgM2 ?? motor.propInertiaKgM2;
   const gyro =
-    motor.propInertiaKgM2 && spin > 0
-      ? gyroscopicMoment(options.omegaBody, motor.propInertiaKgM2, spin, axis)
+    inertia && spin > 0
+      ? gyroscopicMoment(options.omegaBody, inertia, spin, axis)
       : zero;
   const pFactor =
     motor.pFactor && options.localFlow && options.thrustN > 0

@@ -188,6 +188,91 @@ CW-propeller model first yaws slightly right while it pitches up (gyroscopic),
 then turns gently left (torque and P-factor). This is the familiar "right
 rudder with power".
 
+## Dynamic shaft speed (0.12.0)
+
+`src/core/rotor-dynamics.ts` makes each propeller's shaft speed Ω (rad/s) a
+state, for motors that declare `motorPowerW` together with `spin`,
+`propInertiaKgM2` and `maxRpm`. Other motors keep the quasi-static rpm law and
+give bit-identical results to 0.11.0.
+
+    I_tot·dΩ/dt = Q_motor(c, Ω) − Q_prop(Ω, V, ρ) − Q_friction(Ω)
+
+| Term       | Model                                                                                                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I_tot      | `propInertiaKgM2` + `motorInertiaKgM2` (kg·m²)                                                                                                                                               |
+| Q_motor    | P(c)·η(ρ)/max(Ω, 0.05·Ω_max), faded to zero over the last 3 % below redline. η = 1 for `engine: "electric"` (default), ρ/ρ_ref for `"piston"`                                                |
+| P(c)       | The shaft power that holds the existing quasi-static rpm Ω_c of the command at rest: (A_q·ρ_ref·Ω_c² + Q_f(Ω_c))·Ω_c. The bench static thrust curve is therefore reproduced exactly          |
+| Q_prop     | C_q(J)·ρ·n²·D⁵ with C_q = C_q0·(1 − J/J_max), J_max = 1.2·J0: Q = A_q·ρ·Ω·(g·Ω − Ω_max·V/(1.2·V0)). Negative when windmilling                                                                |
+| A_q (C_q0) | Calibrated from `motorPowerW` = (A_q·ρ_ref·Ω_max² + Q_f(Ω_max))·Ω_max                                                                                                                        |
+| Q_friction | c0·Ω/(Ω + 0.02·Ω_max) + c1·Ω, with c0 = 1 % and c1 = 2 % of the rated power (no sign jump at Ω = 0)                                                                                          |
+| Thrust     | C_t(J)·ρ·n²·D⁴ with C_t = C_t0·(1 − J/J0). This is exactly the existing law T_max·ρ/ρ_ref·r²·(1 − V/(V0·r)) with r = Ω/Ω_max, so thrust is still computed in one place                       |
+| Redline    | `redlineRpm`, default 1.3 × `maxRpm`. Ω stays within [0, redline] every step                                                                                                                 |
+| Governor   | `propGovernor: true` (fixed-wing only): pitch factor g = g_i + 1.5·e, g_i' = 6·e, e = (Ω − Ω_max)/Ω_max, g ∈ [0.4, 1.8]. g scales C_t0, C_q0, J0 and J_max: a crude stand-in for a pitch map |
+
+**Airframe torque.** The shaft pushes back on the airframe with
+−(Q_motor − Q_friction)·ŝ. This equals the propeller load plus the spin-up
+torque I_tot·dΩ/dt, so `torquePerThrustM` is not added on top. The gyroscopic
+moment uses H = I_tot·Ω(t)·ŝ: the motor's rotating bell spins with the
+propeller. Airframe plus rotor angular momentum is conserved within 1 % in
+vacuum (test 6).
+
+**Integration.** Ω is integrated inside the existing midpoint step, so every
+stage reads Ω at its own time:
+
+- k1 uses Ω_n.
+- The midpoint takes a linearly implicit half step,
+  Ω_mid = Ω_n + (dt/2)·f₁/(1 − (dt/2)·J₁), with J = ∂Ω̇/∂Ω (analytical).
+- k2 uses Ω_mid.
+- The update is the linearly implicit midpoint rule,
+  Δ = dt·[f₂ + J₂(Ω_n − Ω_mid)]/(1 − dt·J₂/2).
+
+This is second order and A-stable, so a very light propeller cannot blow up.
+When dt·|J| > 2 (faster than the step resolves) the L-stable form is used.
+Positive slopes are treated explicitly. The governor integral uses the
+explicit midpoint. At construction, a state without Ω starts at the steady
+speed, so a trimmed launch is in rotor equilibrium.
+
+**Swirl.** Dynamic-rotor motors give their slipstream a swirl,
+ω_s = 0.5·Q_prop/(ρ·A_p·(V + v_i)·r_eff²) with r_eff = 0.7·R. A tail surface off
+the propeller axis meets the tangential flow u = ω_s·ŝ × r_⊥. It is weighted by
+the slipstream coverage and capped at 30 % of V + v_i. For a CW propeller the
+fin above the axis is pushed right, which yaws the nose left. On the
+presets this is about 1–2.5° at the fin, and 7–20 % rudder cancels it
+at take-off power. `PHYSICS.swirl.enabled` turns it off.
+
+**Presets.** The nine single-motor presets with propeller parameters gain
+the following values, all **estimates**, not measurements:
+
+- `motorPowerW` = 0.75 × full-command current × reference voltage;
+- `motorInertiaKgM2` ≈ 0.35·m_motor·r_motor², for the outrunner bell;
+- `redlineRpm` = 1.3 × `maxRpm`;
+- `engine: "electric"`.
+
+The implied C_t0 ≈ 0.11–0.12 and C_p ≈ 0.05 match typical 9×4.5-class
+propellers. The FT-22 Raptor (C_t 0.044) and Simple Trainer (0.067) come out
+low because their 0.11.0 `maxRpm` estimates are high. Those were kept so
+0.11.0 behaviour stays traceable. Spin-up from rest takes about 0.2 s. In
+cruise the shaft runs at 55–70 % of `maxRpm`, rises in a dive and falls in a
+climb.
+
+**Corrections to the requested formulas.**
+
+- **Swirl mass flow.** The requested ω_s ≈ Q/(ρ·A_p·v_i·r²) uses v_i where the
+  angular-momentum flux needs the mass flow ρ·A_p·(V + v_i). In cruise v_i is
+  small, so the requested form overestimated swirl about eight times: 17° at
+  the fin, which drove the trim to its limits.
+- **Swirl on wings.** Swirl is applied to tail surfaces only. Over a wing root
+  it is up on one side and down on the other, and a single centre-point
+  velocity turned that into a false 0.14 N·m roll on polyhedral wings.
+- **C_q floor.** The requested C_q ≥ 0 clamp would make windmilling
+  impossible: with no drive, friction would stop the propeller. The linear law
+  is kept. It stays bounded because Q ∝ Ω·(gΩ − Ω_V).
+- **Rotor inertia.** H and the spin-up torque use I_tot, not I_p, because the
+  motor's rotor turns too.
+
+**Trim.** Sideslip trims now also bank the wings so that the lift balances the
+side force, which makes trimmed flight straight as well as moment-free.
+
 ## Discrete gusts (0.11.0)
 
 `src/core/discrete-gust.ts` adds gusts on top of the mean wind and Dryden
@@ -234,12 +319,18 @@ and reads "gust" while one blows.
   randomized flights.
 - **Magnus effect.** There is no spinning sphere. The aircraft analogues,
   propeller gyroscopic precession and P-factor, are modeled from 0.11.0.
-- **Propeller limits.** The following are not modeled:
-  - the spin-up torque I_p·dΩ/dt;
-  - slipstream swirl;
-  - shaft speed rising as the propeller unloads in flight (Ω follows the static
-    thrust law);
+- **Propeller limits.** Since 0.12.0, dynamic-rotor motors model the spin-up
+  torque, slipstream swirl and shaft speed changes in flight. The following
+  are still not modeled:
+  - a real propeller pitch map (linear C_t(J), C_q(J));
+  - torsional vibration;
+  - motor electrical dynamics: battery current still follows the command
+    curve, and P(c) scales with the voltage ratio through Ω_c;
+  - tiltrotor VTOL shaft dynamics (rejected by the schema);
   - gust gradients along the airframe.
+
+  `responseSeconds` now acts as the ESC command smoothing in front of the
+  inertial spin-up.
 
   The reaction torque stays about body X for fixed-wing aircraft, as before.
   k_p and I_p are estimates.

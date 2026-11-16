@@ -207,15 +207,29 @@ it.each([0, 90, 217])(
 
 it("takes off from installed gear and preserves a balanced hand release", () => {
   const sim = new Simulation(a, calmEnvironment(), launchState(a, "ground"));
-  for (let i = 0; i < 12 * 120; i++)
+  // Propeller torque, P-factor and slipstream swirl swing a real model left
+  // on the take-off run, so the pilot holds heading with the rudder (a simple
+  // proportional heading hold on top of the trimmed rudder).
+  const rudderTrim = launchTrim(a, "hand").controls.yaw;
+  for (let i = 0; i < 12 * 120; i++) {
+    const heading = euler(sim.state.orientation)[2];
     sim.step({
       ...zero,
       throttle: i < 360 ? 0 : 0.55,
       pitch: i < 720 ? 0 : 0.14,
+      yaw: Math.max(
+        -1,
+        Math.min(1, rudderTrim - 1.5 * heading - 0.3 * sim.state.omega[2]),
+      ),
     });
+  }
   expect(sim.state.status).toBe("flying");
   expect(-sim.state.position[2]).toBeGreaterThan(5);
-  expect(sim.state.position[0]).toBeGreaterThan(40);
+  // Distance from the start: near the stall this rudder-only model still
+  // drifts left a little, which a rudder cannot fully stop.
+  expect(
+    Math.hypot(sim.state.position[0], sim.state.position[1]),
+  ).toBeGreaterThan(40);
   const trim = launchTrim(a, "hand");
   expect(trim.converged).toBe(true);
   const hand = new Simulation(a, calmEnvironment(), launchState(a, "hand"));

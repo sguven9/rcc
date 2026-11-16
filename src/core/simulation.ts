@@ -5,7 +5,17 @@ import {
   vtolRotorLoads,
   vtolThrustAxis,
 } from "./vtol";
-import { propellerMoments } from "./propeller-effects";
+import { propellerMoments, propellerSpinAxis } from "./propeller-effects";
+import {
+  advanceRotorSpeed,
+  equilibriumRotorSpeed,
+  governorPitch,
+  governorRate,
+  rotorHalfStep,
+  rotorModel,
+  rotorTorques,
+  type RotorModel,
+} from "./rotor-dynamics";
 import { DiscreteGusts, type DiscreteGustSettings } from "./discrete-gust";
 import type { VtolCommand, VtolState } from "./vtol-config";
 import {
@@ -112,7 +122,28 @@ export interface State {
   batterySoc?: number;
   surfaceCommands?: number[];
   vtol?: VtolState;
+  /** Shaft speed Ω per motor, rad/s (only with dynamic-rotor motors; 0 for others). */
+  rotorRadS?: number[];
+  /** Constant-speed governor integral (pitch factor) per motor. */
+  rotorPitch?: number[];
   status: "flying" | "grounded" | "landed" | "crashed";
+}
+/** Per-motor shaft dynamics at one state (dynamic-rotor motors only). */
+export interface RotorTelemetry {
+  motor: number;
+  omegaRadS: number;
+  rpm: number;
+  qMotor: number;
+  qProp: number;
+  qFriction: number;
+  /** Spin-up torque I_tot·dΩ/dt, N·m. */
+  qSpinUp: number;
+  omegaDot: number;
+  jacobian: number;
+  pitch: number;
+  governorRate: number;
+  /** Shaft rotational energy ½·I_tot·Ω², J. */
+  energyJ: number;
 }
 export interface SurfaceForce {
   kind: Aircraft["surfaces"][number]["kind"];
@@ -143,6 +174,8 @@ export interface Forces {
   /** Summed propeller gyroscopic and P-factor moments (body axes), N·m. */
   propellerGyro: Vec3;
   pFactor: Vec3;
+  /** Shaft dynamics of dynamic-rotor motors. */
+  rotors: RotorTelemetry[];
 }
 export const initialState = (
   a: Aircraft,
@@ -206,6 +239,8 @@ export class Simulation {
   private turbulence?: DrydenTurbulence;
   /** Discrete gust generator (seeded; idle unless enabled or triggered). */
   readonly gusts: DiscreteGusts;
+  /** Dynamic shaft-speed model per motor (null: quasi-static rpm). */
+  readonly rotorModels: (RotorModel | null)[];
   readonly actuations: ReturnType<typeof surfaceActuation>[];
   state: State;
   lastForces: Forces = {
@@ -219,6 +254,7 @@ export class Simulation {
     density: 0,
     propellerGyro: [0, 0, 0],
     pFactor: [0, 0, 0],
+    rotors: [],
   };
   constructor(
     public readonly aircraft: Aircraft,
@@ -232,6 +268,9 @@ export class Simulation {
     );
     this.state = structuredClone(state ?? initialState(aircraft));
     this.gusts = new DiscreteGusts(environment.seed);
+    this.rotorModels = aircraft.vtol
+      ? aircraft.motors.map(() => null)
+      : aircraft.motors.map((m) => rotorModel(m));
     if (aircraft.vtol && !this.state.vtol)
       this.state.vtol = initialVtolState(this.state.position);
     if (aircraft.battery && this.state.batterySoc === undefined)
@@ -243,6 +282,18 @@ export class Simulation {
         environment.windMps,
         environment.windProfile,
       );
+    }
+    // Start each dynamic rotor at its steady speed for the initial command
+    // and airspeed (a trimmed launch is then in rotor equilibrium too).
+    if (this.rotorModels.some(Boolean)) {
+      if (!this.state.rotorRadS) {
+        const f = this.forces(this.state, neutralControls());
+        this.state.rotorRadS = this.aircraft.motors.map(
+          (_, i) => f.rotors.find((r) => r.motor === i)?.omegaRadS ?? 0,
+        );
+      }
+      if (!this.state.rotorPitch && this.rotorModels.some((m) => m?.governed))
+        this.state.rotorPitch = this.aircraft.motors.map(() => 1);
     }
   }
   /** World air velocity at the CG: sheared mean wind, gusts and turbulence. */
@@ -272,6 +323,56 @@ export class Simulation {
       sub(s.velocity, this.airVelocity(s)),
     );
     const power = powertrain(this.aircraft, s.motors, s.batterySoc, rho);
+    // Shaft speed: dynamic rotors replace the quasi-static rpm ratio, static
+    // thrust and zero-thrust speed; the thrust law itself is unchanged
+    // (T = T_max·ρ/ρ_ref·r²·g·(1 − V/(g·V0·r)), r = Ω/Ω_max).
+    const staticThrust = [...power.thrust],
+      rpmRatio = [...power.rpmRatio],
+      zeroThrust = this.aircraft.motors.map((m) => m.zeroThrustSpeedMps);
+    const rotors: RotorTelemetry[] = [];
+    this.rotorModels.forEach((model, i) => {
+      if (!model) return;
+      const input = {
+        commandRpmRatio: power.rpmRatio[i],
+        axialSpeedMps:
+          this.aircraft.vehicleType === "multirotor" ? 0 : Math.max(0, flow[0]),
+        density: rho,
+        pitch: 1,
+      };
+      const integral = s.rotorPitch?.[i] ?? 1;
+      const omega = s.rotorRadS?.[i] ?? equilibriumRotorSpeed(model, input);
+      input.pitch = governorPitch(model, integral, omega);
+      const t = rotorTorques(model, omega, input);
+      staticThrust[i] = model.at * rho * omega * omega * input.pitch;
+      rpmRatio[i] = omega / model.omegaMax;
+      zeroThrust[i] *= input.pitch;
+      rotors.push({
+        motor: i,
+        omegaRadS: omega,
+        rpm: (omega * 60) / (2 * Math.PI),
+        qMotor: t.qMotor,
+        qProp: t.qProp,
+        qFriction: t.qFriction,
+        qSpinUp: t.qNet,
+        omegaDot: t.omegaDot,
+        jacobian: t.jacobian,
+        pitch: input.pitch,
+        governorRate: governorRate(model, integral, omega),
+        energyJ: 0.5 * model.inertia * omega * omega,
+      });
+    });
+    const rotorAt = (i: number) => rotors.find((r) => r.motor === i);
+    // Shaft torque on the airframe: −(Q_motor − Q_friction)·ŝ, i.e. the
+    // propeller load plus the spin-up torque I·dΩ/dt (no separate reaction).
+    const shaftReaction = (i: number, thrustAxis: Vec3, rotor: boolean) => {
+      const r = rotorAt(i)!,
+        axis = propellerSpinAxis(
+          thrustAxis,
+          this.aircraft.motors[i].spin,
+          rotor,
+        )!;
+      return scale(axis, -(r.qMotor - r.qFriction));
+    };
     let force: Vec3 = [0, 0, 0],
       torque: Vec3 = [0, 0, 0];
     const surfaces: SurfaceForce[] = [];
@@ -290,13 +391,20 @@ export class Simulation {
       const m = this.aircraft.motors[i];
       if (!m.spin || !(m.propInertiaKgM2 || m.pFactor)) return;
       const r = sub(m.positionM, this.properties.cg);
+      const dynamic = rotorAt(i);
       const effects = propellerMoments(m, {
         thrustAxis,
         rotor,
         omegaBody: s.omega,
-        rpmRatio: power.rpmRatio[i],
+        rpmRatio: rpmRatio[i],
         thrustN,
         localFlow: add(flow, cross(s.omega, r)),
+        ...(dynamic
+          ? {
+              spinRadS: dynamic.omegaRadS,
+              inertiaKgM2: this.rotorModels[i]!.inertia,
+            }
+          : {}),
       });
       propellerGyro = add(propellerGyro, effects.gyro);
       pFactor = add(pFactor, effects.pFactor);
@@ -332,19 +440,16 @@ export class Simulation {
       // the span fraction inside each contracted actuator-disk slipstream.
       if (!this.aircraft.vtol && this.aircraft.vehicleType !== "multirotor") {
         const axial = Math.max(0, v[0]);
-        let extra = 0;
+        let extra = 0,
+          swirl: Vec3 = [0, 0, 0];
         for (let i = 0; i < this.aircraft.motors.length; i++) {
           const motor = this.aircraft.motors[i],
             dx = motor.positionM[0] - wing.positionM[0];
           if (!(dx > 0 && dx < 1.5)) continue;
           const radius = motor.propDiameterM / 2,
             thrust =
-              power.thrust[i] *
-              thrustSpeedFactor(
-                flow[0],
-                motor.zeroThrustSpeedMps,
-                power.rpmRatio[i],
-              );
+              staticThrust[i] *
+              thrustSpeedFactor(flow[0], zeroThrust[i], rpmRatio[i]);
           const induced = diskInducedVelocity(thrust, axial, rho, radius);
           if (!(induced > 0)) continue;
           const slip = slipstreamAt(dx, induced, axial, radius);
@@ -356,8 +461,42 @@ export class Simulation {
             wing.spanM,
           );
           extra += fraction * ((axial + slip.increment) ** 2 - axial * axial);
+          // Swirl: the slipstream turns with the propeller, so a surface off
+          // the axis meets a tangential flow u = ω_s·ŝ × r_⊥ (left-turning
+          // tendency on a fin above a CW propeller's axis).
+          const sw = PHYSICS.swirl;
+          // Dynamic-rotor motors only (their Q_prop is known), so 0.11.0
+          // aircraft and recordings are unchanged. Tail surfaces only: over a
+          // wing root the swirl is up on one side and down on the other, which
+          // a single centre-point velocity cannot represent.
+          const dyn = rotorAt(i);
+          if (sw.enabled && dyn && fraction > 0 && wing.kind !== "wing") {
+            const torqueQ = dyn.qProp;
+            if (torqueQ > 0) {
+              const rEff = sw.radiusFraction * radius,
+                area = Math.PI * radius * radius;
+              const rate =
+                (sw.coefficient * torqueQ) /
+                (rho *
+                  area *
+                  Math.max(axial + induced, sw.minInducedMps) *
+                  rEff *
+                  rEff);
+              const d = sub(wing.positionM, motor.positionM);
+              const across: Vec3 = [0, d[1], d[2]];
+              const axisS = propellerSpinAxis([1, 0, 0], motor.spin, false)!;
+              let u = scale(cross(axisS, across), rate);
+              const cap = sw.maxSideFraction * (axial + slip.increment);
+              if (length(u) > cap) u = scale(u, cap / length(u));
+              swirl = add(swirl, scale(u, fraction));
+            }
+          }
         }
         if (extra > 0) v[0] = Math.sqrt(axial * axial + extra);
+        if (swirl[1] || swirl[2]) {
+          v[1] -= swirl[1];
+          v[2] -= swirl[2];
+        }
       }
       const planar = sub(v, scale(span, dot(v, span))),
         speed = length(planar),
@@ -480,11 +619,7 @@ export class Simulation {
       i++
     ) {
       const m = this.aircraft.motors[i],
-        speedFactor = thrustSpeedFactor(
-          flow[0],
-          m.zeroThrustSpeedMps,
-          power.rpmRatio[i],
-        );
+        speedFactor = thrustSpeedFactor(flow[0], zeroThrust[i], rpmRatio[i]);
       if (this.aircraft.vehicleType === "multirotor") {
         const axis = rotate(s.orientation, [0, 0, 1]),
           rotorHeight = -(
@@ -492,18 +627,21 @@ export class Simulation {
             rotate(s.orientation, sub(m.positionM, this.properties.cg))[2]
           );
         const thrust =
-          power.thrust[i] *
+          staticThrust[i] *
           (axis[2] > 0.1
             ? rotorGroundEffect(rotorHeight / axis[2], m.propDiameterM / 2)
             : 1);
         apply([0, 0, -thrust], m.positionM);
         thrustForce = add(thrustForce, [0, 0, -thrust]);
         // Ground effect adds thrust at equal shaft power, so reaction torque is unchanged.
-        torque[2] +=
-          power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
+        if (rotorAt(i))
+          torque = add(torque, shaftReaction(i, [0, 0, -1], true));
+        else
+          torque[2] +=
+            power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
         propeller(i, [0, 0, -1], true, thrust);
       } else {
-        const thrust = power.thrust[i] * speedFactor;
+        const thrust = staticThrust[i] * speedFactor;
         // Down- and right-thrust tilt the thrust line, as on real airframes.
         const down = radians(m.downThrustDeg ?? 0),
           right = radians(m.rightThrustDeg ?? 0);
@@ -514,18 +652,16 @@ export class Simulation {
         ];
         apply(vector, m.positionM);
         thrustForce = add(thrustForce, vector);
-        if (m.spin)
+        const thrustAxis: Vec3 = [
+          Math.cos(down) * Math.cos(right),
+          Math.cos(down) * Math.sin(right),
+          Math.sin(down),
+        ];
+        if (rotorAt(i))
+          torque = add(torque, shaftReaction(i, thrustAxis, false));
+        else if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
-        propeller(
-          i,
-          [
-            Math.cos(down) * Math.cos(right),
-            Math.cos(down) * Math.sin(right),
-            Math.sin(down),
-          ],
-          false,
-          thrust,
-        );
+        propeller(i, thrustAxis, false, thrust);
       }
     }
     // Quadratic body drag, bounded so one explicit step cannot reverse the
@@ -573,6 +709,7 @@ export class Simulation {
       density: rho,
       propellerGyro,
       pFactor,
+      rotors,
     };
   }
   private acceleration(s: State, c: Controls) {
@@ -586,6 +723,7 @@ export class Simulation {
         this.properties.inverseInertia,
         sub(f.torque, cross(s.omega, matVec(this.properties.inertia, s.omega))),
       ),
+      rotors: f.rotors,
     };
   }
   private resolveGround(c: Controls, dt: number) {
@@ -679,8 +817,24 @@ export class Simulation {
       },
       c,
     );
+    // Shaft speed: linearly implicit half step to the midpoint, so k2 reads Ω
+    // at t + dt/2 (as the airframe and actuators do).
+    const rotorMid = s.rotorRadS?.map((w, i) => {
+      const r = k1.rotors.find((x) => x.motor === i),
+        model = this.rotorModels[i];
+      return r && model
+        ? rotorHalfStep(model, w, r.omegaDot, r.jacobian, dt)
+        : w;
+    });
+    const pitchMid = s.rotorPitch?.map(
+      (g, i) =>
+        g +
+        (dt / 2) * (k1.rotors.find((x) => x.motor === i)?.governorRate ?? 0),
+    );
     const mid: State = {
       ...s,
+      ...(rotorMid ? { rotorRadS: rotorMid } : {}),
+      ...(pitchMid ? { rotorPitch: pitchMid } : {}),
       motors: average(startMotors, s.motors),
       surfaceCommands: hasStartCommands
         ? average(startCommands!, s.surfaceCommands!)
@@ -716,6 +870,35 @@ export class Simulation {
       velocity: add(s.velocity, scale(k2.velocity, dt)),
       omega: add(s.omega, scale(k2.omega, dt)),
       orientation: advanceQ(s.orientation, mid.omega, dt),
+      // Linearly implicit midpoint for Ω: second order, cannot blow up for a
+      // very light propeller, and stays within [0, redline].
+      ...(s.rotorRadS
+        ? {
+            rotorRadS: s.rotorRadS.map((w, i) => {
+              const r = k2.rotors.find((x) => x.motor === i),
+                model = this.rotorModels[i];
+              return r && model
+                ? advanceRotorSpeed(
+                    model,
+                    w,
+                    rotorMid![i],
+                    r.omegaDot,
+                    r.jacobian,
+                    dt,
+                  )
+                : w;
+            }),
+          }
+        : {}),
+      ...(s.rotorPitch
+        ? {
+            rotorPitch: s.rotorPitch.map(
+              (g, i) =>
+                g +
+                dt * (k2.rotors.find((x) => x.motor === i)?.governorRate ?? 0),
+            ),
+          }
+        : {}),
     };
     if (
       ![

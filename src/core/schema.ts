@@ -380,6 +380,17 @@ export const AircraftSchema = z
           maxRpm: finite.min(0).max(100000).optional(),
           /** P-factor coefficient k_p: thrust-centre shift k_p·sin α_p·R. */
           pFactor: finite.min(0).max(0.5).optional(),
+          /**
+           * Dynamic shaft speed (0.12.0): rated shaft power at maxRpm (W),
+           * motor rotor inertia (kg·m²), redline (rev/min), engine kind and an
+           * optional constant-speed governor. Needs spin, propInertiaKgM2 and
+           * maxRpm; absent, the quasi-static rpm law applies.
+           */
+          motorPowerW: finite.min(0.1).max(200000).optional(),
+          motorInertiaKgM2: finite.min(0).max(1).optional(),
+          redlineRpm: finite.min(1).max(100000).optional(),
+          engine: z.enum(["electric", "piston"]).optional(),
+          propGovernor: z.boolean().optional(),
         })
         .strict(),
     ),
@@ -489,6 +500,35 @@ export const AircraftSchema = z
         );
     });
     a.motors.forEach((m, i) => {
+      const dynamicFields =
+        m.motorPowerW !== undefined ||
+        m.motorInertiaKgM2 !== undefined ||
+        m.redlineRpm !== undefined ||
+        m.engine !== undefined ||
+        m.propGovernor !== undefined;
+      if (
+        dynamicFields &&
+        (m.motorPowerW === undefined ||
+          !m.spin ||
+          !m.propInertiaKgM2 ||
+          !m.maxRpm)
+      )
+        issue(
+          ["motors", i, "motorPowerW"],
+          "Dynamic shaft speed needs motorPowerW, spin, propInertiaKgM2 and maxRpm",
+        );
+      if (dynamicFields && a.vtol)
+        issue(
+          ["motors", i, "motorPowerW"],
+          "Dynamic shaft speed is not available for tiltrotor VTOL motors",
+        );
+      if (m.redlineRpm !== undefined && m.maxRpm && m.redlineRpm <= m.maxRpm)
+        issue(["motors", i, "redlineRpm"], "Redline must be above maxRpm");
+      if (m.propGovernor && (a.vehicleType === "multirotor" || a.multirotor))
+        issue(
+          ["motors", i, "propGovernor"],
+          "A constant-speed governor is only modeled for fixed-wing propellers",
+        );
       if (
         m.propPartId &&
         (!a.parts.some(

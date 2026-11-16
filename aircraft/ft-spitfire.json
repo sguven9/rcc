@@ -487,7 +487,11 @@
       "spin": "cw",
       "propInertiaKgM2": 2.94e-5,
       "maxRpm": 9800,
-      "pFactor": 0.3
+      "pFactor": 0.3,
+      "motorPowerW": 158.0,
+      "motorInertiaKgM2": 4.8e-6,
+      "redlineRpm": 12740,
+      "engine": "electric"
     }
   ],
   "fuselageDragAreaM2": 0.00189,

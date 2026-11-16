@@ -598,7 +598,11 @@
       "spin": "cw",
       "propInertiaKgM2": 2.94e-5,
       "maxRpm": 10000,
-      "pFactor": 0.3
+      "pFactor": 0.3,
+      "motorPowerW": 112.4,
+      "motorInertiaKgM2": 3.6e-6,
+      "redlineRpm": 13000,
+      "engine": "electric"
     }
   ],
   "battery": {

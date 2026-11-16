@@ -19,6 +19,8 @@ export interface Condition {
   tiltDeg?: [number, number];
   rearTiltDeg?: number;
   wind?: Vec3;
+  /** Shaft speed per motor (rad/s) for dynamic-rotor motors. */
+  rotorRadS?: number[];
 }
 export interface ReferenceCase {
   id: string;
@@ -175,6 +177,17 @@ export function referenceCases(aircraft: Aircraft[]): ReferenceCase[] {
                 Math.max(0, command - i * 0.04),
               ),
               tiltDeg: [command * 90, Math.max(0, command * 90 - 7)],
+              // Dynamic-rotor motors: shaft speed is a state, set
+              // independently of the command (0.1–1.1 × maxRpm).
+              ...(powered.motors.some((m) => m.motorPowerW)
+                ? {
+                    rotorRadS: powered.motors.map((m) =>
+                      m.motorPowerW && m.maxRpm
+                        ? ((m.maxRpm * Math.PI) / 30) * (0.1 + command)
+                        : 0,
+                    ),
+                  }
+                : {}),
               rearTiltDeg: command * 40 - 20,
             }),
           );
@@ -257,6 +270,7 @@ export function simulationFor(c: ReferenceCase, initial: Condition) {
   s.omega = [...initial.omega];
   if (initial.motorCommands) s.motors = [...initial.motorCommands];
   if (initial.soc !== undefined) s.batterySoc = initial.soc;
+  if (initial.rotorRadS) s.rotorRadS = [...initial.rotorRadS];
   if (s.vtol) {
     s.vtol.tiltDeg = initial.tiltDeg ?? [0, 0];
     s.vtol.rearTiltDeg = initial.rearTiltDeg ?? 0;

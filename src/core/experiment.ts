@@ -266,6 +266,8 @@ export function parseRecording(raw: unknown): Recording {
           batterySoc: finite.min(0).max(1).optional(),
           surfaceCommands: z.array(finite.min(-1).max(1)).optional(),
           vtol: VtolStateSchema.optional(),
+          rotorRadS: z.array(finite.min(0)).optional(),
+          rotorPitch: z.array(finite).optional(),
           status: z.enum(["flying", "grounded", "landed", "crashed"]),
         })
         .strict(),
@@ -306,30 +308,56 @@ export function parseRecording(raw: unknown): Recording {
 }
 /**
  * Convert a recording from a replay-compatible earlier version to the current
- * one. Such versions predate the opt-in features below, so a file that claims
- * an older version but uses them is rejected rather than replayed.
+ * one. Each opt-in feature carries the version that introduced it; a file that
+ * claims an older version but uses a newer feature is rejected rather than
+ * replayed.
  */
 function upgradeRecording<R extends { simulationVersion: string }>(
   r: R & {
     aircraft: Aircraft;
     environment: { discreteGusts?: unknown };
     frames: { gust?: true }[];
+    initialState: { rotorRadS?: unknown; rotorPitch?: unknown };
   },
 ): R {
   if (r.simulationVersion === SIM_VERSION) return r;
-  const newer =
-    r.environment.discreteGusts !== undefined ||
-    r.frames.some((f) => f.gust) ||
-    r.aircraft.motors.some(
-      (m) =>
-        m.propInertiaKgM2 !== undefined ||
-        m.maxRpm !== undefined ||
-        m.pFactor !== undefined,
-    );
-  if (newer)
-    throw new Error(
-      `Recording ${r.simulationVersion} uses features added in ${SIM_VERSION}`,
-    );
+  const features: [string, boolean][] = [
+    [
+      "0.11.0",
+      r.environment.discreteGusts !== undefined ||
+        r.frames.some((f) => f.gust) ||
+        r.aircraft.motors.some(
+          (m) =>
+            m.propInertiaKgM2 !== undefined ||
+            m.maxRpm !== undefined ||
+            m.pFactor !== undefined,
+        ),
+    ],
+    [
+      "0.12.0",
+      r.initialState.rotorRadS !== undefined ||
+        r.initialState.rotorPitch !== undefined ||
+        r.aircraft.motors.some(
+          (m) =>
+            m.motorPowerW !== undefined ||
+            m.motorInertiaKgM2 !== undefined ||
+            m.redlineRpm !== undefined ||
+            m.engine !== undefined ||
+            m.propGovernor !== undefined,
+        ),
+    ],
+  ];
+  const order = (v: string) => v.split(".").map(Number);
+  const before = (a: string, b: string) => {
+    const [x, y] = [order(a), order(b)];
+    for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i];
+    return false;
+  };
+  for (const [version, used] of features)
+    if (used && before(r.simulationVersion, version))
+      throw new Error(
+        `Recording ${r.simulationVersion} uses features added in ${version}`,
+      );
   return { ...r, simulationVersion: SIM_VERSION };
 }
 export function replayRecording(r: Recording): State {

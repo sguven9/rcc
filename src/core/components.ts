@@ -205,11 +205,20 @@ export function replaceComponent(
       orientationDeg: oldProp.orientationDeg,
       catalogId: entry.id,
     };
-    // Propeller inertia, rpm and P-factor describe the removed propeller; the
-    // package supplies its own values or the effects stay off until set.
-    delete motor.propInertiaKgM2;
-    delete motor.maxRpm;
-    delete motor.pFactor;
+    // Propeller inertia, rpm, P-factor and the shaft-dynamics data (power,
+    // rotor inertia, redline, engine, governor) describe the removed package;
+    // the new package supplies its own values or the effects stay off.
+    for (const key of [
+      "propInertiaKgM2",
+      "maxRpm",
+      "pFactor",
+      "motorPowerW",
+      "motorInertiaKgM2",
+      "redlineRpm",
+      "engine",
+      "propGovernor",
+    ] as const)
+      delete motor[key];
     Object.assign(motor, structuredClone(entry.motor));
   }
   out.provenance[`component:${partId}`] = {

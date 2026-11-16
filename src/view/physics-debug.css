@@ -39,3 +39,11 @@
     bottom: 220px;
   }
 }
+.rotor-debug {
+  margin: 6px 0 0;
+  font:
+    11px/1.4 ui-monospace,
+    monospace;
+  color: #f2f2ee;
+  white-space: pre-wrap;
+}

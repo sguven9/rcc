@@ -93,9 +93,26 @@ export class PhysicsDebugArrows {
   }
 }
 
-/** Rolling 20 s energy graph: kinetic, potential and their sum, in joules. */
+/** Per-motor shaft dynamics as text lines (dynamic-rotor motors only). */
+export function rotorDebugLines(sim: Simulation) {
+  return sim.lastForces.rotors.map((r) => {
+    const thrust = Math.hypot(...sim.lastForces.thrust);
+    return `M${r.motor + 1} ${r.rpm.toFixed(0)} rpm · Qm ${r.qMotor.toFixed(3)} · Qp ${r.qProp.toFixed(3)} · I·Ω̇ ${r.qSpinUp.toFixed(3)} N·m · T ${thrust.toFixed(2)} N`;
+  });
+}
+
+/**
+ * Rolling 20 s energy graph: kinetic, potential, propeller rotation
+ * (½·I·Ω²) and their sum, in joules. The shaft energy is part of the total so
+ * a spin-up does not look like a mechanical-energy jump.
+ */
 export class EnergyGraph {
-  private samples: { t: number; kinetic: number; potential: number }[] = [];
+  private samples: {
+    t: number;
+    kinetic: number;
+    potential: number;
+    rotor: number;
+  }[] = [];
   constructor(private canvas: HTMLCanvasElement) {}
   reset() {
     this.samples = [];
@@ -108,6 +125,7 @@ export class EnergyGraph {
       t: s.time,
       kinetic: 0.5 * m * speed2,
       potential: m * PHYSICS.gravity * Math.max(0, -s.position[2]),
+      rotor: sim.lastForces.rotors.reduce((n, r) => n + r.energyJ, 0),
     });
     while (this.samples.length && s.time - this.samples[0].t > 20)
       this.samples.shift();
@@ -124,14 +142,17 @@ export class EnergyGraph {
     ctx.fillRect(0, 0, w, h);
     const data = this.samples;
     if (data.length < 2) return;
-    const max = Math.max(...data.map((d) => d.kinetic + d.potential), 1) * 1.1;
+    const total = (d: (typeof data)[number]) =>
+      d.kinetic + d.potential + d.rotor;
+    const max = Math.max(...data.map(total), 1) * 1.1;
     const t0 = data.at(-1)!.t - 20;
     const x = (t: number) => ((t - t0) / 20) * (w - 10) + 5;
     const y = (e: number) => h - 18 - (e / max) * (h - 34);
     const series: [string, (d: (typeof data)[number]) => number][] = [
       ["#f0a33c", (d) => d.kinetic],
       ["#5fc9f0", (d) => d.potential],
-      ["#f2f2ee", (d) => d.kinetic + d.potential],
+      ["#b48ce8", (d) => d.rotor],
+      ["#f2f2ee", total],
     ];
     for (const [color, value] of series) {
       ctx.strokeStyle = color;
@@ -145,11 +166,15 @@ export class EnergyGraph {
     const last = data.at(-1)!;
     ctx.font = "11px system-ui, sans-serif";
     ctx.fillStyle = "#f2f2ee";
-    ctx.fillText(`E ${(last.kinetic + last.potential).toFixed(0)} J`, 6, 13);
+    ctx.fillText(`E ${total(last).toFixed(0)} J`, 6, 13);
     ctx.fillStyle = "#f0a33c";
     ctx.fillText(`kinetic ${last.kinetic.toFixed(0)}`, 70, 13);
     ctx.fillStyle = "#5fc9f0";
     ctx.fillText(`potential ${last.potential.toFixed(0)}`, 150, 13);
+    if (data.some((d) => d.rotor > 0)) {
+      ctx.fillStyle = "#b48ce8";
+      ctx.fillText(`prop ${last.rotor.toFixed(1)}`, 236, 13);
+    }
     ctx.fillStyle = "#9aa3ad";
     ctx.fillText("last 20 s", 6, h - 5);
   }

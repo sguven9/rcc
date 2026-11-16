@@ -134,20 +134,31 @@ export function extraChecks(a: Aircraft): Check[] {
       1e-12,
     );
     // Independent integration implementation; shares the aerodynamic force function explicitly.
+    // Since 0.12.0 the propeller shaft speed Ω of dynamic-rotor motors is a
+    // state too, so it is part of the integrated vector (from v[13]).
     const c = { ...trim.controls, roll: 0.1 },
       reference = new Simulation(a),
-      pack = (s: State) => [
-        ...s.position,
-        ...s.velocity,
-        ...s.omega,
-        ...s.orientation,
-      ];
+      dynamic = reference.rotorModels.some(Boolean);
+    if (dynamic && !trim.state.rotorRadS)
+      trim.state.rotorRadS = new Simulation(
+        a,
+        calmEnvironment(),
+        trim.state,
+      ).state.rotorRadS;
+    const pack = (s: State) => [
+      ...s.position,
+      ...s.velocity,
+      ...s.omega,
+      ...s.orientation,
+      ...(s.rotorRadS ?? []),
+    ];
     const state = (v: number[]): State => ({
       ...structuredClone(trim.state),
       position: v.slice(0, 3) as Vec3,
       velocity: v.slice(3, 6) as Vec3,
       omega: v.slice(6, 9) as Vec3,
       orientation: normalizeQ(v.slice(9, 13) as Quat),
+      ...(dynamic ? { rotorRadS: v.slice(13) } : {}),
     });
     const derivative = (v: number[]) => {
       const s = state(v),
@@ -163,8 +174,11 @@ export function extraChecks(a: Aircraft): Check[] {
             cross(s.omega, matVec(reference.properties.inertia, s.omega)),
           ),
         ),
-        qd = mulQ(s.orientation, [...s.omega, 0] as Quat).map((x) => x * 0.5);
-      return [...s.velocity, ...accel, ...alpha, ...qd];
+        qd = mulQ(s.orientation, [...s.omega, 0] as Quat).map((x) => x * 0.5),
+        spin = (s.rotorRadS ?? []).map(
+          (_, i) => f.rotors.find((r) => r.motor === i)?.omegaDot ?? 0,
+        );
+      return [...s.velocity, ...accel, ...alpha, ...qd, ...spin];
     };
     trim.state.surfaceCommands = a.surfaces.map((s) =>
       s.control ? surfaceCommand(s.control, c) : 0,

@@ -92,7 +92,11 @@ export function findTrim(
   const lateral: Vec3 = [0, 0, 0];
   // Sideslip β turns the nose left of the flight path (heading −β), so the
   // ground track and flight-path angle stay as requested.
+  // A sideslip trim makes a side force; a small bank tilts the lift to cancel
+  // it, so the trimmed flight is straight as well as moment-free.
+  let bank = 0;
   const withSideslip = (s: ReturnType<typeof initialState>, beta: number) => {
+    if (bank) s.orientation = mulQ(s.orientation, axisQ([1, 0, 0], bank));
     if (beta) s.orientation = mulQ(axisQ([0, 0, 1], -beta), s.orientation);
     return s;
   };
@@ -165,9 +169,26 @@ export function findTrim(
       return [(v[0] - r[0]) / h, (v[1] - r[1]) / h] as [number, number];
     };
     let unknowns: number[] | undefined;
-    for (let pass = 0; pass < 8; pass++) {
+    const sideForce = () => {
+      const { s, f } = loads(x);
+      return rotate(s.orientation, f.force)[1];
+    };
+    for (let pass = 0; pass < 12; pass++) {
+      if (lateral[2]) {
+        // Bank so the lift's horizontal part balances the side force.
+        bank = clamp(
+          bank - sideForce() / (sim.properties.mass * GRAVITY),
+          -radians(15),
+          radians(15),
+        );
+        solveLongitudinal();
+      }
       const r = lateralResidual(lateral);
-      if (Math.hypot(...r) < 1e-6) break;
+      if (
+        Math.hypot(...r) < 1e-6 &&
+        (!lateral[2] || Math.abs(sideForce()) < 1e-6)
+      )
+        break;
       if (!unknowns) {
         const controls = [0, 1].filter(
           (j) => Math.hypot(...column(j, r)) > 1e-6,
@@ -215,5 +236,6 @@ export function findTrim(
     residual: residual(x),
     pitchDeg: x[0],
     sideslipDeg: (lateral[2] * 180) / Math.PI,
+    bankDeg: (bank * 180) / Math.PI,
   };
 }

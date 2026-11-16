@@ -6,7 +6,11 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.11.0** adds the opt-in propeller gyroscopic moment and
+Simulation **0.12.0** makes the propeller shaft speed a state for motors
+with `motorPowerW` (spin-up torque, overspeed in a dive, windmilling, swirl,
+optional governor; [details](physics-engine.md#dynamic-shaft-speed-0120)).
+It opens 0.10.0 and 0.11.0 recordings unchanged.
+Simulation 0.11.0 added the opt-in propeller gyroscopic moment and
 P-factor, discrete "1−cos" gusts and aileron/rudder trim for propeller torque
 ([details](physics-engine.md#propeller-side-effects-0110)). Aircraft without
 the new motor fields fly exactly as in 0.10.0, so 0.10.0 recordings are

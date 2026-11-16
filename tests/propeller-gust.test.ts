@@ -36,6 +36,23 @@ import { radians, type Vec3 } from "../src/core/math";
 const load = (id: string) =>
   parseAircraft(JSON.parse(readFileSync(`aircraft/${id}.json`, "utf8")));
 const cub = () => load("ft-simple-cub");
+/**
+ * The 0.11.0 quasi-static rpm path (no `motorPowerW`): shaft speed follows the
+ * command instantly. Dynamic shaft speed is verified in rotor-dynamics.test.ts.
+ */
+const staticCub = () => {
+  const a = cub();
+  for (const m of a.motors)
+    for (const key of [
+      "motorPowerW",
+      "motorInertiaKgM2",
+      "redlineRpm",
+      "engine",
+      "propGovernor",
+    ] as const)
+      delete m[key];
+  return a;
+};
 const isZero = (v: Vec3) => v.every((x) => x === 0);
 type Motor = Aircraft["motors"][number];
 const motor = (changes: Partial<Motor> = {}): Motor => ({
@@ -57,7 +74,7 @@ describe("1. no shaft speed, no propeller moments", () => {
     expect(isZero(at.gyro)).toBe(true);
     expect(isZero(at.pFactor)).toBe(true);
     // Through the simulation: motors off, rates and angle of attack present.
-    const a = cub(),
+    const a = staticCub(),
       s = initialState(a, 12, 100, 10);
     s.omega = [0.5, -0.8, 0.3];
     const f = new Simulation(a, calmEnvironment(), s).forces(
@@ -106,7 +123,7 @@ describe("2. gyroscopic moment", () => {
       Math.hypot(...got.map((v, i) => v - expected[i])) / norm,
     ).toBeLessThan(0.01);
     // And inside the simulation, with Ω from the powertrain's rpm ratio.
-    const a = cub(),
+    const a = staticCub(),
       m = a.motors[0],
       s = initialState(a, 12, 100, 0);
     s.omega = omega;
@@ -214,7 +231,7 @@ describe("4. P-factor", () => {
 
 describe("reaction torque (existing, verified)", () => {
   it("is −Q·ê: a CW fixed-wing propeller rolls the aircraft left", () => {
-    const a = cub(),
+    const a = staticCub(),
       s = initialState(a, 0, 100, 0);
     s.velocity = [0, 0, 0];
     s.motors = [1];

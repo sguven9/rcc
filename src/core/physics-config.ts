@@ -69,6 +69,53 @@ export const PHYSICS = {
     pFactorTipSpeedFraction: 0.1,
   },
   /**
+   * Dynamic shaft speed (motors with `motorPowerW`). Engineering estimates,
+   * not measurements; see docs/physics-engine.md#dynamic-shaft-speed-0120.
+   */
+  rotor: {
+    /** Motor torque is P/max(Ω, minSpeedFraction·Ω_max): finite at standstill. */
+    minSpeedFraction: 0.05,
+    /** Redline when `redlineRpm` is absent: this multiple of `maxRpm`. */
+    defaultRedlineFactor: 1.3,
+    /** The limiter fades motor torque to zero over this fraction below redline. */
+    limiterBandFraction: 0.03,
+    /** Torque reaches zero at J_max = this·J0 (thrust is zero at J0). */
+    torqueZeroAdvanceFactor: 1.2,
+    /**
+     * Bearing/drag friction Q_f = c0·Ω/(Ω+Ω_s) + c1·Ω, sized as fractions of
+     * the shaft power at Ω_max: c0 = f0·P/Ω_max, c1 = f1·P/Ω_max².
+     */
+    coulombFrictionFraction: 0.01,
+    viscousFrictionFraction: 0.02,
+    /** Ω_s: Coulomb friction ramps in over this fraction of Ω_max (no sign jump at 0). */
+    frictionSmoothingFraction: 0.02,
+    /** Above dt·|∂Ω̇/∂Ω| = this, the update switches to the L-stable form. */
+    stiffLimit: 2,
+    governor: {
+      /** Constant-speed target as a fraction of `maxRpm`. */
+      targetFraction: 1,
+      /** Pitch factor g = g_i + Kp·e, g_i' = Ki·e, e = (Ω − Ω_t)/Ω_t. */
+      proportional: 1.5,
+      integral: 6,
+      minPitch: 0.4,
+      maxPitch: 1.8,
+    },
+  },
+  /**
+   * Slipstream swirl (dynamic-rotor motors). Angular-momentum flux through the
+   * disk: Q = ṁ·ω_s·r_eff² with ṁ = ρ·A_p·(V + v_i), so
+   * ω_s = k·Q/(ρ·A_p·(V + v_i)·r_eff²), r_eff = radiusFraction·R.
+   */
+  swirl: {
+    enabled: true,
+    coefficient: 0.5,
+    radiusFraction: 0.7,
+    /** Floor on the disk through-flow V + v_i in the swirl estimate, m/s. */
+    minInducedMps: 0.5,
+    /** Swirl side speed is capped at this fraction of the axial speed V + v_i. */
+    maxSideFraction: 0.3,
+  },
+  /**
    * Discrete "1−cos" gusts, w(t) = (W_g/2)·(1 − cos(2π·t/t_g)) for
    * 0 ≤ t ≤ t_g, triggered by a seeded Poisson process. The environment sets
    * the mean interval and W_g; duration and direction are drawn per gust.

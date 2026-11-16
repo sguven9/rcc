@@ -139,6 +139,19 @@ describe("3. Coulomb friction (flat-ground equivalent of the inclined plane)", (
       m.maxThrustN = force;
       delete m.performance;
       m.zeroThrustSpeedMps = 1000;
+      // An ideal constant force source: no shaft dynamics or torque effects.
+      for (const key of [
+        "motorPowerW",
+        "motorInertiaKgM2",
+        "redlineRpm",
+        "engine",
+        "propGovernor",
+        "propInertiaKgM2",
+        "pFactor",
+        "maxRpm",
+      ] as const)
+        delete m[key];
+      delete m.spin;
       a.motors = [m];
       return a;
     };
@@ -286,6 +299,13 @@ describe("7. stress: 1000 randomized flights", () => {
         // No energy blow-up: speeds and rates stay physical.
         expect(Math.hypot(...st.velocity)).toBeLessThan(150);
         expect(Math.hypot(...st.omega)).toBeLessThan(100);
+        // Dynamic shaft speed stays within [0, redline].
+        st.rotorRadS?.forEach((w, j) => {
+          const model = sim.rotorModels[j];
+          expect(Number.isFinite(w)).toBe(true);
+          expect(w).toBeGreaterThanOrEqual(0);
+          if (model) expect(w).toBeLessThanOrEqual(model.omegaRedline);
+        });
         expect(
           [
             ...st.position,

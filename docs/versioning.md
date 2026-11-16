@@ -7,7 +7,7 @@ RCForge separates application releases, simulation compatibility, file formats a
 | Version                  | Current value                   | When it changes                                                             |
 | ------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
 | Application              | 0.8.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
-| Physics and recordings   | 0.11.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
+| Physics and recordings   | 0.12.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
 | Aircraft definition      | `schemaVersion: 1`              | An incompatible aircraft file format change                                 |
 | Aircraft history archive | `formatVersion: 1`              | An incompatible backup format change                                        |
 | Documentation            | `next` (development)            | Current guides update with source; releases get immutable `X.Y.Z` snapshots |
@@ -75,6 +75,17 @@ Contributors normally leave version numbers alone. Maintainers prepare a release
 6. Commit the new snapshot and rerun `npm run release:check`. Inspect the version selector and links at `/docs/X.Y.Z/`. The snapshot is release documentation; it does not emulate an older simulator or publish anything.
 7. Review and merge the release PR. Tag the tested release commit as `vX.Y.Z`, publish release notes and deploy its tested build. Tagging, publishing and deployment are explicit maintainer actions; changing package metadata or freezing docs does not perform them.
 8. Verify the header version, docs version, assets and first-run workflows at the deployed address. Follow [deployment](deployment.md). Never overwrite a published documentation snapshot; corrections belong to the next release.
+
+## Dynamic shaft speed compatibility (0.12.0)
+
+Simulation **0.12.0** adds opt-in motor fields `motorPowerW`,
+`motorInertiaKgM2`, `redlineRpm`, `engine` and `propGovernor`, and the optional
+state fields `rotorRadS` and `rotorPitch`. Motors without `motorPowerW` give
+bit-identical results to 0.11.0. **0.10.0 and 0.11.0 recordings still open**:
+they are upgraded on import and replay unchanged. A file that claims an older
+version but uses a newer feature is rejected. The nine presets with propeller
+parameters gain shaft dynamics, so their new flights differ from 0.11.0. See
+[dynamic shaft speed](physics-engine.md#dynamic-shaft-speed-0120).
 
 ## Propeller effects and gusts compatibility (0.11.0)
 
