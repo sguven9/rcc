@@ -329,11 +329,13 @@ function shadowBlobMaterial() {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
-  const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
-  g.addColorStop(0, "rgba(0,0,0,0.45)");
-  g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
+  const g = ctx.createRadialGradient?.(32, 32, 4, 32, 32, 32);
+  if (g) {
+    g.addColorStop(0, "rgba(0,0,0,0.45)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+  }
   blobMaterial = new T.MeshBasicMaterial({
     map: new T.CanvasTexture(canvas),
     transparent: true,
