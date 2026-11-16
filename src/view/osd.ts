@@ -39,11 +39,23 @@ export class Osd {
     this.odometerM = 0;
     this.lastTime = 0;
   }
+  /** User toggle (Field panel / O key). */
+  private on = true;
+  /** True only in the FPV camera: the OSD is the goggles' overlay. */
+  private fpv = true;
   get visible() {
-    return !$("osd").hidden;
+    return this.on && this.fpv;
   }
-  set visible(on: boolean) {
-    $("osd").hidden = !on;
+  set enabled(value: boolean) {
+    this.on = value;
+    $("osd").hidden = !this.visible;
+  }
+  get enabled() {
+    return this.on;
+  }
+  set active(value: boolean) {
+    this.fpv = value;
+    $("osd").hidden = !this.visible;
   }
   update(
     r: InstrumentReadings,
@@ -55,8 +67,6 @@ export class Osd {
       odometerLabel: string;
       /** Screen rectangle of the 3D view (for the boresight). */
       viewRect: DOMRect;
-      /** Cockpit panel shown: keep the bottom rows above it. */
-      cockpit: boolean;
     },
   ) {
     if (r.flightTimeS > this.lastTime)
@@ -66,7 +76,6 @@ export class Osd {
       const el = $(id);
       if (el.textContent !== v) el.textContent = v;
     };
-    $("osd").classList.toggle("with-cockpit", options.cockpit);
     set("osd-lon", text.longitude);
     set("osd-lat", text.latitude);
     set("osd-home", text.home);

@@ -106,6 +106,8 @@ export const PHYSICS = {
    * disk: Q = ṁ·ω_s·r_eff² with ṁ = ρ·A_p·(V + v_i), so
    * ω_s = k·Q/(ρ·A_p·(V + v_i)·r_eff²), r_eff = radiusFraction·R.
    */
+  /** Propeller slipstream over the wing and tail (actuator disk). */
+  slipstream: { enabled: true },
   swirl: {
     enabled: true,
     coefficient: 0.5,

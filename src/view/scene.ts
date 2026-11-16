@@ -4,7 +4,7 @@ import { focusedPilotFov } from "./pilot-focus";
 import { ComponentPlacementView } from "./component-placement";
 import { fpvMount, placeFpvCamera } from "./fpv-camera";
 import { powertrain } from "../core/powertrain";
-import { sceneries, type SceneryId } from "../core/scenery";
+import { sceneries, type Scenery, type SceneryId } from "../core/scenery";
 import { surfaceCommand } from "../core/surface-control";
 import * as T from "three";
 import { PhysicsDebugArrows } from "./physics-debug";
@@ -30,7 +30,8 @@ const conversion = new T.Quaternion().setFromAxisAngle(
   new T.Vector3(1, 0, 0),
   Math.PI / 2,
 );
-export type CameraMode = "ground" | "chase" | "fpv" | "cockpit" | "orbit";
+/** Flight cameras: pilot on the ground and the aircraft's FPV; orbit is the editor. */
+export type CameraMode = "ground" | "fpv" | "orbit";
 /** Fixed physical pilot position; head tracking uses bounded optical focus at distance. */
 export class FlightScene {
   renderer: T.WebGLRenderer;
@@ -61,10 +62,8 @@ export class FlightScene {
   walking = false;
   trackAircraft = true;
   focusAircraft = true;
-  chaseDistance = 4.8;
   private lookYaw = 0;
   private lookPitch = 0;
-  private chaseForward = new T.Vector3(1, 0, 0);
   readonly pilotPosition = new T.Vector3(-8, 1.7, -14);
   private pilotDestination: T.Vector3 | null = null;
   private placementMarker = new T.Group();
@@ -94,13 +93,12 @@ export class FlightScene {
   private impactVelocity = new T.Vector3();
   private focusFov = 55;
   private fpv?: ReturnType<typeof fpvMount>;
-  private cockpitMount?: NonNullable<ReturnType<typeof fpvMount>>;
   private cg: Vec3 = [0, 0, 0];
   private span = 1.086;
   private shadowRadius = 1;
   private studio = false;
   private axisGuide = document.createElement("div");
-  private scenery: SceneryId = "club";
+  private scenery: SceneryId = "manisa";
   private sun = new T.DirectionalLight();
   private hemisphere = new T.HemisphereLight("#d6e3f1", "#788266", 2.1);
   private studioFloorHeight = -0.27;
@@ -254,12 +252,6 @@ export class FlightScene {
             0.45,
             2.4,
           );
-        else if (this.mode === "chase")
-          this.chaseDistance = T.MathUtils.clamp(
-            this.chaseDistance + e.deltaY * 0.01,
-            1.8,
-            20,
-          );
         else if (this.mode === "ground")
           this.pilotFov = T.MathUtils.clamp(
             this.pilotFov + e.deltaY * 0.025,
@@ -310,15 +302,6 @@ export class FlightScene {
       Math.max(bounds.min.length(), bounds.max.length()) + 0.25;
     this.cg = massProperties(a).cg;
     this.fpv = fpvMount(a, this.cg);
-    // Cockpit view: the FPV lens when one is mounted, otherwise a pilot's eye
-    // just above the fuselage, ahead of the CG.
-    const top = Math.min(...a.parts.map((p) => p.positionM[2] - p.sizeM[2] / 2));
-    this.cockpitMount = this.fpv ?? {
-      position: new T.Vector3(0.12, 0, Math.min(-0.06, top - this.cg[2] - 0.02)),
-      forward: new T.Vector3(1, 0, 0),
-      up: new T.Vector3(0, 0, -1),
-      fov: 100,
-    };
     this.setComponentInspection(
       a.parts.find((p) => p.id === this.selectedComponent?.id),
       this.inspectComponents,
@@ -460,12 +443,10 @@ export class FlightScene {
     this.physicsDebugEnabled = on;
     this.showForces = on;
   }
+  /** Manisa is the only site: the field is built once; this applies its light. */
   setScenery(id: SceneryId) {
-    if (this.scenery === id) return;
     this.scenery = id;
-    this.field.dispose();
-    this.field = createField(this.scene, sceneries[id]);
-    const p = sceneries[id];
+    const p: Scenery = sceneries[id];
     this.sun.position.set(...p.sun);
     this.sun.color.set(p.sunColor);
     this.sun.intensity = p.sunIntensity;
@@ -742,24 +723,6 @@ export class FlightScene {
         this.lookYaw *= Math.exp(-dt * 3);
         this.lookPitch *= Math.exp(-dt * 3);
       }
-    } else if (this.mode === "chase") {
-      const forward = new T.Vector3(1, 0, 0).applyQuaternion(
-        this.visual.group.quaternion,
-      );
-      forward.y = 0;
-      if (forward.lengthSq() < 0.01) forward.copy(this.chaseForward);
-      forward.normalize();
-      this.chaseForward
-        .lerp(forward, this.snap ? 1 : 1 - Math.exp(-dt * 3))
-        .normalize();
-      desired = pos
-        .clone()
-        .addScaledVector(this.chaseForward, -this.chaseDistance)
-        .add(new T.Vector3(0, this.chaseDistance * 0.24, 0));
-      desired.y = Math.max(0.45, desired.y);
-      this.camera.position.lerp(desired, this.snap ? 1 : 1 - Math.exp(-dt * 6));
-      target.addScaledVector(this.chaseForward, 0.6);
-      this.camera.fov = 52;
     } else {
       const backward = new T.Vector3(
         Math.cos(this.orbitYaw) * Math.cos(this.orbitPitch),
@@ -779,13 +742,6 @@ export class FlightScene {
     }
     if (this.mode === "fpv" && this.fpv && !this.studio) {
       placeFpvCamera(this.camera, this.fpv, pos, this.visual.group.quaternion);
-    } else if (this.mode === "cockpit" && this.cockpitMount && !this.studio) {
-      placeFpvCamera(
-        this.camera,
-        this.cockpitMount,
-        pos,
-        this.visual.group.quaternion,
-      );
     } else {
       this.camera.near = 0.15;
       this.camera.up.set(0, 1, 0);
@@ -871,7 +827,11 @@ export class FlightScene {
     this.axisGuide.style.right = this.studio ? "14px" : "auto";
     this.axisGuide.style.left = this.studio ? "auto" : "14px";
     this.axisGuide.style.top = this.studio ? "58px" : "90px";
-    if (!this.studio) this.field.update(this.camera);
+    if (!this.studio) {
+      // Grass sways with the simulated wind at the aircraft (NED → scene x/z).
+      const air = sim.airVelocity(sim.state);
+      this.field.update(this.camera, [air[0], air[1]], sim.state.time);
+    }
     this.cameraPlacement?.prepare(viewCamera);
     this.componentPlacement?.prepare(viewCamera);
     this.renderer.render(this.scene, viewCamera);

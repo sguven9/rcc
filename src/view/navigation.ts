@@ -7,11 +7,11 @@ export function workspaceNavigation(fromDocs = false) {
     ["fly", "Fly", "Fly"],
     ["aircraft", "Aircraft", "Aircraft editor"],
     ["controllers", "Controllers", "Controllers"],
-    ["experiments", "Experiments", "Experiments"],
+    ["expos", "Expos", "Stick expo per channel"],
   ]
     .map(
       ([id, label, accessible]) =>
-        `<a href="${prefix}#/${id}" data-route="${id}" aria-label="${accessible}">${uiIcon(id as "fly" | "aircraft" | "controllers" | "experiments")}<span>${label}</span></a>`,
+        `<a href="${prefix}#/${id}" data-route="${id}" aria-label="${accessible}">${uiIcon((id === "expos" ? "controllers" : id) as "fly" | "aircraft" | "controllers")}<span>${label}</span></a>`,
     )
     .join("")}</nav>`;
 }

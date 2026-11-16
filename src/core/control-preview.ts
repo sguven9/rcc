@@ -1,9 +1,5 @@
 import type { Aircraft } from "./schema";
-import {
-  PilotResponseFilter,
-  withPitchTrim,
-  type PilotResponse,
-} from "./pilot-response";
+import { applyExpo, withPitchTrim, type ExpoSettings } from "./pilot-response";
 import { advanceSurfaceCommand, surfaceActuation } from "./actuation";
 import { surfaceCommand } from "./surface-control";
 import { FIXED_DT, neutralControls, type Controls } from "./simulation";
@@ -17,7 +13,6 @@ export class ControlPreview {
   private commonTiltDeg = 0;
   controls = neutralControls();
   deflections: number[];
-  private response = new PilotResponseFilter();
   readonly actuations;
   constructor(readonly aircraft: Aircraft) {
     this.actuations = aircraft.surfaces.map((s) =>
@@ -25,11 +20,11 @@ export class ControlPreview {
     );
     this.deflections = aircraft.surfaces.map(() => 0);
   }
-  step(input: Controls, settings: PilotResponse, trim = 0) {
+  step(input: Controls, settings: ExpoSettings, trim = 0) {
     const previousControls = this.controls;
     const previousDeflections = this.deflections;
     this.controls = withPitchTrim(
-      this.response.step({ ...input, throttle: 0 }, settings, FIXED_DT),
+      applyExpo({ ...input, throttle: 0 }, settings),
       trim,
     );
     this.deflections = this.aircraft.surfaces.map((s, i) =>
@@ -92,7 +87,6 @@ export class ControlPreview {
   }
   reset() {
     this.moving = false;
-    this.response.reset();
     this.controls = neutralControls();
     this.deflections.fill(0);
     this.tiltDeg.fill(0);

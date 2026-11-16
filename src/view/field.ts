@@ -6,7 +6,7 @@ import {
   type Scenery,
 } from "../core/scenery";
 import { addManisaSite, manisaWindsock } from "./manisa-site";
-import { addFieldDetails } from "./field-details";
+import { addGrass } from "./grass";
 import * as T from "three";
 import { terrainMaterial } from "./terrain-material";
 import { addVegetation } from "./vegetation";
@@ -47,12 +47,14 @@ function patch(
     );
   return g;
 }
-export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
+export function createField(
+  scene: T.Scene,
+  profile: Scenery = sceneries.manisa,
+) {
   const field = new T.Group();
   scene.add(field);
-  const manisa = profile.site === "manisa";
-  if (manisa) addManisaSite(field);
-  else addFieldDetails(field);
+  addManisaSite(field);
+  const grass = addGrass(field, profile);
   addVegetation(field, profile);
   const groundMaterial = terrainMaterial(isDryGround(profile));
   addLandscape(field, profile, groundMaterial.map!);
@@ -105,42 +107,12 @@ export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
   shoulder.receiveShadow = true;
   field.add(shoulder);
   addRunway(field, profile);
-  // Low-profile safety fence, pilot marker and a small flight table establish human scale.
   const metal = new T.MeshStandardMaterial({
     color: "#5b6665",
     metalness: 0.45,
     roughness: 0.55,
   });
-  // Club spectator line; Manisa has its own buildings and fences instead.
-  for (let x = -16; x <= 12 && !manisa; x += 4) {
-    const p = new T.Mesh(new T.CylinderGeometry(0.025, 0.025, 0.8, 8), metal);
-    p.position.set(x, 0.4, 11);
-    p.userData.collision = "solid";
-    field.add(p);
-  }
-  for (const y of manisa ? [] : [0.3, 0.7]) {
-    const rail = new T.Mesh(new T.CylinderGeometry(0.012, 0.012, 28, 8), metal);
-    rail.rotation.z = Math.PI / 2;
-    rail.position.set(-2, y, 11);
-    rail.userData.collision = "solid";
-    field.add(rail);
-  }
-  const table = new T.Mesh(
-    new T.BoxGeometry(1.6, 0.06, 0.55),
-    new T.MeshStandardMaterial({ color: "#8e8878" }),
-  );
-  table.position.set(-12, 0.82, 16);
-  table.castShadow = true;
-  table.userData.collision = "solid";
-  if (!manisa) field.add(table);
-  for (const dx of manisa ? [] : [-0.65, 0.65])
-    for (const dz of [-0.2, 0.2]) {
-      const leg = new T.Mesh(new T.BoxGeometry(0.04, 0.8, 0.04), metal);
-      leg.position.set(-12 + dx, 0.4, 16 + dz);
-      leg.userData.collision = "solid";
-      field.add(leg);
-    }
-  const sockAt = manisa ? manisaWindsock : { x: 12, z: 15 };
+  const sockAt = manisaWindsock;
   const pole = new T.Mesh(new T.CylinderGeometry(0.025, 0.035, 4, 12), metal);
   pole.position.set(sockAt.x, 2, sockAt.z);
   pole.userData.collision = "solid";
@@ -174,8 +146,10 @@ export function createField(scene: T.Scene, profile: Scenery = sceneries.club) {
     obstacles: collectFieldObstacles(field),
     sky,
     sock,
-    update: (camera: T.Camera) => {
+    grass,
+    update: (camera: T.Camera, wind: [number, number] = [0, 0], timeS = 0) => {
       sky.position.copy(camera.position);
+      grass.update(camera, wind, timeS);
     },
     dispose: () => {
       scene.remove(field, sky);

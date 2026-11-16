@@ -27,7 +27,16 @@ import {
 import { aircraftChannels } from "../src/app/aircraft-channels";
 import { buildAircraft, disposeAircraft } from "../src/view/model";
 import { ControlPreview } from "../src/core/control-preview";
-import { responseSettings } from "../src/core/pilot-response";
+import {
+  applyExpo,
+  DEFAULT_EXPO,
+  PilotResponseSchema,
+} from "../src/core/pilot-response";
+const NO_EXPO = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+void applyExpo;
+void DEFAULT_EXPO;
+void PilotResponseSchema;
+void NO_EXPO;
 
 const a = parseAircraft(raw);
 const zero = neutralControls();
@@ -243,7 +252,7 @@ it("matches editor servo movement, battery consumption and exact replay during a
     sim = new Simulation(a, calmEnvironment(), trim.state);
   const recording = createRecording(sim),
     bench = new ControlPreview(a);
-  const direct = responseSettings();
+  const direct = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
   // Start both actuators at neutral to compare their full transient response.
   sim.state.surfaceCommands!.fill(0);
   recording.initialState.surfaceCommands!.fill(0);

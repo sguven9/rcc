@@ -752,5 +752,6 @@
   "credit": {
     "name": "RCForge",
     "url": "https://github.com/adithya-s-k/RCForge"
-  }
+  },
+  "viewpoint": { "positionM": [0.053, 0, -0.078], "pitchDeg": 20, "fovDeg": 90 }
 }

@@ -41,7 +41,7 @@ function setup() {
   } as unknown as InputManager;
   const notify = vi.fn();
   const page = new ControllerPage(input, () => {}, notify);
-  page.selectType("joystick");
+  page.selectType("transmitter");
   return { el, input, page, device, notify };
 }
 it("cancel restores the exact original profile after partial capture", () => {
@@ -60,7 +60,7 @@ it("reselecting the active input type does not discard assignments or calibratio
   const { input, page, el } = setup();
   input.profile.bindings.roll.expo = 0.4;
   el("capture-centers").onclick();
-  page.selectType("joystick");
+  page.selectType("transmitter");
   expect(input.profile.bindings.roll.expo).toBe(0.4);
   expect(page.ready()).toBe(false);
 });

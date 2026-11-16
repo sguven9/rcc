@@ -17,10 +17,10 @@ export function flightSetupMarkup() {
       <div id="flight-vtol" class="vtol-flight-panel" hidden></div>
       <div class="setup-divider"></div><div class="setup-line"><span>All-up weight</span><strong id="flight-mass"></strong></div><div class="setup-line"><span>Landing gear</span><strong id="flight-gear"></strong></div>
       <div id="battery-telemetry" class="battery-telemetry" hidden></div><p id="flight-control-note" class="small muted"></p>
-      <button id="setup-fpv-camera" class="wide">Set up FPV camera</button><a class="setup-text-link" href="#/aircraft">Edit this aircraft ↗</a>
+      <a class="setup-text-link" href="#/aircraft">Edit this aircraft ↗</a>
     </section>
     <section id="setup-field" role="tabpanel" aria-labelledby="setup-tab-field" data-setup-panel="field" hidden>
-      <label for="scenery-select">Flying site</label><select id="scenery-select"><option value="club">Northfield club · asphalt</option><option value="valley">Alpine meadow · grass</option><option value="mesa">Desert mesa · dirt</option><option value="manisa">Manisa · concrete</option></select><p id="scenery-conditions" class="small muted"></p>
+      <div class="setup-line"><span>Flying site</span><strong>Manisa · concrete runway</strong></div><p id="scenery-conditions" class="small muted"></p>
       <div class="two-col"><div><label for="wind-speed">Wind · m/s</label><input id="wind-speed" type="number" min="0" max="12" step="0.5" value="0"/></div><div><label for="wind-direction">From · <output id="wind-direction-value">90° crosswind</output></label><input id="wind-direction" type="range" min="0" max="345" step="15" value="90" aria-label="Wind direction relative to runway heading, degrees"/></div></div>
       <label class="check-label"><input type="checkbox" id="gusts"/> Variable gusts</label>
       <label class="check-label"><input type="checkbox" id="turbulence"/> Dryden turbulence (scales with wind)</label>
@@ -34,9 +34,9 @@ export function flightSetupMarkup() {
       <p class="setup-change-note">Changing the aircraft, launch mode or field resets this flight.</p>
     </section>
     <section id="setup-input" role="tabpanel" aria-labelledby="setup-tab-input" data-setup-panel="input" hidden>
-      <label for="flight-input-type">Input device</label><select id="flight-input-type"><option value="keyboard">Keyboard</option><option value="gamepad">Gamepad</option><option value="joystick">Flight stick</option><option value="transmitter">RC transmitter</option></select>
+      <label for="flight-input-type">Input device</label><select id="flight-input-type"><option value="transmitter">RC transmitter</option></select>
       <p id="flight-input-status" class="small muted" role="status"></p>
-      <div id="flight-response"></div><div class="setup-divider"></div><div id="flight-controller-diagram" class="controller-diagram compact"></div><div id="flight-shortcut-legend" class="shortcut-legend"></div>
+      <div id="flight-controller-diagram" class="controller-diagram compact"></div><div id="flight-shortcut-legend" class="shortcut-legend"></div>
       <div class="setup-line"><span>Mapping & calibration</span><a href="#/controllers" id="source-summary">Keyboard ↗</a></div>
     </section>
     <div class="setup-footer"><button id="launch" class="primary wide">Start flight</button></div>

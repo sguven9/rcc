@@ -32,8 +32,8 @@ export type PropKind =
 export const PROP_SIZE: Record<PropKind, [number, number, number]> = {
   "model-trainer": [1.15, 1.45, 0.42],
   "model-warbird": [1.05, 1.2, 0.36],
-  "model-jet": [1.1, 0.8, 0.22],
-  "model-delta": [0.9, 0.95, 0.16],
+  "model-jet": [1.0, 0.8, 0.25],
+  "model-delta": [0.9, 0.95, 0.21],
   "car-sedan": [4.6, 1.8, 1.45],
   "car-hatchback": [4.0, 1.75, 1.5],
   "car-suv": [4.7, 1.9, 1.72],

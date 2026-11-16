@@ -37,6 +37,7 @@ import { powertrain, thrustSpeedFactor } from "./powertrain";
 import { rotorCommands } from "./multirotor";
 import { surfaceCommand } from "./surface-control";
 import { PHYSICS } from "./physics-config";
+import { sceneries, surfaceAt, type Scenery } from "./scenery";
 import { surfaceActuation, advanceSurfaceCommand } from "./actuation";
 import { resolveGroundContacts } from "./ground";
 import type { Aircraft } from "./schema";
@@ -97,6 +98,11 @@ export interface Environment {
    * with H in metres (8500 in the browser). Omitted: uniform density.
    */
   densityScaleHeightM?: number;
+  /**
+   * Ground material per contact from the site's zones (paved / grass / dirt,
+   * 0.13.0). Off when omitted: the single `surface` applies everywhere.
+   */
+  surfaceZones?: boolean;
   /** Seeded Poisson-triggered "1−cos" discrete gusts (off when omitted). */
   discreteGusts?: DiscreteGustSettings;
 }
@@ -237,6 +243,11 @@ export class Simulation {
   readonly properties: ReturnType<typeof massProperties>;
   private collisions: ObstacleCollisions;
   private turbulence?: DrydenTurbulence;
+  /** Per-point ground material when the environment enables surface zones. */
+  private surfaceLookup?: (
+    x: number,
+    y: number,
+  ) => "asphalt" | "grass" | "dirt";
   /** Discrete gust generator (seeded; idle unless enabled or triggered). */
   readonly gusts: DiscreteGusts;
   /** Dynamic shaft-speed model per motor (null: quasi-static rpm). */
@@ -268,6 +279,12 @@ export class Simulation {
     );
     this.state = structuredClone(state ?? initialState(aircraft));
     this.gusts = new DiscreteGusts(environment.seed);
+    const site =
+      environment.surfaceZones && environment.sceneryId
+        ? (sceneries as Record<string, Scenery>)[environment.sceneryId]
+        : undefined;
+    if (site?.surfaceZones)
+      this.surfaceLookup = (x, y) => surfaceAt(site, x, y);
     this.rotorModels = aircraft.vtol
       ? aircraft.motors.map(() => null)
       : aircraft.motors.map((m) => rotorModel(m));
@@ -438,7 +455,11 @@ export class Simulation {
         span = rotate(orient, [0, 1, 0]);
       // Tractor slipstream: raise the surface's mean axial dynamic pressure by
       // the span fraction inside each contracted actuator-disk slipstream.
-      if (!this.aircraft.vtol && this.aircraft.vehicleType !== "multirotor") {
+      if (
+        PHYSICS.slipstream.enabled &&
+        !this.aircraft.vtol &&
+        this.aircraft.vehicleType !== "multirotor"
+      ) {
         const axial = Math.max(0, v[0]);
         let extra = 0,
           swirl: Vec3 = [0, 0, 0];
@@ -733,7 +754,7 @@ export class Simulation {
       this.properties,
       c,
       dt,
-      this.environment.surface,
+      this.surfaceLookup ?? this.environment.surface,
     );
   }
   step(raw: Controls, dt = FIXED_DT): State {

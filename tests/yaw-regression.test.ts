@@ -6,10 +6,16 @@ import {
   keyboardTurnAxis,
 } from "../src/app/aircraft-channels";
 import {
-  PilotResponseFilter,
-  responseSettings,
+  applyExpo,
+  DEFAULT_EXPO,
+  PilotResponseSchema,
   withPitchTrim,
 } from "../src/core/pilot-response";
+const NO_EXPO = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+void applyExpo;
+void DEFAULT_EXPO;
+void PilotResponseSchema;
+void NO_EXPO;
 import { findTrim } from "../src/core/trim";
 import { Simulation, calmEnvironment } from "../src/core/simulation";
 import { euler } from "../src/core/math";
@@ -31,7 +37,6 @@ it.each(aircraft.filter((a) => aircraftChannels(a).includes("yaw")))(
     const headings: number[] = [];
     for (const direction of [-1, 0, 1]) {
       const sim = new Simulation(a, calmEnvironment(), trim.state);
-      const filter = new PilotResponseFilter();
       // Nonstandard hardware axis order, then the same shaping used in flight.
       const profile = defaultProfile("yaw-regression");
       profile.bindings.yaw.axis = 0;
@@ -39,10 +44,9 @@ it.each(aircraft.filter((a) => aircraftChannels(a).includes("yaw")))(
       const mapped = mapGamepad([direction * 0.35, 0, 0, 0], profile);
       for (let i = 0; i < 90; i++) {
         let command = withPitchTrim(
-          filter.step(
+          applyExpo(
             { ...mapped, throttle: trim.controls.throttle },
-            responseSettings({ ...responseSettings(), preset: "standard" }),
-            1 / 120,
+            DEFAULT_EXPO,
           ),
           a.vtol ? 0 : trim.controls.pitch,
         );

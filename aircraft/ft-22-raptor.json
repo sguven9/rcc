@@ -987,5 +987,10 @@
   "credit": {
     "name": "Flite Test",
     "url": "https://www.flitetest.com/articles/ft-22-raptor-build"
+  },
+  "viewpoint": {
+    "positionM": [0.2749, 0, -0.1423],
+    "pitchDeg": 0,
+    "fovDeg": 90
   }
 }

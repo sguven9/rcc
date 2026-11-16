@@ -1358,5 +1358,10 @@
   },
   "pilotResponse": {
     "preset": "standard"
+  },
+  "viewpoint": {
+    "positionM": [0.2139, 0, -0.1956],
+    "pitchDeg": 0,
+    "fovDeg": 90
   }
 }

@@ -9,7 +9,16 @@ import {
 } from "../src/core/simulation";
 import { launchState, launchTrim } from "../src/core/launch";
 import { ControlPreview } from "../src/core/control-preview";
-import { responsePresets } from "../src/core/pilot-response";
+import {
+  applyExpo,
+  DEFAULT_EXPO,
+  PilotResponseSchema,
+} from "../src/core/pilot-response";
+const NO_EXPO = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+void applyExpo;
+void DEFAULT_EXPO;
+void PilotResponseSchema;
+void NO_EXPO;
 
 describe("real-time flight scheduling", () => {
   it.each([10, 15, 20, 30, 60, 75, 120, 144])(
@@ -106,7 +115,7 @@ describe("real-time flight scheduling", () => {
         )
           preview.step(
             { ...neutralControls(), pitch: 0.7, roll: 0.4 },
-            { preset: "gentle", ...responsePresets.gentle },
+            DEFAULT_EXPO,
           );
       return preview.deflections;
     };

@@ -136,12 +136,11 @@ export class ControllerActions {
       "disabled",
       !this.standard || kind !== "gamepad",
     );
-    $("controller-identity").textContent =
-      this.input.source === "keyboard"
-        ? "Keyboard"
-        : d
-          ? `${kind === "transmitter" ? "RC transmitter" : kind === "joystick" ? "Flight stick" : this.style === "playstation" ? "PlayStation" : this.style === "xbox" ? "Xbox" : "Controller"} · ${d.id}`
-          : "Preview only";
+    $("controller-identity").textContent = false
+      ? "Keyboard"
+      : d
+        ? `${kind === "transmitter" ? "RC transmitter" : kind === "joystick" ? "Flight stick" : this.style === "playstation" ? "PlayStation" : this.style === "xbox" ? "Xbox" : "Controller"} · ${d.id}`
+        : "Preview only";
     const visualSignature = JSON.stringify([
       kind,
       this.style,
@@ -208,31 +207,30 @@ export class ControllerActions {
         : (d?.axes[i * 2 + 1] ?? 0);
       e.setAttribute("transform", `translate(${x + dx * 12} ${y + dy * 12})`);
     });
-    const legend =
-      this.input.source === "keyboard"
-        ? "<span><kbd>Enter</kbd> Start</span><span><kbd>P</kbd> Pause</span><span><kbd>R</kbd> Restart</span>" +
-          (vtol
-            ? "<span><kbd>T</kbd> VTOL mode</span><span><kbd>H</kbd> Hover throttle 50%</span><span><kbd>B</kbd> VTOL assistance</span>"
-            : "<span><kbd>V</kbd> Camera</span><span><kbd>C</kbd> Control response</span>")
-        : !d
-          ? '<div class="shortcut-empty"><strong>Flight shortcuts</strong><p>Connect hardware to see your button bindings.</p></div>'
-          : (
-              [
-                "toggle",
-                "reset",
-                "camera",
-                "response",
-                "vtolMode",
-                "vtolAssistance",
-                "settings",
-              ] as Action[]
+    const legend = false
+      ? "<span><kbd>Enter</kbd> Start</span><span><kbd>P</kbd> Pause</span><span><kbd>R</kbd> Restart</span>" +
+        (vtol
+          ? "<span><kbd>T</kbd> VTOL mode</span><span><kbd>H</kbd> Hover throttle 50%</span><span><kbd>B</kbd> VTOL assistance</span>"
+          : "<span><kbd>V</kbd> Camera</span><span><kbd>C</kbd> Control response</span>")
+      : !d
+        ? '<div class="shortcut-empty"><strong>Flight shortcuts</strong><p>Connect hardware to see your button bindings.</p></div>'
+        : (
+            [
+              "toggle",
+              "reset",
+              "camera",
+              "response",
+              "vtolMode",
+              "vtolAssistance",
+              "settings",
+            ] as Action[]
+          )
+            .filter((a) => actionAvailable(a, vtol))
+            .map(
+              (a) =>
+                `<span data-shortcut-action="${a}"><b>${escape(this.hint(a) || "Unassigned")}</b> ${actionNames[a]}</span>`,
             )
-              .filter((a) => actionAvailable(a, vtol))
-              .map(
-                (a) =>
-                  `<span data-shortcut-action="${a}"><b>${escape(this.hint(a) || "Unassigned")}</b> ${actionNames[a]}</span>`,
-              )
-              .join("");
+            .join("");
     for (const id of ["setup-shortcut-legend", "flight-shortcut-legend"])
       if ($(id).innerHTML !== legend) $(id).innerHTML = legend;
     document
@@ -269,7 +267,7 @@ export class ControllerActions {
         .filter(([action]) => actionAvailable(action, vtol))
         .map(
           ([action, label]) =>
-            `<label>${label}<select data-action="${action}" ${!d || this.input.source === "keyboard" ? "disabled" : ""}><option value="none">Unassigned</option>${d?.buttons.map((_, i) => `<option value="b${i}">${escape(buttonName(i, this.style, this.standard))}</option>`).join("") ?? ""}${d?.axes.flatMap((_, i) => (occupied.includes(i) ? [] : [`<option value="a${i}+">Axis ${i + 1} high</option>`, `<option value="a${i}-">Axis ${i + 1} low</option>`])).join("") ?? ""}</select></label>`,
+            `<label>${label}<select data-action="${action}" ${!d || false ? "disabled" : ""}><option value="none">Unassigned</option>${d?.buttons.map((_, i) => `<option value="b${i}">${escape(buttonName(i, this.style, this.standard))}</option>`).join("") ?? ""}${d?.axes.flatMap((_, i) => (occupied.includes(i) ? [] : [`<option value="a${i}+">Axis ${i + 1} high</option>`, `<option value="a${i}-">Axis ${i + 1} low</option>`])).join("") ?? ""}</select></label>`,
         )
         .join("");
       document

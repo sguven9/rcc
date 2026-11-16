@@ -26,9 +26,15 @@ import { launchState, fitLandingGear } from "../src/core/launch";
 import { placedLaunch } from "../src/core/placement";
 import { ControlPreview } from "../src/core/control-preview";
 import {
-  responseSettings,
-  PilotResponseFilter,
+  applyExpo,
+  DEFAULT_EXPO,
+  PilotResponseSchema,
 } from "../src/core/pilot-response";
+const NO_EXPO = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+void applyExpo;
+void DEFAULT_EXPO;
+void PilotResponseSchema;
+void NO_EXPO;
 import {
   createRecording,
   parseRecording,
@@ -289,9 +295,7 @@ it("rejects recordings that omit the VTOL controller state and retains mode comm
   expect(() => parseRecording(r)).toThrow(/VTOL state/);
   const c = hoverControl();
   c.vtol!.mode = "cruise";
-  expect(
-    new PilotResponseFilter().step(c, responseSettings(), 1 / 120).vtol,
-  ).toEqual(c.vtol);
+  expect(applyExpo(c, NO_EXPO).vtol).toEqual(c.vtol);
 });
 it("uses CH5 edges without firing a held mode on reconnect; standard gamepads use the right bumper", () => {
   const edges = new ActionEdges(),
@@ -317,14 +321,17 @@ it("animates front conversion and separate sideways rear yaw at installed servo 
   );
   expect(model.group.getObjectByName("rear-motor-support")).toBeDefined();
   for (let i = 0; i < 120; i++)
-    preview.step({ ...hoverControl(), yaw: 1 }, responseSettings());
+    preview.step(
+      { ...hoverControl(), yaw: 1 },
+      { roll: 0, pitch: 0, yaw: 0, throttle: 0 },
+    );
   expect(preview.tiltDeg).toEqual([0, 0]);
   expect(preview.rearTiltDeg).toBe(-20);
   expect(preview.controls.throttle).toBe(0);
   preview.reset();
   preview.tiltMode = "cruise";
   for (let i = 0; i < 120; i++)
-    preview.step(hoverControl(), responseSettings());
+    preview.step(hoverControl(), { roll: 0, pitch: 0, yaw: 0, throttle: 0 });
   expect(preview.tiltDeg[0]).toBeCloseTo(a.vtol!.tiltRateDegS);
   disposeAircraft(model.group);
 });

@@ -135,7 +135,8 @@ export class InputManager {
   testBench = false;
   walking = false;
   active = true;
-  source: "keyboard" | "controller" = "keyboard";
+  /** Flight input always comes from the RC transmitter. */
+  readonly source = "controller" as const;
   keys = new Set<string>();
   throttle = 0.5;
   profile = defaultProfile();
@@ -182,7 +183,7 @@ export class InputManager {
       ) {
         e.preventDefault();
         this.keys.add(e.code);
-        if (!e.repeat && this.source === "keyboard" && !this.testBench) {
+        if (!e.repeat && false && !this.testBench) {
           if (["Space", "Equal", "NumpadAdd"].includes(e.code))
             this.throttle = clamp(this.throttle + 0.05, 0, 1);
           if (

@@ -241,6 +241,7 @@ export function parseRecording(raw: unknown): Recording {
           turbulence: z.literal("dryden").optional(),
           turbulenceIntensity: finite.min(0).max(3).optional(),
           densityScaleHeightM: finite.min(1000).max(20000).optional(),
+          surfaceZones: z.boolean().optional(),
           discreteGusts: z
             .object({
               meanIntervalS: z.union([z.literal(0), finite.min(1).max(3600)]),
@@ -315,7 +316,7 @@ export function parseRecording(raw: unknown): Recording {
 function upgradeRecording<R extends { simulationVersion: string }>(
   r: R & {
     aircraft: Aircraft;
-    environment: { discreteGusts?: unknown };
+    environment: { discreteGusts?: unknown; surfaceZones?: unknown };
     frames: { gust?: true }[];
     initialState: { rotorRadS?: unknown; rotorPitch?: unknown };
   },
@@ -347,6 +348,7 @@ function upgradeRecording<R extends { simulationVersion: string }>(
         ),
     ],
   ];
+  features.push(["0.13.0", r.environment.surfaceZones !== undefined]);
   const order = (v: string) => v.split(".").map(Number);
   const before = (a: string, b: string) => {
     const [x, y] = [order(a), order(b)];

@@ -1,8 +1,22 @@
+/**
+ * Transmitter-style stick expo, per channel. Replaces the former Gentle /
+ * Standard / Direct response presets: the only shaping between the RC
+ * transmitter and the aircraft is expo (and the aircraft's trim).
+ *
+ *   out = (1 − e)·x + e·x³,  x ∈ [−1, 1],  e ∈ [0, 1]
+ *
+ * so out(±1) = ±1, out(0) = 0 and e = 0 is linear. Throttle (0..1) is shaped
+ * about mid-stick: x = 2t − 1, t' = (out + 1)/2.
+ */
 import { z } from "zod";
 import { clamp } from "./math";
 import type { Controls } from "./simulation";
 
 const rate = z.number().finite().min(0.1).max(1);
+/**
+ * Legacy per-aircraft response block. Still accepted in aircraft files and
+ * recordings so older files load, but ignored: expo is a pilot setting.
+ */
 export const PilotResponseSchema = z
   .object({
     preset: z.enum(["gentle", "standard", "direct", "custom"]),
@@ -12,50 +26,50 @@ export const PilotResponseSchema = z
   })
   .strict();
 export type PilotResponse = z.infer<typeof PilotResponseSchema>;
-export type ResponsePreset = PilotResponse["preset"];
-export const responsePresets = {
-  gentle: { rates: [0.55, 0.45, 0.65], expo: 0.4, smoothingSeconds: 0.09 },
-  standard: { rates: [0.8, 0.75, 0.85], expo: 0.2, smoothingSeconds: 0.035 },
-  direct: { rates: [1, 1, 1], expo: 0, smoothingSeconds: 0 },
-} satisfies Record<string, Omit<PilotResponse, "preset">>;
-export function responseSettings(config?: PilotResponse): PilotResponse {
-  const preset = config?.preset ?? "direct";
-  return preset === "custom"
-    ? { ...config!, rates: [...config!.rates] }
-    : {
-        preset,
-        ...responsePresets[preset],
-        rates: [...responsePresets[preset].rates],
-      };
+
+export interface ExpoSettings {
+  roll: number;
+  pitch: number;
+  yaw: number;
+  throttle: number;
 }
-/** Transmitter-style dual rates and cubic expo; not an attitude controller.
- * Call once per physics step, after device calibration and before aircraft trim. */
-export class PilotResponseFilter {
-  private axes = [0, 0, 0];
-  reset() {
-    this.axes.fill(0);
-  }
-  step(input: Controls, settings: PilotResponse, dt: number): Controls {
-    const blend =
-      settings.smoothingSeconds === 0
-        ? 1
-        : -Math.expm1(-Math.max(0, dt) / settings.smoothingSeconds);
-    const values = [input.roll, input.pitch, input.yaw].map((raw, i) => {
-      const v = clamp(Number.isFinite(raw) ? raw : 0, -1, 1);
-      const target =
-        settings.rates[i] * ((1 - settings.expo) * v + settings.expo * v ** 3);
-      this.axes[i] += (target - this.axes[i]) * blend;
-      return this.axes[i];
-    });
-    return {
-      ...input,
-      roll: values[0],
-      pitch: values[1],
-      yaw: values[2],
-      throttle: input.throttle,
-    };
-  }
+export const EXPO_CHANNELS = ["roll", "pitch", "yaw", "throttle"] as const;
+/** Sensible defaults: soft centre on the sticks, linear throttle. */
+export const DEFAULT_EXPO: ExpoSettings = {
+  roll: 0.3,
+  pitch: 0.3,
+  yaw: 0.2,
+  throttle: 0,
+};
+export const ExpoSchema = z
+  .object({
+    roll: z.number().finite().min(0).max(1),
+    pitch: z.number().finite().min(0).max(1),
+    yaw: z.number().finite().min(0).max(1),
+    throttle: z.number().finite().min(0).max(1),
+  })
+  .strict();
+
+/** Cubic expo of a normalized stick value. */
+export function expo(x: number, e: number) {
+  const v = clamp(Number.isFinite(x) ? x : 0, -1, 1),
+    k = clamp(Number.isFinite(e) ? e : 0, 0, 1);
+  return (1 - k) * v + k * v * v * v;
 }
+
+/** Shape transmitter sticks with per-channel expo (stateless). */
+export function applyExpo(input: Controls, settings: ExpoSettings): Controls {
+  const t = clamp(Number.isFinite(input.throttle) ? input.throttle : 0, 0, 1);
+  return {
+    ...input,
+    roll: expo(input.roll, settings.roll),
+    pitch: expo(input.pitch, settings.pitch),
+    yaw: expo(input.yaw, settings.yaw),
+    throttle:
+      settings.throttle > 0 ? (expo(2 * t - 1, settings.throttle) + 1) / 2 : t,
+  };
+}
+
 /** Preserve the whole trim offset while scaling the available pilot authority. */
 const trimmed = (value: number, trim: number) =>
   trim + value * (value >= 0 ? 1 - trim : 1 + trim);

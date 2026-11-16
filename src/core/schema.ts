@@ -123,6 +123,19 @@ export const AircraftSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * Pre-mounted FPV viewpoint (massless): lens position in datum axes,
+     * camera pitch (positive up) and vertical FOV. Used for the FPV view when
+     * no FPV camera component is installed (0.13.0).
+     */
+    viewpoint: z
+      .object({
+        positionM: vec,
+        pitchDeg: finite.min(-30).max(45).default(0),
+        fovDeg: finite.min(40).max(120).default(90),
+      })
+      .strict()
+      .optional(),
     fpv: z
       .object({
         partId: z.string().min(1),

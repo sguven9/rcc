@@ -34,12 +34,16 @@ export function resolveGroundContacts(
   properties: ReturnType<typeof massProperties>,
   c: Controls,
   dt: number,
-  surface: GroundSurface = "asphalt",
+  /** One surface for the whole field, or the surface under a point (x, y). */
+  surface:
+    GroundSurface | ((x: number, y: number) => GroundSurface) = "asphalt",
 ) {
   const config = PHYSICS.contact;
-  const tyre = slidingFriction("tyre", surface),
-    skid = slidingFriction("skid", surface);
-  const rollingFriction = PHYSICS.friction.rolling[surface];
+  // Each contact uses the material under it (paved runway, grass, dirt).
+  const surfaceUnder = (r: Vec3): GroundSurface =>
+    typeof surface === "function"
+      ? surface(s.position[0] + r[0], s.position[1] + r[1])
+      : surface;
   const { mass, cg, inverseInertia } = properties;
   const bodyToWorld = (v: Vec3) => rotate(s.orientation, v),
     worldToBody = (v: Vec3) => rotate(inverseQ(s.orientation), v);
@@ -92,10 +96,14 @@ export function resolveGroundContacts(
   s.status = "grounded";
   const wheels = touching.filter((v) => v.p.kind !== "body");
   // Static or kinetic sliding friction, chosen once from the pre-solve slip.
-  const sliding = wheels.map((wheel) => {
+  const materials = wheels.map((wheel) => surfaceUnder(wheel.r));
+  const sliding = wheels.map((wheel, i) => {
     const v = pointVelocity(wheel.r),
       slip = Math.hypot(v[0], v[1]) > config.slipSpeedMps;
-    const mu = wheel.p.kind === "skid" ? skid : tyre;
+    const mu = slidingFriction(
+      wheel.p.kind === "skid" ? "skid" : "tyre",
+      materials[i],
+    );
     return slip ? mu.kinetic : mu.static;
   });
   for (let iteration = 0; iteration < config.iterations; iteration++)
@@ -126,7 +134,10 @@ export function resolveGroundContacts(
       apply(r, scale(side, wheel.lateralImpulse - previousLateral));
       velocity = pointVelocity(r);
       const previousRolling = wheel.rollingImpulse;
-      const friction = p.kind === "skid" ? lateralFriction : rollingFriction;
+      const friction =
+        p.kind === "skid"
+          ? lateralFriction
+          : PHYSICS.friction.rolling[materials[index]];
       wheel.rollingImpulse = clamp(
         previousRolling - dot(velocity, forward) / effectiveMass(r, forward),
         -friction * wheel.normalImpulse,

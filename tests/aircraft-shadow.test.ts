@@ -69,10 +69,10 @@ it.each(Object.values(sceneries))(
 
 it("does not slide the sampling grid on stationary ground for sub-texel movement", () => {
   const { light, update } = setup();
-  const direction = new T.Vector3(...sceneries.club.sun).normalize();
+  const direction = new T.Vector3(...sceneries.manisa.sun).normalize();
   const right = new T.Vector3().crossVectors(light.up, direction).normalize();
   const position = new T.Vector3();
-  followAircraftShadow(light, position, sceneries.club.sun, 1);
+  followAircraftShadow(light, position, sceneries.manisa.sun, 1);
   update();
   const landmark = new T.Vector3(3, 0, -2);
   const before = landmark.clone().project(light.shadow.camera);
@@ -80,7 +80,7 @@ it("does not slide the sampling grid on stationary ground for sub-texel movement
     (light.shadow.camera.right - light.shadow.camera.left) /
     renderBudget.shadowSize;
   position.addScaledVector(right, texel * 0.2);
-  followAircraftShadow(light, position, sceneries.club.sun, 1);
+  followAircraftShadow(light, position, sceneries.manisa.sun, 1);
   update();
   const after = landmark.clone().project(light.shadow.camera);
   expect(after.x).toBeCloseTo(before.x, 12);
@@ -92,13 +92,13 @@ it("refits for the studio floor after a high-altitude flight", () => {
   followAircraftShadow(
     light,
     new T.Vector3(1000, 500, -1000),
-    sceneries.mesa.sun,
+    sceneries.manisa.sun,
     1,
   );
   const flightFar = light.shadow.camera.far;
-  followAircraftShadow(light, new T.Vector3(), sceneries.mesa.sun, 1, -0.27);
+  followAircraftShadow(light, new T.Vector3(), sceneries.manisa.sun, 1, -0.27);
   update();
-  const direction = new T.Vector3(...sceneries.mesa.sun).normalize();
+  const direction = new T.Vector3(...sceneries.manisa.sun).normalize();
   const ground = direction.multiplyScalar(-0.27 / direction.y);
   for (const point of [new T.Vector3(), ground]) {
     const clip = point.project(light.shadow.camera);
@@ -117,7 +117,7 @@ it("uses the same map with a tighter studio footprint for foamboard detail", () 
   followAircraftShadow(
     light,
     new T.Vector3(),
-    sceneries.club.sun,
+    sceneries.manisa.sun,
     0.5,
     -0.27,
     1,

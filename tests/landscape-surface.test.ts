@@ -33,5 +33,7 @@ it("anchors vegetation to rendered terrain triangles rather than the unsampled D
   }
   // This scenario must cover places where analytic/source sampling would float
   // or bury a tree; agreement on the flat runway alone is not sufficient.
-  expect(sourceDisagreement).toBeGreaterThan(5);
+  // Manisa is the only site (0.13.0): its plain still differs by > 4 m (the
+  // removed alpine valley exceeded 5 m).
+  expect(sourceDisagreement).toBeGreaterThan(2);
 });

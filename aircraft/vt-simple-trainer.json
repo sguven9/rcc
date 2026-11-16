@@ -711,5 +711,6 @@
   "credit": {
     "name": "Vortex RC",
     "url": "https://www.vortex-rc.com/product/vt-simple-trainer/"
-  }
+  },
+  "viewpoint": { "positionM": [0.08, 0, -0.156], "pitchDeg": 0, "fovDeg": 90 }
 }

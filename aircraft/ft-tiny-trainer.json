@@ -628,5 +628,10 @@
   "credit": {
     "name": "Flite Test",
     "url": "https://www.flitetest.com/articles/flite-test-tiny-trainer"
+  },
+  "viewpoint": {
+    "positionM": [-0.021, 0, -0.1675],
+    "pitchDeg": 0,
+    "fovDeg": 90
   }
 }

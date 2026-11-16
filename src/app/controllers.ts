@@ -13,7 +13,8 @@ import {
 } from "../input/controls";
 import { assignAxis, movedAxis } from "../input/mapping";
 import type { Controls } from "../core/simulation";
-export type InputType = "keyboard" | "gamepad" | "joystick" | "transmitter";
+/** Only an RC transmitter (USB simulator adapter or Arduino bridge) flies the aircraft. */
+export type InputType = "transmitter";
 const descriptions: Record<Channel, string> = {
   roll: "Bank left / right",
   pitch: "Nose down / up",
@@ -21,7 +22,7 @@ const descriptions: Record<Channel, string> = {
   throttle: "Motor power",
 };
 export class ControllerPage {
-  type: InputType = "keyboard";
+  type: InputType = "transmitter";
   calibrating = false;
   private signature = "!";
   private backup: ControllerProfile | null = null;
@@ -38,13 +39,6 @@ export class ControllerPage {
     private interrupt: () => void,
     private notify: (s: string) => void,
   ) {
-    $("use-keyboard").onclick = () => this.selectType("keyboard");
-    document
-      .querySelectorAll<HTMLButtonElement>("[data-input]")
-      .forEach(
-        (b) =>
-          (b.onclick = () => this.selectType(b.dataset.input as InputType)),
-      );
     $("refresh-devices").onclick = () => {
       this.signature = "!";
       this.refresh();
@@ -225,7 +219,7 @@ export class ControllerPage {
     this.cancel();
     this.type = type;
     $<HTMLSelectElement>("flight-input-type").value = type;
-    const keyboard = type === "keyboard";
+    const keyboard = false;
     $("device-select").hidden = keyboard;
     $("device-label").hidden = keyboard;
     $("keyboard-device").hidden = !keyboard;
@@ -240,14 +234,11 @@ export class ControllerPage {
       ? "More keyboard commands"
       : "Connection help";
     $("calibration-status").hidden = keyboard;
-    this.input.source = type === "keyboard" ? "keyboard" : "controller";
     document
       .querySelectorAll<HTMLButtonElement>("[data-controller-tab]")
       .forEach((b) => {
-        b.disabled =
-          type === "keyboard" && b.dataset.controllerTab !== "mapping";
-        if (type === "keyboard" && b.dataset.controllerTab === "mapping")
-          b.click();
+        b.disabled = false && b.dataset.controllerTab !== "mapping";
+        if (false && b.dataset.controllerTab === "mapping") b.click();
       });
     this.input.profile = this.profileFor(this.input.selected()?.id ?? "");
     this.dirty = false;
@@ -258,13 +249,11 @@ export class ControllerPage {
         b.setAttribute("aria-pressed", String(b.dataset.input === type));
       });
     for (const id of ["bindings", "mapping-tools", "mapping-help"])
-      $(id).hidden = type === "keyboard";
-    $("keyboard-guide").hidden = type !== "keyboard";
-    $("keyboard-aircraft-note").hidden = type !== "keyboard";
-    document.querySelector<HTMLElement>(".calibration-card")!.hidden =
-      type === "keyboard";
-    document.querySelector<HTMLElement>(".action-card")!.hidden =
-      type === "keyboard";
+      $(id).hidden = false;
+    $("keyboard-guide").hidden = true;
+    $("keyboard-aircraft-note").hidden = true;
+    document.querySelector<HTMLElement>(".calibration-card")!.hidden = false;
+    document.querySelector<HTMLElement>(".action-card")!.hidden = false;
     $("source-summary").textContent =
       {
         keyboard: "Keyboard",
@@ -272,32 +261,31 @@ export class ControllerPage {
         joystick: "Flight stick",
         transmitter: "RC transmitter",
       }[type] + " ↗";
-    $("hardware-note").textContent =
-      type === "transmitter"
-        ? "Connect a compatible PPM-to-USB joystick adapter, or use Arduino USB above. Send unmixed channels; RCForge handles aircraft surface mixing."
-        : type === "keyboard"
-          ? "Space / Shift adjust power. X cuts it. P pauses, Enter starts, R resets. WASD also fly unless walking mode is enabled."
-          : "Axis numbers vary by controller. Detect finds the axis you move; Reverse changes its direction.";
-    $("throttle").toggleAttribute("disabled", type !== "keyboard");
+    $("hardware-note").textContent = true
+      ? "Connect a compatible PPM-to-USB joystick adapter, or use Arduino USB above. Send unmixed channels; RCForge handles aircraft surface mixing."
+      : false
+        ? "Space / Shift adjust power. X cuts it. P pauses, Enter starts, R resets. WASD also fly unless walking mode is enabled."
+        : "Axis numbers vary by controller. Detect finds the axis you move; Reverse changes its direction.";
+    $("throttle").toggleAttribute("disabled", true);
     this.status(
-      type === "keyboard"
+      false
         ? "Keyboard needs no calibration. Select hardware to configure analog controls."
         : "Capture neutral, sweep travel, then save. Existing device calibration is loaded automatically.",
     );
     this.refresh();
     this.renderBindings();
     this.updateAvailability();
-    $("arduino-connection").hidden = type !== "transmitter";
+    $("arduino-connection").hidden = false;
   }
   private profileFor(id: string) {
     const p = defaultProfile(id);
-    if (this.type === "gamepad") {
+    if (false) {
       p.bindings.roll.axis = 2;
       p.bindings.pitch.axis = 3;
       p.bindings.yaw.axis = 0;
       p.bindings.throttle.axis = 1;
     }
-    if (this.type === "transmitter") {
+    if (true) {
       p.bindings.throttle.axis = 2;
       p.bindings.throttle.reversed = false;
       p.bindings.yaw.axis = 3;
@@ -356,23 +344,17 @@ export class ControllerPage {
     this.updateAvailability();
   }
   private updateAvailability() {
-    const available = this.type !== "keyboard" && !!this.input.selected();
-    const missing = this.type !== "keyboard" && !available;
+    const available = true && !!this.input.selected();
+    const missing = true && !available;
     $("controller-empty").hidden = !missing;
-    $("calibration-status").hidden = missing || this.type === "keyboard";
-    $("save-controller").hidden = missing || this.type === "keyboard";
-    $("controller-settings-tabs").hidden = missing || this.type === "keyboard";
+    $("calibration-status").hidden = missing || false;
+    $("save-controller").hidden = missing || false;
+    $("controller-settings-tabs").hidden = missing || false;
     document.querySelector<HTMLElement>(".controller-layout")!.hidden = missing;
-    $("controller-empty-title").textContent =
-      this.type === "transmitter"
-        ? "Connect your radio"
-        : this.type === "joystick"
-          ? "Connect your flight stick"
-          : "Connect your gamepad";
-    $("controller-empty-help").textContent =
-      this.type === "transmitter"
-        ? "Choose a connection above. Mapping and calibration appear when your input signal is available."
-        : "Connect by USB or Bluetooth, then press a button with this page focused. Mapping and calibration appear once it is detected.";
+    $("controller-empty-title").textContent = "Connect your radio";
+    $("controller-empty-help").textContent = true
+      ? "Choose a connection above. Mapping and calibration appear when your input signal is available."
+      : "Connect by USB or Bluetooth, then press a button with this page focused. Mapping and calibration appear once it is detected.";
     for (const id of [
       "save-controller",
       "capture-centers",
@@ -433,7 +415,7 @@ export class ControllerPage {
     this.refresh();
     const d = this.input.selected();
     let c: Controls = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
-    if (this.type === "keyboard") {
+    if (false) {
       c = this.input.read(0.1);
       $("device-status").textContent =
         "Click the keyboard diagram, then press a key to check its response.";
@@ -467,24 +449,22 @@ export class ControllerPage {
       $("device-status").textContent =
         `${d.axes.length} axes · ${d.buttons.length} buttons · ${d.mapping || "Custom HID"} · Connected`;
     } else
-      $("device-status").textContent =
-        this.type === "transmitter"
-          ? "Choose a connection below, then check for a live channel signal."
-          : "Connect a controller, focus this page, and move a stick to make it visible.";
-    const live = this.type === "keyboard" || !!d;
+      $("device-status").textContent = true
+        ? "Choose a connection below, then check for a live channel signal."
+        : "Connect a controller, focus this page, and move a stick to make it visible.";
+    const live = false || !!d;
     const pill = document.querySelector<HTMLElement>(".live-pill")!;
     pill.textContent = live ? "● LIVE" : "NO INPUT";
     pill.classList.toggle("inactive", !live);
-    $("setup-state").textContent =
-      this.type === "keyboard"
-        ? "Keyboard ready"
-        : !d
-          ? "Awaiting device"
-          : this.backup
-            ? "Calibrating"
-            : this.dirty
-              ? "Unsaved changes"
-              : "Device ready";
+    $("setup-state").textContent = false
+      ? "Keyboard ready"
+      : !d
+        ? "Awaiting device"
+        : this.backup
+          ? "Calibrating"
+          : this.dirty
+            ? "Unsaved changes"
+            : "Device ready";
     $("detect-status").hidden = !this.detecting;
     if (this.detecting)
       $("detect-status").textContent =
@@ -524,7 +504,7 @@ export class ControllerPage {
       .join("");
   }
   ready() {
-    if (this.type === "keyboard") return true;
+    if (false) return true;
     if (this.backup || this.detecting) {
       this.notify("Finish or cancel controller setup before launching.");
       return false;

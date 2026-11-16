@@ -912,5 +912,6 @@
   "credit": {
     "name": "Flite Test",
     "url": "https://www.flitetest.com/articles/ft-bronco-build"
-  }
+  },
+  "viewpoint": { "positionM": [0.2139, 0, -0.037], "pitchDeg": 0, "fovDeg": 90 }
 }

@@ -104,17 +104,8 @@ describe("device acquisition and interruption", () => {
     const { InputManager } = await import("../src/input/controls");
     return { win, doc, interrupt, input: new InputManager(interrupt) };
   }
-  it("keyboard pitch follows pull-back convention and blur clears held keys", async () => {
-    const { input, win, interrupt } = await setup();
-    win.dispatchEvent(Object.assign(new Event("keydown"), { code: "KeyS" }));
-    expect(input.read(0.1).pitch).toBeGreaterThan(0);
-    win.dispatchEvent(new Event("blur"));
-    expect(input.read(0.1).pitch).toBe(0);
-    expect(interrupt).toHaveBeenCalled();
-  });
   it("an absent controller interrupts and returns zero throttle", async () => {
     const { input, interrupt } = await setup();
-    input.source = "controller";
     expect(input.read(0.01).throttle).toBe(0);
     expect(interrupt).toHaveBeenCalledWith("No controller detected");
   });
@@ -136,7 +127,6 @@ describe("device acquisition and interruption", () => {
   });
   it("does not silently accept a replacement device at the same index", async () => {
     const { input, interrupt } = await setup();
-    input.source = "controller";
     input.deviceIndex = 0;
     input.profile = defaultProfile("original");
     vi.stubGlobal("navigator", {

@@ -49,6 +49,43 @@ export interface Scenery {
   plantedTrees?: [number, number, number][];
   /** WGS84 reference for documentation; local coordinates remain metres. */
   location?: { latitude: number; longitude: number };
+  /**
+   * Ground materials for wheel friction (0.13.0): paved areas first, then
+   * grass; everything else is bare soil (dirt).
+   */
+  surfaceZones?: { paved: ZoneRect[]; grass: ZoneRect[] };
+}
+/** Rotated rectangle in local metres (x along the runway, z = sim east axis). */
+export interface ZoneRect {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  /** Rotation like the site footprints: u → (cos, −sin), degrees. */
+  yawDeg: number;
+}
+export function inZone(r: ZoneRect, x: number, z: number) {
+  const a = (r.yawDeg * Math.PI) / 180,
+    c = Math.cos(a),
+    s = Math.sin(a);
+  const dx = x - r.x,
+    dz = z - r.z;
+  return (
+    Math.abs(dx * c - dz * s) <= r.width / 2 &&
+    Math.abs(dx * s + dz * c) <= r.depth / 2
+  );
+}
+/** Ground material at local (x, z): paved, grass or dirt. */
+export function surfaceAt(
+  profile: Scenery,
+  x: number,
+  z: number,
+): "asphalt" | "grass" | "dirt" {
+  const zones = profile.surfaceZones;
+  if (!zones) return profile.surface;
+  if (zones.paved.some((r) => inZone(r, x, z))) return "asphalt";
+  if (zones.grass.some((r) => inZone(r, x, z))) return "grass";
+  return "dirt";
 }
 export const defaultRunway: RunwayLayout = {
   x: 48,
@@ -75,59 +112,11 @@ export function isClearArea(profile: Scenery, x: number, z: number) {
   return false;
 }
 
-/** Field elevation affects pressure/density; local flight coordinates remain metres AGL. */
+/**
+ * The only flying site is Manisa (other fields were removed in 0.13.0).
+ * Field elevation affects pressure/density; local coordinates remain metres AGL.
+ */
 export const sceneries = {
-  club: {
-    name: "Northfield club",
-    description: "Mown grass, paved runway, late afternoon",
-    temperatureC: 18,
-    elevationM: 120,
-    surface: "asphalt" as const,
-    ground: "#95a078",
-    strip: "#a6b58d",
-    ridge: "#728576",
-    fog: "#b9cad4",
-    sun: [25, 60, -35] as [number, number, number],
-    sunColor: "#fff4dc",
-    sunIntensity: 3.2,
-    treeCount: 150,
-    ridgeHeight: 1,
-    seed: 41,
-  },
-  valley: {
-    name: "Alpine meadow",
-    description: "Grass strip, conifer valley, cool morning",
-    temperatureC: 10,
-    elevationM: 1250,
-    surface: "grass" as const,
-    ground: "#7e967b",
-    strip: "#a0b18b",
-    ridge: "#657e85",
-    fog: "#b7ccd5",
-    sun: [-45, 34, -40] as [number, number, number],
-    sunColor: "#e6efff",
-    sunIntensity: 2.5,
-    treeCount: 260,
-    ridgeHeight: 5,
-    seed: 83,
-  },
-  mesa: {
-    name: "Desert mesa",
-    description: "Dirt strip, dry scrub, warm evening",
-    temperatureC: 32,
-    elevationM: 650,
-    surface: "dirt" as const,
-    ground: "#c0a27c",
-    strip: "#d5b590",
-    ridge: "#ad8a72",
-    fog: "#dbc4a7",
-    sun: [55, 23, -25] as [number, number, number],
-    sunColor: "#ffd8a3",
-    sunIntensity: 3.6,
-    treeCount: 45,
-    ridgeHeight: 2.5,
-    seed: 129,
-  },
   manisa: {
     name: "Manisa",
     description: "Concrete runway 10/28, ploughed Gediz plain, warm afternoon",
@@ -168,9 +157,25 @@ export const sceneries = {
       ]),
     ],
     location: { latitude: 38.70171, longitude: 27.45461 },
+    // Same footprints as view/manisa-site.ts (concrete is treated as paved).
+    surfaceZones: {
+      paved: [
+        { x: -1, z: 0, width: 400, depth: 16, yawDeg: 0 },
+        { x: 0.15, z: -24.5, width: 7, depth: 33.5, yawDeg: 0 },
+        { x: -0.9, z: -52.2, width: 27, depth: 14, yawDeg: 29.2 },
+        { x: 63.1, z: -110.4, width: 63.5, depth: 28.6, yawDeg: 29.2 },
+        { x: 79.75, z: -98.25, width: 200.9, depth: 6, yawDeg: 34.8 },
+      ],
+      grass: [
+        { x: 0, z: -24, width: 420, depth: 30, yawDeg: 0 },
+        { x: 0, z: 24, width: 420, depth: 30, yawDeg: 0 },
+        { x: 8, z: -66, width: 92, depth: 58, yawDeg: 29.2 },
+      ],
+    },
   },
 } satisfies Record<string, Scenery>;
 export type SceneryId = keyof typeof sceneries;
+export const DEFAULT_SCENERY: SceneryId = "manisa";
 export function airDensity(temperatureC: number, elevationM: number) {
   const pressure = 101325 * Math.pow(1 - 2.25577e-5 * elevationM, 5.25588);
   return pressure / (287.05 * (temperatureC + 273.15));

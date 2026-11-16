@@ -9,7 +9,6 @@ import { FlightClock } from "./app/flight-clock";
 import "./view/vtol.css";
 import { VtolFlight } from "./app/vtol-flight";
 import { bundledAircraft } from "./app/bundled-aircraft";
-import { setupReleaseInfo } from "./app/release-info";
 import { setupAircraftHistory } from "./app/aircraft-history";
 import {
   saveAircraftRevision,
@@ -23,8 +22,9 @@ import {
 import { ControlPreview } from "./core/control-preview";
 import { FpvPlacementDialog } from "./app/fpv-placement";
 import { renderControlTest, updateControlTest } from "./app/control-test";
-import { PilotResponseFilter, withTrim } from "./core/pilot-response";
-import { ResponsePanel } from "./app/pilot-response";
+import { applyExpo, withTrim } from "./core/pilot-response";
+import { setupExpos } from "./view/expos";
+import { setImmersive as setImmersiveMode, osdShown } from "./app/immersive";
 import "./view/flight-navigation.css";
 import {
   createFlightNavigation,
@@ -39,6 +39,7 @@ import {
   airKinematicViscosity,
   type SceneryId,
   type Scenery,
+  DEFAULT_SCENERY,
 } from "./core/scenery";
 import { powertrain } from "./core/powertrain";
 import { batteryUsage } from "./core/components";
@@ -69,10 +70,8 @@ import {
 } from "./view/physics-debug";
 import "./view/osd.css";
 import { Osd } from "./view/osd";
-import { CockpitPanel } from "./view/cockpit-panel";
 import {
   ALTITUDE_UNITS,
-  GaugeSmoother,
   SPEED_UNITS,
   formatOsd,
   readInstruments,
@@ -114,7 +113,6 @@ import {
 import { InputManager } from "./input/controls";
 import { ControllerPage } from "./app/controllers";
 import { AircraftEditor } from "./app/editor";
-import { setupExperiments } from "./app/experiments";
 import { $, escape, download } from "./app/dom";
 import { ownsKeyboard } from "./input/ui-focus";
 import {
@@ -124,10 +122,6 @@ import {
 } from "./app/flight-session";
 import { setupTabs } from "./app/tabs";
 $("app").innerHTML = workbenchMarkup();
-setupReleaseInfo(() => {
-  pause();
-  input.clear();
-});
 const flightOverlaySizes = new ResizeObserver((entries) => {
   for (const entry of entries) {
     const variable = entry.target.classList.contains("flight-bottom")
@@ -177,10 +171,9 @@ let sim = new Simulation(
   recording = createRecording(sim),
   editorSim = sim;
 let scene: FlightScene | undefined;
-type FlightCamera = "ground" | "chase" | "fpv" | "cockpit";
-let flightCamera: FlightCamera = "ground";
-/** Camera to return to when the cockpit view is toggled off (Y). */
-let outsideCamera: FlightCamera = "ground";
+/** FPV (pre-mounted on every aircraft, the default) or the pilot on the ground. */
+type FlightCamera = "ground" | "fpv";
+let flightCamera: FlightCamera = "fpv";
 let locatorUntil = 0;
 const audio = new FlightAudio();
 let pauseReason = "";
@@ -206,9 +199,23 @@ function errorText(e: unknown) {
       ? e.message
       : String(e);
 }
+/**
+ * Immersive flight: on start the page goes full screen (requested from the
+ * user's click or key press, as browsers require) and every panel hides; only
+ * the FPV OSD and essential warnings stay. Leaving full screen (Esc) or
+ * pausing brings the interface back.
+ */
+function setImmersive(on: boolean) {
+  setImmersiveMode(document, on);
+}
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && running)
+    pause("Paused — full screen closed.");
+});
 function pause(reason?: string) {
   const wasRunning = running;
   running = false;
+  setImmersive(false);
   flightClock.reset();
   document.body.dataset.running = "false";
   $("toggle-flight-setup").setAttribute(
@@ -218,8 +225,8 @@ function pause(reason?: string) {
   if (wasRunning) pauseReason = reason ?? "";
   audio.update(0, 0, false);
 }
-const responseFilter = new PilotResponseFilter();
-const responsePanel = new ResponsePanel();
+// Stick expo per channel (Expos page); the only shaping before trim.
+const expoSettings = setupExpos(() => controlPreview?.reset());
 let controlPreview = new ControlPreview(aircraft);
 const previewClock = new FlightClock(FIXED_DT);
 let previewPitchTrim = 0;
@@ -235,17 +242,13 @@ const vtolFlight = new VtolFlight(
   () => sim,
   message,
   () => {
-    if (input.source === "keyboard" && !replay) input.throttle = 0.5;
+    if (false && !replay) input.throttle = 0.5;
   },
 );
 function physicalAircraft() {
   return mode === "ground" ? fitLandingGear(aircraft) : aircraft;
 }
 function updateFlightInfo() {
-  responsePanel.selectAircraft(aircraft);
-  $("setup-fpv-camera").textContent = aircraft.fpv
-    ? "Adjust FPV camera"
-    : "Set up FPV camera";
   const a = physicalAircraft();
   const quad = a.vehicleType === "multirotor";
   document.querySelectorAll<HTMLButtonElement>("[data-launch]").forEach((b) => {
@@ -319,11 +322,10 @@ function showScenery(env: typeof environment) {
   const id = (
     env.sceneryId && Object.hasOwn(sceneries, env.sceneryId)
       ? env.sceneryId
-      : "club"
+      : DEFAULT_SCENERY
   ) as SceneryId;
   const site = sceneries[id];
   scene?.setScenery(id);
-  $<HTMLSelectElement>("scenery-select").value = id;
   $("scenery-label").textContent = site.name.toUpperCase();
   $("scenery-conditions").textContent =
     `${site.temperatureC} °C · ${site.elevationM} m elevation · ${env.densityKgM3.toFixed(3)} kg/m³`;
@@ -334,19 +336,17 @@ function showScenery(env: typeof environment) {
 const energyGraph = new EnergyGraph($<HTMLCanvasElement>("energy-graph"));
 // On-screen display and cockpit panel, both fed by readInstruments().
 const osd = new Osd();
-const cockpitPanel = new CockpitPanel($<HTMLCanvasElement>("cockpit-panel"));
-const gaugeSmoother = new GaugeSmoother();
 let osdHome: [number, number] = [0, 0];
 const osdUnits = (): { speed: SpeedUnit; altitude: AltitudeUnit } => ({
   speed: $<HTMLSelectElement>("osd-speed-unit").value as SpeedUnit,
   altitude: $<HTMLSelectElement>("osd-alt-unit").value as AltitudeUnit,
 });
 function applyOsdSettings() {
-  osd.visible = $<HTMLInputElement>("osd-toggle").checked;
+  osd.enabled = $<HTMLInputElement>("osd-toggle").checked;
   try {
     localStorage.setItem(
       "rcforge.osd",
-      JSON.stringify({ on: osd.visible, ...osdUnits() }),
+      JSON.stringify({ on: osd.enabled, ...osdUnits() }),
     );
   } catch {
     /* Preferences are optional. */
@@ -367,36 +367,26 @@ try {
 for (const id of ["osd-toggle", "osd-speed-unit", "osd-alt-unit"])
   $(id).onchange = applyOsdSettings;
 applyOsdSettings();
-function updateOsdAndCockpit(dt: number) {
-  const cockpit = flightCamera === "cockpit";
-  if (!osd.visible && !cockpit) return;
+/** OSD in FPV only (goggle overlay), fed by readInstruments(). */
+function updateOsd() {
+  if (!osd.visible) return;
   const site = sceneries[
-    (environment.sceneryId ?? "club") as SceneryId
+    (environment.sceneryId ?? DEFAULT_SCENERY) as SceneryId
   ] as Scenery;
   const readings = readInstruments(sim, {
     headingOffsetDeg: site.headingOffsetDeg ?? 0,
     home: osdHome,
     location: site.location,
   });
-  const units = osdUnits();
-  if (osd.visible) {
-    osd.update(readings, formatOsd(readings, units), {
-      mode: sim.aircraft.vtol
-        ? (sim.state.vtol?.phase ?? "vtol").toUpperCase()
-        : $<HTMLSelectElement>("quick-response").value.toUpperCase(),
-      verticalFovDeg: scene?.camera.fov ?? 50,
-      odometerFactor: 1,
-      odometerLabel: "km",
-      viewRect: $("viewport").getBoundingClientRect(),
-      cockpit: flightCamera === "cockpit",
-    });
-  }
-  if (cockpit)
-    cockpitPanel.draw(
-      gaugeSmoother.step(readings, dt),
-      units,
-      Math.max(20, (sim.aircraft.reference.trimSpeedMps ?? 12) * 2.5),
-    );
+  osd.update(readings, formatOsd(readings, osdUnits()), {
+    mode: sim.aircraft.vtol
+      ? (sim.state.vtol?.phase ?? "vtol").toUpperCase()
+      : "ACRO",
+    verticalFovDeg: scene?.camera.fov ?? 50,
+    odometerFactor: 1,
+    odometerLabel: "km",
+    viewRect: $("viewport").getBoundingClientRect(),
+  });
 }
 $("physics-debug-legend").innerHTML = PHYSICS_DEBUG_LEGEND.map(
   (v) =>
@@ -412,7 +402,6 @@ $("physics-debug").onchange = () =>
 function reset() {
   energyGraph.reset();
   osd.reset();
-  gaugeSmoother.reset();
   const cameraMode = flightCamera;
   showScenery(environment);
   environment = { ...environment, obstacles: scene?.fieldObstacles ?? [] };
@@ -426,7 +415,6 @@ function reset() {
   replay = null;
   replayIndex = 0;
   input.clear();
-  responseFilter.reset();
   const a = physicalAircraft(),
     trim = launchTrim(a, mode, environment);
   pitchTrim = trim.controls.pitch;
@@ -464,8 +452,6 @@ function reset() {
 async function launch() {
   if (!requireHostAccess({ kind: "aircraft", id: sim.aircraft.id })) return;
   if (!requireHostAccess({ kind: "input", id: controller.type })) return;
-  if (replay && !requireHostAccess({ kind: "workspace", id: "experiments" }))
-    return;
   if (!scene) {
     message("WebGL is unavailable. Enable hardware acceleration to fly.");
     return;
@@ -497,6 +483,7 @@ async function launch() {
     reset();
   positioning.close(false);
   running = true;
+  setImmersive(page === "fly");
   started = true;
   flightClock.reset(performance.now());
   input.clear();
@@ -522,7 +509,6 @@ function loadAircraft(a: Aircraft) {
     rememberAircraft(aircraft.id);
   editor.switchTo(aircraft);
   reset();
-  invalidate();
   fillSelects();
 }
 function fillSelects() {
@@ -604,16 +590,6 @@ editor.onPlaceCamera = () => {
     message(errorText(e));
   }
 };
-responsePanel.onSaveToAircraft = (settings) => {
-  try {
-    editor.setPilotResponse(settings);
-    message(
-      "Response saved in the aircraft draft. Apply to keep it with the aircraft or export its JSON.",
-    );
-  } catch (e) {
-    message(errorText(e));
-  }
-};
 function enableControlTest(enabled: boolean) {
   $<HTMLInputElement>("test-sticks").checked = enabled;
   input.clear();
@@ -629,35 +605,30 @@ setupEditorWorkspace((components, test) => {
   componentsWorkspace = components;
   scene?.setComponentInspection(editorComponent, components);
 });
-const invalidate = setupExperiments(
-  () => ({ baseline, aircraft, environment }),
-  () => pause(),
-);
 function route() {
   cameraPlacer?.close(false);
   componentPlacer?.close(false);
   positioning.close(false);
   let next = location.hash.replace(/^#\//, "") || "fly";
   if (
-    (next === "aircraft" || next === "experiments") &&
+    next === "aircraft" &&
     !requireHostAccess({ kind: "workspace", id: next })
   ) {
     next = "fly";
     history.replaceState(null, "", "#/fly");
   }
   window.scrollTo(0, 0);
-  page = ["fly", "aircraft", "controllers", "experiments"].includes(next)
+  page = ["fly", "aircraft", "controllers", "expos"].includes(next)
     ? next
     : "fly";
   pause();
   input.clear();
-  responseFilter.reset();
   input.testBench =
     page === "aircraft" && $<HTMLInputElement>("test-sticks").checked;
   input.active = page === "fly" || page === "controllers" || input.testBench;
   controlPreview.reset();
   previewClock.reset(performance.now());
-  for (const id of ["fly", "aircraft", "controllers", "experiments"])
+  for (const id of ["fly", "aircraft", "controllers", "expos"])
     $("page-" + id).hidden = id !== page;
   document.querySelectorAll<HTMLAnchorElement>("[data-route]").forEach((a) => {
     a.classList.toggle("active", a.dataset.route === page);
@@ -680,10 +651,6 @@ function route() {
     if (scene) scene.showCG = $<HTMLInputElement>("show-cg").checked;
   }
   if (page === "controllers") controller.refresh();
-  if (page === "experiments") {
-    $("experiment-aircraft").textContent = aircraft.name;
-    updateExperimentInfo();
-  }
 }
 window.addEventListener("hashchange", route);
 const positioning = placementUI({
@@ -698,7 +665,8 @@ const positioning = placementUI({
       pilotHeadingDeg: scene?.pilotHeadingDeg ?? 0,
       camera: scene?.mode ?? "ground",
       surface:
-        sceneries[(environment.sceneryId ?? "club") as SceneryId].surface,
+        sceneries[(environment.sceneryId ?? DEFAULT_SCENERY) as SceneryId]
+          .surface,
     };
   },
   apply: (p) => {
@@ -814,17 +782,6 @@ setupCatalog(
   },
   loadAircraft,
 );
-function updateExperimentInfo() {
-  const pending =
-    editor.hasPending ||
-    JSON.stringify(editor.draft) !== JSON.stringify(aircraft);
-  $("experiment-aircraft").textContent = aircraft.name;
-  $("experiment-draft-note").hidden = !pending;
-  $("experiment-config").textContent =
-    JSON.stringify(baseline) === JSON.stringify(aircraft)
-      ? "Original configuration. Both traces will match until you apply an edit."
-      : "Original model compared with your applied configuration.";
-}
 function applyDraft() {
   if (!requireHostAccess({ kind: "workspace", id: "aircraft" })) return false;
   try {
@@ -851,8 +808,6 @@ function applyDraft() {
       scene?.setAircraft(editor.draft);
       scene?.setComponentInspection(editorComponent, componentsWorkspace);
     }
-    invalidate();
-    updateExperimentInfo();
     message(
       !stored
         ? "Aircraft applied, but could not be saved locally. Export JSON to keep your changes."
@@ -948,7 +903,6 @@ $<HTMLInputElement>("import-aircraft").onchange = async (e) => {
     reset();
     scene?.setStudio(true);
     scene?.setAircraft(a);
-    invalidate();
     message(
       archive
         ? "History imported. Latest backup version opened for review; Apply to flight to save this aircraft locally."
@@ -1044,20 +998,18 @@ for (const id of [
       discreteGusts: gustSettings(),
     };
     reset();
-    invalidate();
   };
 function setFlightCamera(camera: FlightCamera) {
-  if (camera === "fpv" && !sim.aircraft.fpv) camera = "ground";
+  if (camera === "fpv" && !sim.aircraft.fpv && !sim.aircraft.viewpoint)
+    camera = "ground";
   flightCamera = camera;
   if (camera !== "ground") {
     input.walking = false;
     if (scene) scene.walking = false;
     $<HTMLInputElement>("walk-mode").checked = false;
   }
-  $("locate-aircraft").hidden = camera === "fpv" || camera === "cockpit";
-  if (camera !== "cockpit") outsideCamera = camera;
-  $("cockpit-panel").hidden = camera !== "cockpit";
-  gaugeSmoother.reset();
+  $("locate-aircraft").hidden = camera === "fpv";
+  osd.active = osdShown(true, camera);
   $("aircraft-locator").hidden = true;
   locatorUntil = 0;
   scene?.setCamera(camera);
@@ -1069,19 +1021,12 @@ function setFlightCamera(camera: FlightCamera) {
       button.setAttribute("aria-pressed", String(selected));
     });
   $("camera-description").textContent =
-    camera === "cockpit"
-      ? "Cockpit view · live instrument panel · Y for outside view"
-      : camera === "fpv"
-        ? `Onboard FPV · ${sim.aircraft.fpv?.fovDeg}° vertical view`
-        : camera === "chase"
-          ? "Following aircraft · chase view"
-          : "Pilot view · eye height 1.7 m";
+    camera === "fpv"
+      ? `Onboard FPV · ${sim.aircraft.fpv?.fovDeg ?? sim.aircraft.viewpoint?.fovDeg ?? 90}° vertical view`
+      : "Pilot view · eye height 1.7 m";
 }
 function cycleFlightCamera() {
-  const views: FlightCamera[] = sim.aircraft.fpv
-    ? ["ground", "chase", "fpv", "cockpit"]
-    : ["ground", "chase", "cockpit"];
-  setFlightCamera(views[(views.indexOf(flightCamera) + 1) % views.length]);
+  setFlightCamera(flightCamera === "fpv" ? "ground" : "fpv");
 }
 function openFpvEditor() {
   if (!requireHostAccess({ kind: "workspace", id: "aircraft" })) return;
@@ -1090,10 +1035,8 @@ function openFpvEditor() {
   route();
   editor.editFpv();
 }
-$("setup-fpv-camera").onclick = openFpvEditor;
 function locateAircraft() {
-  if (flightCamera === "fpv" || flightCamera === "cockpit")
-    setFlightCamera("ground");
+  if (flightCamera === "fpv") setFlightCamera("ground");
   if (!scene) return;
   scene.locateAircraft();
   $<HTMLInputElement>("track-plane").checked = true;
@@ -1105,12 +1048,7 @@ document
   .querySelectorAll<HTMLButtonElement>("[data-camera]")
   .forEach((button) => {
     button.onclick = (event) => {
-      if (button.dataset.camera === "fpv" && !sim.aircraft.fpv) {
-        openFpvEditor();
-        message("Add a camera in Components, then Apply & fly to use FPV.");
-        return;
-      }
-      setFlightCamera(button.dataset.camera as "ground" | "chase" | "fpv");
+      setFlightCamera(button.dataset.camera as FlightCamera);
       // Pointer users can keep flying immediately; keyboard activation keeps native focus.
       if (event.detail > 0) scene?.renderer.domElement.focus();
     };
@@ -1143,8 +1081,7 @@ $("show-cg").onchange = () => {
 $("pilot-fov").oninput = () => {
   if (scene) {
     const value = Number($<HTMLInputElement>("pilot-fov").value);
-    if (scene.mode === "chase") scene.chaseDistance = value;
-    else if (scene.mode === "ground") scene.pilotFov = value;
+    if (scene.mode === "ground") scene.pilotFov = value;
   }
 };
 $("sound").onchange = () =>
@@ -1168,6 +1105,12 @@ window.addEventListener("keydown", (e) => {
     positioning.close();
     return;
   }
+  // Esc during an immersive flight pauses and brings the menus back.
+  if (page === "fly" && e.code === "Escape" && running) {
+    e.preventDefault();
+    pause("Paused — Esc.");
+    return;
+  }
   if (
     page === "fly" &&
     e.code === "Escape" &&
@@ -1177,13 +1120,6 @@ window.addEventListener("keydown", (e) => {
     closeFlightSetup();
     return;
   }
-  if (
-    page === "aircraft" &&
-    !ownsKeyboard(e.target) &&
-    e.code === "KeyC" &&
-    !e.repeat
-  )
-    responsePanel.cycle();
   if (page !== "fly" || ownsKeyboard(e.target)) return;
   if (e.code === "KeyF" && !e.repeat) locateAircraft();
   if (e.code === "KeyG" && !e.repeat) {
@@ -1193,14 +1129,11 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyV" && !e.repeat) cycleFlightCamera();
   if (e.code === "KeyU" && !e.repeat) triggerGust();
-  if (e.code === "KeyY" && !e.repeat)
-    setFlightCamera(flightCamera === "cockpit" ? outsideCamera : "cockpit");
   if (e.code === "KeyO" && !e.repeat) {
     const box = $<HTMLInputElement>("osd-toggle");
     box.checked = !box.checked;
     applyOsdSettings();
   }
-  if (e.code === "KeyC" && !e.repeat && !replay) responsePanel.cycle();
   if (e.code === "KeyP" && !e.repeat) {
     e.preventDefault();
     if (running) pause();
@@ -1218,58 +1151,23 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyB" && !e.repeat && !replay) vtolFlight.cycleAssistance();
   if (e.code === "KeyT" && !e.repeat && !replay) vtolFlight.toggle();
-  if (
-    e.code === "KeyH" &&
-    sim.aircraft.vtol &&
-    input.source === "keyboard" &&
-    !replay
-  )
+  if (e.code === "KeyH" && sim.aircraft.vtol && false && !replay)
     input.throttle = 0.5;
-  if (e.code === "KeyX" && input.source === "keyboard") input.throttle = 0;
+  if (e.code === "KeyX" && false) input.throttle = 0;
   if (e.code === "KeyR" && !e.repeat) {
     positioning.close(false);
     reset();
   }
 });
-$("export-flight").onclick = () =>
-  download(recording.aircraft.id + "-flight.json", JSON.stringify(recording));
-$("import-replay-button").onclick = () => $("import-replay").click();
-$<HTMLInputElement>("import-replay").onchange = async (e) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  try {
-    if (!requireHostAccess({ kind: "workspace", id: "experiments" })) return;
-    if (file.size > 15000000) throw new Error("Recording exceeds 15 MB");
-    const r = parseRecording(JSON.parse(await file.text())),
-      next = new Simulation(r.aircraft, r.environment, r.initialState);
-    if (!requireHostAccess({ kind: "workspace", id: "experiments" })) return;
-    pause();
-    replay = r;
-    replayIndex = 0;
-    recording = r;
-    sim = next;
-    controls = r.frames[0]
-      ? cleanControls(r.frames[0])
-      : { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
-    sim.lastForces = sim.forces(sim.state, controls);
-    scene?.setAircraft(r.aircraft);
-    showScenery(r.environment);
-    $("throttle").setAttribute("disabled", "");
-    location.hash = "/fly";
-    $("launch").textContent = "Play recording";
-    message("Recording ready. Begin playback from the pilot station.");
-  } catch (e) {
-    message(errorText(e), true);
-  }
-  (e.target as HTMLInputElement).value = "";
-};
-$("scenery-select").onchange = () => {
-  const id = $<HTMLSelectElement>("scenery-select").value as SceneryId;
+/** Apply the Manisa site's air and surface to the environment. */
+function applySite() {
+  const id = DEFAULT_SCENERY;
   const site = sceneries[id];
   environment = {
     ...environment,
     sceneryId: id,
     surface: site.surface,
+    surfaceZones: true,
     densityKgM3: airDensity(site.temperatureC, site.elevationM),
     kinematicViscosityM2S: airKinematicViscosity(
       site.temperatureC,
@@ -1277,27 +1175,22 @@ $("scenery-select").onchange = () => {
     ),
   };
   reset();
-  invalidate();
-};
+}
 function stats() {
-  vtolFlight.update(
-    input.source === "keyboard",
-    replay ? controls.vtol : undefined,
-    !!replay,
-  );
+  vtolFlight.update(false, replay ? controls.vtol : undefined, !!replay);
   const session = {
     running,
     started,
     status: sim.state.status,
     replay: !!replay,
     replayComplete: !!replay && replayIndex >= replay.frames.length,
-    inputReady: input.source === "keyboard" || !!input.selected(),
+    inputReady: false || !!input.selected(),
   };
   const action = flightAction(session);
   const feedback = flightFeedback({
     ...session,
     mode,
-    keyboard: input.source === "keyboard",
+    keyboard: false,
     quad: sim.aircraft.vehicleType === "multirotor" || !!sim.aircraft.vtol,
     pauseReason,
   });
@@ -1313,12 +1206,11 @@ function stats() {
     if ($(id).textContent !== value) $(id).textContent = value;
   }
   $("flight-cue-detail").hidden = !feedback.detail;
-  const hint =
-    input.source === "keyboard"
-      ? running
-        ? "P"
-        : "Enter"
-      : controllerActions.hint("toggle");
+  const hint = false
+    ? running
+      ? "P"
+      : "Enter"
+    : controllerActions.hint("toggle");
   for (const id of ["pause", "launch"]) {
     const button = $(id);
     const label = `${action}${hint ? ` <kbd>${escape(hint)}</kbd>` : ""}`;
@@ -1326,12 +1218,11 @@ function stats() {
     button.setAttribute("aria-label", action);
   }
   $("pause").classList.toggle("primary", !running);
-  $("flight-input-status").textContent =
-    input.source === "keyboard"
-      ? "Ready · Space raises power, Shift lowers it."
-      : input.selected()
-        ? "Connected · Check mapping before launch."
-        : "No input detected. Connect your device or choose Keyboard.";
+  $("flight-input-status").textContent = false
+    ? "Ready · Space raises power, Shift lowers it."
+    : input.selected()
+      ? "Connected · Check mapping before launch."
+      : "No input detected. Connect your device or choose Keyboard.";
   const power = powertrain(
     sim.aircraft,
     sim.state.motors,
@@ -1398,23 +1289,15 @@ function stats() {
     !sim.lastForces.surfaces.some((f) => f.kind === "wing" && f.stalled);
   if (scene) {
     const fpv = scene.mode === "fpv",
-      chase = scene.mode === "chase",
       slider = $<HTMLInputElement>("pilot-fov");
     slider.disabled = fpv;
     $("view-range-label").textContent = fpv
-      ? "FPV lens · edit in Components"
-      : chase
-        ? "Follow distance"
-        : "View angle";
-    slider.min = chase ? "2" : "20";
-    slider.max = chase ? "20" : "80";
-    slider.step = chase ? "0.1" : "1";
+      ? "FPV lens (set in the aircraft file)"
+      : "View angle";
     $("fov-value").textContent = fpv
-      ? `${sim.aircraft.fpv?.fovDeg}°`
-      : chase
-        ? scene.chaseDistance.toFixed(1) + " m"
-        : Math.round(scene.pilotFov) + "°";
-    slider.value = String(chase ? scene.chaseDistance : scene.pilotFov);
+      ? `${sim.aircraft.fpv?.fovDeg ?? sim.aircraft.viewpoint?.fovDeg ?? 90}°`
+      : Math.round(scene.pilotFov) + "°";
+    slider.value = String(scene.pilotFov);
   }
 }
 $("quick-input").onclick = () => {
@@ -1447,10 +1330,6 @@ const controllerActions = new ControllerActions(input, (action) => {
     location.hash = page === "controllers" ? "#/fly" : "#/controllers";
     return;
   }
-  if (action === "response" && page === "aircraft") {
-    responsePanel.cycle();
-    return;
-  }
   if (page !== "fly" || (positioning.isOpen() && action !== "camera")) return;
   if (action === "vtolAssistance") vtolFlight.cycleAssistance();
   if (action === "vtolMode") vtolFlight.toggle();
@@ -1462,7 +1341,6 @@ const controllerActions = new ControllerActions(input, (action) => {
     else void launch();
   }
   if (action === "camera") cycleFlightCamera();
-  if (action === "response" && !replay) responsePanel.cycle();
 });
 let previous = 0,
   lastDraw = 0,
@@ -1482,8 +1360,7 @@ function frame(now: number) {
       vtol: !!inputAircraft.vtol,
       walking: input.walking,
     });
-    if (!running && page === "fly" && input.source === "keyboard" && !replay)
-      input.read(dt);
+    if (!running && page === "fly" && false && !replay) input.read(dt);
     if (running && page === "fly") {
       // Use the same monotonic clock as launch(): an action can resume flight
       // inside this callback, after its requestAnimationFrame timestamp.
@@ -1504,14 +1381,11 @@ function frame(now: number) {
           const raw = input.read(FIXED_DT);
           if (!running) break;
           controls = cleanControls(
-            withTrim(
-              responseFilter.step(raw, responsePanel.settings, FIXED_DT),
-              {
-                roll: lateralTrim.roll,
-                pitch: sim.aircraft.vtol ? 0 : pitchTrim,
-                yaw: lateralTrim.yaw,
-              },
-            ),
+            withTrim(applyExpo(raw, expoSettings()), {
+              roll: lateralTrim.roll,
+              pitch: sim.aircraft.vtol ? 0 : pitchTrim,
+              yaw: lateralTrim.yaw,
+            }),
           );
           if (gustRequested) {
             controls.gust = true;
@@ -1538,7 +1412,7 @@ function frame(now: number) {
     if (page === "aircraft" && input.testBench) {
       const device = input.selected();
       const connected =
-        input.source === "keyboard" ||
+        false ||
         (device &&
           device.id === input.profile.deviceId &&
           Object.values(input.profile.bindings).every(
@@ -1546,7 +1420,7 @@ function frame(now: number) {
           ));
       previewStatus = !connected
         ? "Controller unavailable. Connect it in Input setup; motors off."
-        : input.source === "keyboard"
+        : false
           ? `${aircraftChannels(editor.draft).includes("roll") ? "Arrow keys: pitch / roll" : "↑ / ↓: pitch · ← / →: rudder"}${aircraftChannels(editor.draft).includes("yaw") ? " · Q / E: yaw" : ""}. Click the model to test. Motors off.`
           : "Live controller · motors off · deflections after rates and servo limits";
       const trim = $<HTMLInputElement>("test-trim").checked
@@ -1559,7 +1433,7 @@ function frame(now: number) {
           connected && document.hasFocus()
             ? input.read(FIXED_DT)
             : { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
-        controlPreview.step(raw, responsePanel.settings, trim);
+        controlPreview.step(raw, expoSettings(), trim);
       }
     } else if (page === "aircraft")
       previewStatus = "Enable Test sticks to move the controls.";
@@ -1576,7 +1450,7 @@ function frame(now: number) {
       const viewDt = Math.min((now - lastDraw) / 1000, 0.1);
       if (page === "fly") {
         scene?.render(sim, controls, viewDt);
-        updateOsdAndCockpit(viewDt);
+        updateOsd();
         const target =
           now < locatorUntil
             ? scene?.aircraftScreenPoint(sim.state.position)
@@ -1627,13 +1501,7 @@ function frame(now: number) {
         }
       }
       const hardware = input.source === "controller";
-      const source = hardware
-        ? controller.type === "transmitter"
-          ? "RC transmitter"
-          : controller.type === "joystick"
-            ? "Flight stick"
-            : "Gamepad"
-        : "Keyboard";
+      const source = "RC transmitter";
       $("quick-input").textContent =
         `${source}${hardware && !input.selected() ? " · disconnected" : ""} ▾`;
       $("quick-input").classList.toggle(
@@ -1718,7 +1586,7 @@ try {
 }
 fillSelects();
 loadAircraft(baseline);
-$("scenery-select").dispatchEvent(new Event("change"));
+applySite();
 // Start beside the parked aircraft, before the first rendered frame.
 scene?.pilotPosition.set(
   sim.state.position[0] - 2,
@@ -1726,7 +1594,7 @@ scene?.pilotPosition.set(
   sim.state.position[1] - 3,
 );
 route();
-controller.selectType("keyboard");
+controller.selectType("transmitter");
 requestAnimationFrame(frame);
 
 // Access changes pause immediately and retain drafts/history; never silently resume.
@@ -1735,7 +1603,6 @@ onHostAccessChange(() => {
   input.clear();
   if (!hostAllows({ kind: "input", id: controller.type })) {
     void arduino.disconnect();
-    controller.selectType("keyboard");
   }
   if (!hostAllows({ kind: "workspace", id: "aircraft" })) {
     const available = originals.filter((a) =>
@@ -1747,7 +1614,7 @@ onHostAccessChange(() => {
   // Losing access is a state change, not a fresh request to sign in.
   const requestedPage = location.hash.replace(/^#\//, "");
   if (
-    (requestedPage === "aircraft" || requestedPage === "experiments") &&
+    requestedPage === "aircraft" &&
     !hostAllows({ kind: "workspace", id: requestedPage })
   )
     history.replaceState(null, "", "#/fly");

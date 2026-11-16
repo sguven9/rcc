@@ -520,5 +520,10 @@
         "voltsPerCell": 4.2
       }
     ]
+  },
+  "viewpoint": {
+    "positionM": [0.1367, 0, -0.0385],
+    "pitchDeg": 0,
+    "fovDeg": 90
   }
 }

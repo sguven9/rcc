@@ -132,22 +132,45 @@
   }
 }
 /* Cockpit instrument panel over the cockpit camera. */
-/* Cockpit view: as in the reference footage, the goggle OSD's bottom rows
-   (mode, compass strip) overlay the scale cockpit panel near the bottom. */
-.osd.with-cockpit .osd-compass,
-.osd.with-cockpit .osd-odo {
-  bottom: -104px;
+/* Expos page */
+.expo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  padding: 0 24px 24px;
 }
-.osd.with-cockpit .osd-mode {
-  bottom: -64px;
+.expo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.cockpit-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 82px;
+.expo-card canvas {
   width: 100%;
-  height: 36%;
-  pointer-events: none;
-  z-index: 3;
+  height: auto;
+  background: rgba(127, 127, 127, 0.08);
+  border-radius: 6px;
+}
+/* Immersive flight: full screen with every panel hidden; the OSD (FPV only),
+   stall warning and notifications remain. */
+body.flight-immersive .app-header,
+body.flight-immersive .camera-bar,
+body.flight-immersive .flight-setup,
+body.flight-immersive #flight-setup,
+body.flight-immersive .field-label,
+body.flight-immersive .flight-navigation,
+body.flight-immersive .flight-key-guide,
+body.flight-immersive .flight-bottom,
+body.flight-immersive .physics-debug-panel,
+body.flight-immersive .position-panel {
+  display: none !important;
+}
+body.flight-immersive main,
+body.flight-immersive .fly-page,
+body.flight-immersive .flight-stage {
+  inset: 0 !important;
+  top: 0 !important;
+  height: 100vh !important;
+}
+body.flight-immersive .osd {
+  inset: 24px 24px 24px 24px;
 }
