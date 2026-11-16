@@ -34,6 +34,10 @@ describe("moderate throttle increase from cruise", () => {
     const a = parseAircraft(
       JSON.parse(readFileSync(`aircraft/${id}.json`, "utf8")),
     );
+    // Longitudinal response only: propeller torque and P-factor turn a real
+    // model left when power is added hands-off (tested below), so the 20 s
+    // wings-level check uses the airframe without propeller side effects.
+    a.motors.forEach((m) => delete m.spin);
     const env = calmEnvironment();
     const trim = launchTrim(a, "airborne", env);
     const start = launchState(a, "airborne", env);
@@ -56,4 +60,39 @@ describe("moderate throttle increase from cruise", () => {
       Math.abs(Math.hypot(...sim.state.velocity) / speed - 1),
     ).toBeLessThan(0.15);
   });
+});
+
+describe("propeller side effects with power", () => {
+  it.each(["ft-simple-cub", "ef-apprentice-sts", "vt-simple-trainer"])(
+    "%s (CW propeller) turns gently left when power is added hands-off from trim",
+    (id) => {
+      const a = parseAircraft(
+        JSON.parse(readFileSync(`aircraft/${id}.json`, "utf8")),
+      );
+      expect(a.motors[0].spin).toBe("cw");
+      const env = calmEnvironment();
+      const trim = launchTrim(a, "airborne", env);
+      const start = launchState(a, "airborne", env);
+      start.position[2] = -100;
+      // Trimmed at cruise power: no turn without a power change.
+      const steady = new Simulation(a, env, structuredClone(start));
+      for (let i = 0; i < 120 * 4; i++) steady.step(trim.controls);
+      expect(Math.abs(euler(steady.state.orientation)[0])).toBeLessThan(
+        (2 * Math.PI) / 180,
+      );
+      // Pitch-up first yaws a CW propeller right (gyroscopic precession);
+      // torque and P-factor then dominate, so judge the turn after 8 s.
+      const sim = new Simulation(a, env, start);
+      for (let i = 0; i < 120 * 8; i++)
+        sim.step({
+          ...trim.controls,
+          throttle: Math.min(1, trim.controls.throttle + 0.15),
+        });
+      const [roll, , heading] = euler(sim.state.orientation);
+      // More torque rolls left; the turn is gradual, not a snap.
+      expect(roll).toBeLessThan(0);
+      expect(heading).toBeLessThan(0);
+      expect(roll).toBeGreaterThan((-45 * Math.PI) / 180);
+    },
+  );
 });

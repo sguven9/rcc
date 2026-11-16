@@ -6,7 +6,12 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.10.0** fixes static-friction creep and the resting residual
+Simulation **0.11.0** adds the opt-in propeller gyroscopic moment and
+P-factor, discrete "1−cos" gusts and aileron/rudder trim for propeller torque
+([details](physics-engine.md#propeller-side-effects-0110)). Aircraft without
+the new motor fields fly exactly as in 0.10.0, so 0.10.0 recordings are
+accepted and upgraded on import.
+Simulation 0.10.0 fixed static-friction creep and the resting residual
 velocity, keeps actuator dynamics second order, adds static/kinetic friction,
 a drag stability bound and the optional density lapse
 ([physics engine audit](physics-engine.md)); it rejects 0.9.3 recordings.

@@ -248,7 +248,7 @@ describe("6. timestep convergence", () => {
 });
 
 describe("7. stress: 1000 randomized flights", () => {
-  it("stays finite and never tunnels through the ground or a thin wall", () => {
+  it("stays finite, bounded and never tunnels through the ground or a thin wall", () => {
     const ids = readdirSync("aircraft").map((f) => f.replace(/\.json$/, ""));
     const fleet = ids.map((id) =>
       parseAircraft(JSON.parse(readFileSync(`aircraft/${id}.json`, "utf8"))),
@@ -270,6 +270,8 @@ describe("7. stress: 1000 randomized flights", () => {
         windMps: [rnd() * 20 - 10, rnd() * 20 - 10, 0],
         turbulence: "dryden",
         densityScaleHeightM: 8500,
+        // Strong, frequent discrete gusts on top of the Dryden turbulence.
+        discreteGusts: { meanIntervalS: 1, amplitudeMps: 8 },
       };
       const sim = new Simulation(a, env, s);
       for (let i = 0; i < 60; i++) {
@@ -278,8 +280,12 @@ describe("7. stress: 1000 randomized flights", () => {
           pitch: rnd() * 2 - 1,
           yaw: rnd() * 2 - 1,
           throttle: rnd(),
+          gust: rnd() < 0.05 || undefined,
         });
         const st = sim.state;
+        // No energy blow-up: speeds and rates stay physical.
+        expect(Math.hypot(...st.velocity)).toBeLessThan(150);
+        expect(Math.hypot(...st.omega)).toBeLessThan(100);
         expect(
           [
             ...st.position,

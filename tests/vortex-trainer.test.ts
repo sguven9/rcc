@@ -151,18 +151,28 @@ it("turns through rudder and polyhedral sideslip without inventing ailerons", ()
   const slip = structuredClone(state);
   slip.velocity[1] = 1;
   expect(sim.forces(slip, zero).torque[0] - base.torque[0]).toBeLessThan(0);
-  const turns = [];
-  for (const yaw of [-0.2, 0.2]) {
-    const tr = findTrim(a, 9),
-      fly = new Simulation(a, calmEnvironment(), tr.state);
-    for (let i = 0; i < 240; i++) fly.step({ ...tr.controls, yaw });
-    const attitude = euler(fly.state.orientation);
-    expect(attitude[0] * yaw).toBeGreaterThan(0.02);
-    expect(attitude[2] * yaw).toBeGreaterThan(0.02);
-    turns.push(attitude);
+  // The real trainer turns the commanded way in both directions. Its CW
+  // propeller (torque, P-factor) makes left and right turns differ, so exact
+  // mirror symmetry is checked on the airframe without propeller side effects.
+  const symmetric = structuredClone(a);
+  symmetric.motors.forEach((m) => delete m.spin);
+  for (const plane of [a, symmetric]) {
+    const turns = [];
+    for (const yaw of [-0.2, 0.2]) {
+      const tr = findTrim(plane, 9),
+        fly = new Simulation(plane, calmEnvironment(), tr.state);
+      for (let i = 0; i < 240; i++)
+        fly.step({ ...tr.controls, yaw: tr.controls.yaw + yaw });
+      const attitude = euler(fly.state.orientation);
+      expect(attitude[0] * yaw).toBeGreaterThan(0.02);
+      expect(attitude[2] * yaw).toBeGreaterThan(0.02);
+      turns.push(attitude);
+    }
+    if (plane === symmetric) {
+      expect(turns[0][0]).toBeCloseTo(-turns[1][0], 10);
+      expect(turns[0][2]).toBeCloseTo(-turns[1][2], 10);
+    }
   }
-  expect(turns[0][0]).toBeCloseTo(-turns[1][0], 10);
-  expect(turns[0][2]).toBeCloseTo(-turns[1][2], 10);
 });
 
 it.each([0, 90, 217])(

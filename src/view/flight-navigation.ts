@@ -62,7 +62,7 @@ export function flightNavigationMarkup() {
         </svg><div class="nav-attitude-values"><span id="nav-roll" title="Roll / bank angle">R 0°</span><span id="nav-pitch" title="Pitch angle">P 0°</span></div>
       </div>
       <button class="nav-map" id="nav-open-position" aria-label="Open position controls from minimap" title="Open Position & view">
-        <span class="nav-map-heading"><span id="nav-map-up" title="Map up direction (true bearing)">↑ N</span><span id="nav-wind" class="nav-wind" title="Wind at the aircraft: arrow shows where the air is going" hidden><svg viewBox="-10 -10 20 20" width="16" height="16" aria-hidden="true"><path id="nav-wind-arrow" d="M0-8 5 2 1.2 0.8V8H-1.2V0.8L-5 2Z" fill="#5fc9f0"/></svg><b id="nav-wind-speed">0</b></span><span id="nav-heading">000°</span></span>
+        <span class="nav-map-heading"><span id="nav-map-up" title="Map up direction (true bearing)">↑ N</span><span id="nav-wind" class="nav-wind" title="Wind at the aircraft: arrow shows where the air is going" hidden><svg viewBox="-10 -10 20 20" width="16" height="16" aria-hidden="true"><path id="nav-wind-arrow" d="M0-8 5 2 1.2 0.8V8H-1.2V0.8L-5 2Z" fill="currentColor"/></svg><b id="nav-wind-speed">0</b></span><span id="nav-heading">000°</span></span>
         <svg id="flight-minimap" viewBox="-200 -136 400 272" role="img" aria-label="North-up map: amber aircraft, blue pilot, runway">
           <path id="nav-runway" d="M0 37V-133" stroke="#a8b3b2" stroke-width="7"/>
           <path id="nav-trail" fill="none" stroke="#cfa975" stroke-width="1" opacity=".55" vector-effect="non-scaling-stroke"/>
@@ -148,9 +148,11 @@ export function createFlightNavigation(openPosition: () => void) {
  * Live wind at the aircraft (mean + gusts + turbulence), drawn in the
  * runway-aligned map frame: the arrow points where the air is moving.
  */
-export function setNavigationWind(windMps: Vec3) {
+/** Live wind arrow; `gustMps` (discrete gust part) highlights it while a gust blows. */
+export function setNavigationWind(windMps: Vec3, gustMps = 0) {
   const el = document.getElementById("nav-wind");
   if (!el) return;
+  el.classList.toggle("gusting", gustMps > 0.3);
   const speed = Math.hypot(windMps[0], windMps[1]);
   el.hidden = speed < 0.1;
   if (el.hidden) return;
@@ -159,5 +161,6 @@ export function setNavigationWind(windMps: Vec3) {
     .getElementById("nav-wind-arrow")
     ?.setAttribute("transform", `rotate(${angle.toFixed(1)})`);
   const label = document.getElementById("nav-wind-speed");
-  if (label) label.textContent = `${speed.toFixed(1)} m/s`;
+  if (label)
+    label.textContent = `${speed.toFixed(1)} m/s${gustMps > 0.3 ? " gust" : ""}`;
 }

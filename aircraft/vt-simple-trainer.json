@@ -594,7 +594,11 @@
           }
         ]
       },
-      "downThrustDeg": 1.3
+      "downThrustDeg": 1.3,
+      "spin": "cw",
+      "propInertiaKgM2": 2.94e-5,
+      "maxRpm": 10000,
+      "pFactor": 0.3
     }
   ],
   "battery": {

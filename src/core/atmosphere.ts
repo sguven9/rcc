@@ -71,17 +71,22 @@ export function drydenParameters(heightM: number, w20Mps: number) {
   };
 }
 
-/** Small deterministic PRNG (mulberry32) with Box–Muller normal samples. */
-function normalSource(seed: number) {
+/** Small deterministic PRNG (mulberry32): uniform samples in [0, 1). */
+export function seededUniform(seed: number) {
   let a = (seed ^ 0x9e3779b9) >>> 0;
-  let spare: number | undefined;
-  const uniform = () => {
+  return () => {
     a = (a + 0x6d2b79f5) >>> 0;
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** Seeded normal samples (Box–Muller over `seededUniform`). */
+function normalSource(seed: number) {
+  const uniform = seededUniform(seed);
+  let spare: number | undefined;
   return () => {
     if (spare !== undefined) {
       const s = spare;

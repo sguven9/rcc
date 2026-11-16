@@ -7,7 +7,7 @@ RCForge separates application releases, simulation compatibility, file formats a
 | Version                  | Current value                   | When it changes                                                             |
 | ------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
 | Application              | 0.8.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
-| Physics and recordings   | 0.10.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
+| Physics and recordings   | 0.11.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
 | Aircraft definition      | `schemaVersion: 1`              | An incompatible aircraft file format change                                 |
 | Aircraft history archive | `formatVersion: 1`              | An incompatible backup format change                                        |
 | Documentation            | `next` (development)            | Current guides update with source; releases get immutable `X.Y.Z` snapshots |
@@ -75,6 +75,19 @@ Contributors normally leave version numbers alone. Maintainers prepare a release
 6. Commit the new snapshot and rerun `npm run release:check`. Inspect the version selector and links at `/docs/X.Y.Z/`. The snapshot is release documentation; it does not emulate an older simulator or publish anything.
 7. Review and merge the release PR. Tag the tested release commit as `vX.Y.Z`, publish release notes and deploy its tested build. Tagging, publishing and deployment are explicit maintainer actions; changing package metadata or freezing docs does not perform them.
 8. Verify the header version, docs version, assets and first-run workflows at the deployed address. Follow [deployment](deployment.md). Never overwrite a published documentation snapshot; corrections belong to the next release.
+
+## Propeller effects and gusts compatibility (0.11.0)
+
+Simulation **0.11.0** adds opt-in motor fields `propInertiaKgM2`, `maxRpm` and
+`pFactor`, the optional `environment.discreteGusts`, a one-shot `gust` flag in
+recorded control frames, and aileron/rudder trim from the trim solver. A motor
+without the new fields, or an environment without discrete gusts, gives
+bit-identical results to 0.10.0, so **0.10.0 recordings still open**: import
+upgrades them to 0.11.0 and replays them unchanged. A file that claims 0.10.0
+but uses a 0.11.0 feature is rejected. Nine single-motor presets gain propeller
+parameters, so their flights differ from 0.10.0; their recordings embed the old
+definitions and still replay exactly. See
+[propeller side effects](physics-engine.md#propeller-side-effects-0110).
 
 ## Engine audit compatibility (0.10.0)
 

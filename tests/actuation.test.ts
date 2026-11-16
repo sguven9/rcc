@@ -1,3 +1,4 @@
+import { surfaceCommand } from "../src/core/surface-control";
 import { expect, it } from "vitest";
 import raptor from "../aircraft/ft-22-raptor.json";
 import { parseAircraft } from "../src/core/schema";
@@ -45,7 +46,13 @@ it("limits the first control step instead of teleporting a servo to its target",
   expect(replayRecording(recording)).toEqual(sim.state);
   const trim = findTrim(a);
   expect(trim.converged).toBe(true);
-  expect(trim.state.surfaceCommands![i]).toBeCloseTo(-trim.controls.pitch, 10);
+  // Trim commands reach the servo through the elevon mixer, including the
+  // small aileron trim that cancels propeller torque.
+  expect(trim.state.surfaceCommands![i]).toBeCloseTo(
+    surfaceCommand(w.control!, trim.controls),
+    10,
+  );
+  expect(Math.abs(trim.controls.roll)).toBeLessThan(0.05);
 });
 it("counts servo replacement mass once and rejects impossible actuator assignments", () => {
   const a = parseAircraft(raptor),

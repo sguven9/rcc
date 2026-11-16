@@ -57,9 +57,20 @@ export class PilotResponseFilter {
   }
 }
 /** Preserve the whole trim offset while scaling the available pilot authority. */
+const trimmed = (value: number, trim: number) =>
+  trim + value * (value >= 0 ? 1 - trim : 1 + trim);
 export function withPitchTrim(input: Controls, trim: number): Controls {
+  return { ...input, pitch: trimmed(input.pitch, trim) };
+}
+/** Apply aileron, elevator and rudder trim offsets the same way. */
+export function withTrim(
+  input: Controls,
+  trim: { roll: number; pitch: number; yaw: number },
+): Controls {
   return {
     ...input,
-    pitch: trim + input.pitch * (input.pitch >= 0 ? 1 - trim : 1 + trim),
+    roll: trimmed(input.roll, trim.roll),
+    pitch: trimmed(input.pitch, trim.pitch),
+    yaw: trimmed(input.yaw, trim.yaw),
   };
 }

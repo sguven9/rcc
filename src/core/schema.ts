@@ -374,6 +374,12 @@ export const AircraftSchema = z
           /** Fixed-wing installation angles: thrust tilted down and to the right (deg). */
           downThrustDeg: finite.min(-10).max(10).optional(),
           rightThrustDeg: finite.min(-10).max(10).optional(),
+          /** Propeller polar moment of inertia I_p about its shaft, kg·m². */
+          propInertiaKgM2: finite.min(0).max(0.1).optional(),
+          /** Shaft speed at full command and reference voltage, rev/min. */
+          maxRpm: finite.min(0).max(100000).optional(),
+          /** P-factor coefficient k_p: thrust-centre shift k_p·sin α_p·R. */
+          pFactor: finite.min(0).max(0.5).optional(),
         })
         .strict(),
     ),

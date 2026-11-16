@@ -41,6 +41,23 @@ def prop(name):
     return f"<property>{escape(name)}</property>"
 
 
+# PHYSICS.propeller in src/core/physics-config.ts.
+P_FACTOR_FADE_SPEED = 3
+P_FACTOR_TIP_SPEED_FRACTION = 0.1
+
+
+def cross3(a, b):
+    """Cross product of two 3-vectors of JSBSim expressions."""
+    return [
+        op(
+            "difference",
+            op("product", a[(j + 1) % 3], b[(j + 2) % 3]),
+            op("product", a[(j + 2) % 3], b[(j + 1) % 3]),
+        )
+        for j in range(3)
+    ]
+
+
 def xyz(v):
     return "".join(f"<{k}>{x:.17g}</{k}>" for k, x in zip("xyz", v))
 
@@ -616,6 +633,75 @@ def model_xml(aircraft, density, mode="airframe"):
                         ),
                         unit,
                     )
+            # Propeller gyroscopic moment and P-factor (opt-in per motor).
+            # Mirrors src/core/propeller-effects.ts: s = +/-thrust axis,
+            # M_gyro = -omega x (I_p * Omega * s),
+            # offset = k_p * R * (v_perp x s) / max(|v_p|, fade), M_p = offset x T.
+            inertia = m.get("propInertiaKgM2", 0)
+            k_p = m.get("pFactor", 0)
+            if m.get("spin") and (inertia or k_p):
+                sign = (1 if m["spin"] == "cw" else -1) * (1 if tilted else -1)
+                spin_axis = [op("product", sign, d) for d in axis]
+                units = [[int(j == k) for k in range(3)] for j in range(3)]
+                rpm_ratio = (
+                    rpm
+                    if tilted
+                    else op(
+                        "product",
+                        op("pow", op("quotient", thrust[i], m["maxThrustN"]), 0.5),
+                        ratio,
+                    )
+                )
+                # Shaft speed (rad/s); zero without maxRpm, as in RCForge.
+                shaft = op("product", m.get("maxRpm", 0) * 2 * math.pi / 60, rpm_ratio)
+                if inertia and m.get("maxRpm"):
+                    momentum = variable(
+                        f"motor-{i}/spin-momentum",
+                        op(
+                            "product",
+                            inertia * m["maxRpm"] * 2 * math.pi / 60,
+                            rpm_ratio,
+                        ),
+                    )
+                    h = [op("product", momentum, d) for d in spin_axis]
+                    for j, c in enumerate(cross3(pqr, h)):
+                        load(f"gyro-{i}-{j}", op("product", -1, c), units[j])
+                if k_p:
+                    r = [op("difference", x, g) for x, g in zip(m["positionM"], cg)]
+                    local = [
+                        variable(f"motor-{i}/inflow-{j}", op("sum", uvw[j], w))
+                        for j, w in enumerate(cross3(pqr, r))
+                    ]
+                    along = variable(
+                        f"motor-{i}/inflow-axial",
+                        op("sum", *(op("product", v, d) for v, d in zip(local, axis))),
+                    )
+                    across = [
+                        op("difference", v, op("product", along, d))
+                        for v, d in zip(local, axis)
+                    ]
+                    shift = variable(
+                        f"motor-{i}/pfactor-scale",
+                        op(
+                            "quotient",
+                            k_p * m["propDiameterM"] / 2,
+                            op(
+                                "max",
+                                op("sqrt", op("sum", *(op("pow", v, 2) for v in local))),
+                                P_FACTOR_FADE_SPEED,
+                                op(
+                                    "product",
+                                    P_FACTOR_TIP_SPEED_FRACTION * m["propDiameterM"] / 2,
+                                    shaft,
+                                ),
+                            ),
+                        ),
+                    )
+                    offset = [op("product", shift, c) for c in cross3(across, spin_axis)]
+                    positive = op("max", 0, op("product", t, factor))
+                    force = [op("product", positive, d) for d in axis]
+                    for j, c in enumerate(cross3(offset, force)):
+                        load(f"pfactor-{i}-{j}", c, units[j])
 
     return (
         '<?xml version="1.0"?>\n<fdm_config name="RCForge comparison" version="2.0">'

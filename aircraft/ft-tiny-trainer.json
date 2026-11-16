@@ -553,7 +553,11 @@
         ]
       },
       "partId": "motor",
-      "propPartId": "nose-propeller"
+      "propPartId": "nose-propeller",
+      "spin": "cw",
+      "propInertiaKgM2": 2e-6,
+      "maxRpm": 17000,
+      "pFactor": 0.3
     }
   ],
   "fuselageDragAreaM2": 0.0025,

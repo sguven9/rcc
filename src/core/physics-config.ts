@@ -50,6 +50,41 @@ export const PHYSICS = {
    * The values reproduce the earlier rubber-tyre sliding coefficients
    * (asphalt 0.65, grass 0.50, dirt 0.55).
    */
+  /**
+   * Propeller side effects (gyroscopic moment, P-factor). Aircraft-specific
+   * values (I_p, maximum rpm, k_p) live on each motor and default to zero.
+   */
+  propeller: {
+    /**
+     * P-factor uses sin α_p = |v_⊥| / max(|v_p|, v_fade) with
+     * v_fade = max(this, tipSpeedFraction·Ω·R). Below v_fade the offset
+     * grows linearly with the cross-flow instead (no singularity at rest), m/s.
+     */
+    pFactorFadeSpeedMps: 3,
+    /**
+     * Blade-element theory makes the thrust asymmetry scale with the in-plane
+     * advance ratio μ = v_⊥/(Ω·R). Tying v_fade to 10 % of the tip speed keeps
+     * sin α_p at cruise and gives μ-scaling at taxi and launch speeds.
+     */
+    pFactorTipSpeedFraction: 0.1,
+  },
+  /**
+   * Discrete "1−cos" gusts, w(t) = (W_g/2)·(1 − cos(2π·t/t_g)) for
+   * 0 ≤ t ≤ t_g, triggered by a seeded Poisson process. The environment sets
+   * the mean interval and W_g; duration and direction are drawn per gust.
+   */
+  gust: {
+    /** Defaults used by the UI and the manual trigger. */
+    meanIntervalS: 20,
+    amplitudeMps: 3,
+    /** Gust length t_g drawn uniformly in this range, s. */
+    durationMinS: 1,
+    durationMaxS: 3,
+    /** Direction elevation drawn uniformly within ±this angle, degrees. */
+    maxElevationDeg: 20,
+    /** Gusts overlapping at once, oldest dropped beyond this. */
+    maxActive: 4,
+  },
   friction: {
     kineticRatio: 0.8,
     contact: { tyre: 0.8, skid: 0.45 },

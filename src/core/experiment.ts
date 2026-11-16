@@ -14,6 +14,7 @@ import { findTrim } from "./trim";
 import { euler, degrees, length } from "./math";
 import { powertrain } from "./powertrain";
 import { batteryUsage } from "./components";
+import { REPLAY_COMPATIBLE_SIM_VERSIONS } from "./versions";
 export type Scenario =
   | "cruise"
   | "glide"
@@ -203,13 +204,17 @@ const control = z
     pitch: finite.min(-1).max(1),
     yaw: finite.min(-1).max(1),
     throttle: finite.min(0).max(1),
+    gust: z.literal(true).optional(),
   })
   .strict();
 export function parseRecording(raw: unknown): Recording {
   const r = z
     .object({
       formatVersion: z.literal(1),
-      simulationVersion: z.literal(SIM_VERSION),
+      simulationVersion: z.enum([
+        SIM_VERSION,
+        ...REPLAY_COMPATIBLE_SIM_VERSIONS,
+      ]),
       dt: z.literal(FIXED_DT),
       aircraft: AircraftSchema,
       environment: z
@@ -236,6 +241,13 @@ export function parseRecording(raw: unknown): Recording {
           turbulence: z.literal("dryden").optional(),
           turbulenceIntensity: finite.min(0).max(3).optional(),
           densityScaleHeightM: finite.min(1000).max(20000).optional(),
+          discreteGusts: z
+            .object({
+              meanIntervalS: z.union([z.literal(0), finite.min(1).max(3600)]),
+              amplitudeMps: finite.min(0).max(20),
+            })
+            .strict()
+            .optional(),
         })
         .strict(),
       initialState: z
@@ -290,7 +302,35 @@ export function parseRecording(raw: unknown): Recording {
     throw new Error("Recording servo count does not match aircraft");
   if (!!r.aircraft.vtol !== !!r.initialState.vtol)
     throw new Error("Recording VTOL state does not match aircraft");
-  return r;
+  return upgradeRecording(r);
+}
+/**
+ * Convert a recording from a replay-compatible earlier version to the current
+ * one. Such versions predate the opt-in features below, so a file that claims
+ * an older version but uses them is rejected rather than replayed.
+ */
+function upgradeRecording<R extends { simulationVersion: string }>(
+  r: R & {
+    aircraft: Aircraft;
+    environment: { discreteGusts?: unknown };
+    frames: { gust?: true }[];
+  },
+): R {
+  if (r.simulationVersion === SIM_VERSION) return r;
+  const newer =
+    r.environment.discreteGusts !== undefined ||
+    r.frames.some((f) => f.gust) ||
+    r.aircraft.motors.some(
+      (m) =>
+        m.propInertiaKgM2 !== undefined ||
+        m.maxRpm !== undefined ||
+        m.pFactor !== undefined,
+    );
+  if (newer)
+    throw new Error(
+      `Recording ${r.simulationVersion} uses features added in ${SIM_VERSION}`,
+    );
+  return { ...r, simulationVersion: SIM_VERSION };
 }
 export function replayRecording(r: Recording): State {
   const sim = new Simulation(r.aircraft, r.environment, r.initialState);

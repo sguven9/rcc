@@ -483,7 +483,11 @@
           }
         ]
       },
-      "downThrustDeg": 0
+      "downThrustDeg": 0,
+      "spin": "cw",
+      "propInertiaKgM2": 2.94e-5,
+      "maxRpm": 9800,
+      "pFactor": 0.3
     }
   ],
   "fuselageDragAreaM2": 0.00189,

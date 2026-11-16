@@ -157,3 +157,6 @@
 .nav-wind b {
   font-weight: 600;
 }
+.nav-wind.gusting {
+  color: #f0a33c;
+}

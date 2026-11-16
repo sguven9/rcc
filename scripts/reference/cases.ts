@@ -168,6 +168,8 @@ export function referenceCases(aircraft: Aircraft[]): ReferenceCase[] {
           motorCase.conditions.push(
             condition({
               bodyVelocity: [speed, 2, -1],
+              // Body rates exercise propeller gyroscopic moments.
+              omega: [0.5, -0.7, 0.4],
               soc,
               motorCommands: powered.motors.map((_, i) =>
                 Math.max(0, command - i * 0.04),

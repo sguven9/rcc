@@ -23,7 +23,7 @@ import {
 import { ControlPreview } from "./core/control-preview";
 import { FpvPlacementDialog } from "./app/fpv-placement";
 import { renderControlTest, updateControlTest } from "./app/control-test";
-import { PilotResponseFilter, withPitchTrim } from "./core/pilot-response";
+import { PilotResponseFilter, withTrim } from "./core/pilot-response";
 import { ResponsePanel } from "./app/pilot-response";
 import "./view/flight-navigation.css";
 import {
@@ -143,6 +143,10 @@ let baseline = preferredAircraft(
   replay: Recording | null = null,
   replayIndex = 0,
   pitchTrim = 0,
+  // Aileron/rudder trim from the trim solver (propeller torque, P-factor).
+  lateralTrim = { roll: 0, yaw: 0 },
+  // Set by the "Trigger gust" button; consumed by the next control frame.
+  gustRequested = false,
   releaseTrimConverged = true;
 const flightClock = new FlightClock(FIXED_DT);
 let placement: Placement | null = null;
@@ -338,6 +342,8 @@ function reset() {
   const a = physicalAircraft(),
     trim = launchTrim(a, mode, environment);
   pitchTrim = trim.controls.pitch;
+  lateralTrim = { roll: trim.controls.roll, yaw: trim.controls.yaw };
+  gustRequested = false;
   releaseTrimConverged = trim.converged;
   sim = new Simulation(
     a,
@@ -345,9 +351,9 @@ function reset() {
     placedLaunch(a, mode, placement, environment),
   );
   controls = {
-    roll: 0,
+    roll: lateralTrim.roll,
     pitch: pitchTrim,
-    yaw: 0,
+    yaw: lateralTrim.yaw,
     throttle: mode === "ground" ? 0 : trim.controls.throttle,
   };
   vtolFlight.reset();
@@ -881,6 +887,36 @@ $("wind-direction").oninput = () => {
     Number($<HTMLInputElement>("wind-direction").value),
   );
 };
+/** Discrete-gust settings from the Field panel. */
+function gustSettings() {
+  const perMinute = Number($<HTMLInputElement>("gust-rate").value),
+    peak = Number($<HTMLInputElement>("gust-strength").value);
+  // A zero interval disables automatic gusts; the peak still sizes manual ones.
+  return {
+    meanIntervalS: perMinute > 0 ? 60 / perMinute : 0,
+    amplitudeMps: peak,
+  };
+}
+const gustRateLabel = (perMinute: number) =>
+  perMinute > 0 ? `${perMinute.toFixed(1)}/min` : "off";
+$("gust-rate").oninput = () => {
+  $("gust-rate-value").textContent = gustRateLabel(
+    Number($<HTMLInputElement>("gust-rate").value),
+  );
+};
+$("gust-strength").oninput = () => {
+  $("gust-strength-value").textContent =
+    `${Number($<HTMLInputElement>("gust-strength").value).toFixed(1)} m/s`;
+};
+/** Queue a one-shot discrete gust; it is recorded with the next control frame. */
+function triggerGust() {
+  if (!running || replay) {
+    message("Start flying to trigger a gust.");
+    return;
+  }
+  gustRequested = true;
+}
+$("trigger-gust").onclick = triggerGust;
 $("turbulence-intensity").oninput = () => {
   $("turbulence-intensity-value").textContent =
     `${Number($<HTMLInputElement>("turbulence-intensity").value).toFixed(1)}×`;
@@ -892,6 +928,8 @@ for (const id of [
   "turbulence",
   "turbulence-intensity",
   "wind-gradient",
+  "gust-rate",
+  "gust-strength",
 ])
   $(id).onchange = () => {
     const speed = Number($<HTMLInputElement>("wind-speed").value),
@@ -914,6 +952,7 @@ for (const id of [
       windProfile: $<HTMLInputElement>("wind-gradient").checked
         ? defaultWindProfile()
         : undefined,
+      discreteGusts: gustSettings(),
     };
     reset();
     invalidate();
@@ -1058,6 +1097,7 @@ window.addEventListener("keydown", (e) => {
     setPhysicsDebug(box.checked);
   }
   if (e.code === "KeyV" && !e.repeat) cycleFlightCamera();
+  if (e.code === "KeyU" && !e.repeat) triggerGust();
   if (e.code === "KeyC" && !e.repeat && !replay) responsePanel.cycle();
   if (e.code === "KeyP" && !e.repeat) {
     e.preventDefault();
@@ -1362,11 +1402,19 @@ function frame(now: number) {
           const raw = input.read(FIXED_DT);
           if (!running) break;
           controls = cleanControls(
-            withPitchTrim(
+            withTrim(
               responseFilter.step(raw, responsePanel.settings, FIXED_DT),
-              sim.aircraft.vtol ? 0 : pitchTrim,
+              {
+                roll: lateralTrim.roll,
+                pitch: sim.aircraft.vtol ? 0 : pitchTrim,
+                yaw: lateralTrim.yaw,
+              },
             ),
           );
+          if (gustRequested) {
+            controls.gust = true;
+            gustRequested = false;
+          }
           if (sim.aircraft.vtol) controls.vtol = { ...vtolFlight.command };
         }
         scene?.captureImpactVelocity(sim.state.velocity);
@@ -1463,7 +1511,10 @@ function frame(now: number) {
       positioning.update();
       if (page === "fly") {
         updateNavigation(sim.state, scene?.pilotPosition ?? { x: -8, z: -14 });
-        setNavigationWind(sim.airVelocity(sim.state));
+        setNavigationWind(
+          sim.airVelocity(sim.state),
+          Math.hypot(...sim.gusts.velocity(sim.state.time)),
+        );
         if (!$("physics-debug-panel").hidden) {
           energyGraph.push(sim);
           energyGraph.draw();

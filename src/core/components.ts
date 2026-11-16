@@ -205,6 +205,11 @@ export function replaceComponent(
       orientationDeg: oldProp.orientationDeg,
       catalogId: entry.id,
     };
+    // Propeller inertia, rpm and P-factor describe the removed propeller; the
+    // package supplies its own values or the effects stay off until set.
+    delete motor.propInertiaKgM2;
+    delete motor.maxRpm;
+    delete motor.pFactor;
     Object.assign(motor, structuredClone(entry.motor));
   }
   out.provenance[`component:${partId}`] = {

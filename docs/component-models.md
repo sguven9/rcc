@@ -46,7 +46,7 @@ Optional surface `polar` samples are `{alphaDeg,cl,cd,cm}` in increasing angle o
 
 Optional control `responseSeconds` and `rateLimitDegS` model first-order servo response capped at physical travel speed. Actual deflections feed forces and animated surfaces; transient deflections survive replay. The Bronco and Tiny Trainer use explicitly estimated micro-servo parameters.
 
-Optional `bodyDragAreaM2: [CdAx,CdAy,CdAz]` replaces scalar body drag with directional quadratic drag. Each component is a drag coefficient times projected area, not just geometric area. The 6S example uses estimates. Fixed-wing motors with `spin` specified also generate reaction roll torque from `torquePerThrustM` (CW/CCW viewed along the positive thrust axis); no propeller gyroscopic or P-factor model is provided.
+Optional `bodyDragAreaM2: [CdAx,CdAy,CdAz]` replaces scalar body drag with directional quadratic drag. Each component is a drag coefficient times projected area, not just geometric area. The 6S example uses estimates. Fixed-wing motors with `spin` specified also generate reaction roll torque from `torquePerThrustM` (CW/CCW viewed along the positive thrust axis). Optional `propInertiaKgM2`, `maxRpm` and `pFactor` add the gyroscopic moment and P-factor; see [propeller side effects](physics-engine.md#propeller-side-effects-0110).
 
 ## Propeller slipstream and thrust line (0.9.1)
 

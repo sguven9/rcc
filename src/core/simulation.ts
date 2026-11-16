@@ -1,5 +1,12 @@
 import { ObstacleCollisions, type Obstacle } from "./obstacles";
-import { initialVtolState, vtolCommands, vtolRotorLoads } from "./vtol";
+import {
+  initialVtolState,
+  vtolCommands,
+  vtolRotorLoads,
+  vtolThrustAxis,
+} from "./vtol";
+import { propellerMoments } from "./propeller-effects";
+import { DiscreteGusts, type DiscreteGustSettings } from "./discrete-gust";
 import type { VtolCommand, VtolState } from "./vtol-config";
 import {
   surfacePolar,
@@ -51,6 +58,8 @@ export interface Controls {
   yaw: number;
   throttle: number;
   vtol?: VtolCommand;
+  /** One-shot: start a discrete gust at this step (recorded for replay). */
+  gust?: boolean;
 }
 export const neutralControls = (): Controls => ({
   roll: 0,
@@ -78,6 +87,8 @@ export interface Environment {
    * with H in metres (8500 in the browser). Omitted: uniform density.
    */
   densityScaleHeightM?: number;
+  /** Seeded Poisson-triggered "1−cos" discrete gusts (off when omitted). */
+  discreteGusts?: DiscreteGustSettings;
 }
 /** Air density at a height above the field. */
 export function densityAt(e: Environment, heightM: number) {
@@ -129,6 +140,9 @@ export interface Forces {
   bodyDrag: Vec3;
   /** Air density used at this state, kg/m³. */
   density: number;
+  /** Summed propeller gyroscopic and P-factor moments (body axes), N·m. */
+  propellerGyro: Vec3;
+  pFactor: Vec3;
 }
 export const initialState = (
   a: Aircraft,
@@ -183,12 +197,15 @@ export function cleanControls(c: Controls): Controls {
     pitch: clamp(Number.isFinite(c.pitch) ? c.pitch : 0, -1, 1),
     yaw: clamp(Number.isFinite(c.yaw) ? c.yaw : 0, -1, 1),
     throttle: clamp(Number.isFinite(c.throttle) ? c.throttle : 0, 0, 1),
+    ...(c.gust === true ? { gust: true } : {}),
   };
 }
 export class Simulation {
   readonly properties: ReturnType<typeof massProperties>;
   private collisions: ObstacleCollisions;
   private turbulence?: DrydenTurbulence;
+  /** Discrete gust generator (seeded; idle unless enabled or triggered). */
+  readonly gusts: DiscreteGusts;
   readonly actuations: ReturnType<typeof surfaceActuation>[];
   state: State;
   lastForces: Forces = {
@@ -200,6 +217,8 @@ export class Simulation {
     aero: [0, 0, 0],
     bodyDrag: [0, 0, 0],
     density: 0,
+    propellerGyro: [0, 0, 0],
+    pFactor: [0, 0, 0],
   };
   constructor(
     public readonly aircraft: Aircraft,
@@ -212,6 +231,7 @@ export class Simulation {
       surfaceActuation(aircraft, s),
     );
     this.state = structuredClone(state ?? initialState(aircraft));
+    this.gusts = new DiscreteGusts(environment.seed);
     if (aircraft.vtol && !this.state.vtol)
       this.state.vtol = initialVtolState(this.state.position);
     if (aircraft.battery && this.state.batterySoc === undefined)
@@ -227,7 +247,10 @@ export class Simulation {
   }
   /** World air velocity at the CG: sheared mean wind, gusts and turbulence. */
   airVelocity(s: State): Vec3 {
-    const wind = windAt(s.time, this.environment, -s.position[2]);
+    const wind = add(
+      windAt(s.time, this.environment, -s.position[2]),
+      this.gusts.velocity(s.time),
+    );
     return this.turbulence
       ? add(
           wind,
@@ -241,7 +264,9 @@ export class Simulation {
   forces(s: State, c: Controls): Forces {
     const rho = densityAt(this.environment, -s.position[2]);
     let thrustForce: Vec3 = [0, 0, 0],
-      vtolThrust: Vec3 = [0, 0, 0];
+      vtolThrust: Vec3 = [0, 0, 0],
+      propellerGyro: Vec3 = [0, 0, 0],
+      pFactor: Vec3 = [0, 0, 0];
     const flow = rotate(
       inverseQ(s.orientation),
       sub(s.velocity, this.airVelocity(s)),
@@ -253,6 +278,28 @@ export class Simulation {
     const apply = (f: Vec3, position: Vec3) => {
       force = add(force, f);
       torque = add(torque, cross(sub(position, this.properties.cg), f));
+    };
+    // Gyroscopic and P-factor moments of one propeller (zero unless the motor
+    // defines spin plus I_p/max rpm or k_p).
+    const propeller = (
+      i: number,
+      thrustAxis: Vec3,
+      rotor: boolean,
+      thrustN: number,
+    ) => {
+      const m = this.aircraft.motors[i];
+      if (!m.spin || !(m.propInertiaKgM2 || m.pFactor)) return;
+      const r = sub(m.positionM, this.properties.cg);
+      const effects = propellerMoments(m, {
+        thrustAxis,
+        rotor,
+        omegaBody: s.omega,
+        rpmRatio: power.rpmRatio[i],
+        thrustN,
+        localFlow: add(flow, cross(s.omega, r)),
+      });
+      propellerGyro = add(propellerGyro, effects.gyro);
+      pFactor = add(pFactor, effects.pFactor);
     };
     // Wings first: their lift sets the downwash seen by the tail.
     const order = this.aircraft.surfaces
@@ -418,6 +465,14 @@ export class Simulation {
       force = add(force, rotor.force);
       torque = add(torque, rotor.torque);
       vtolThrust = rotor.force;
+      this.aircraft.motors.forEach((_, i) =>
+        propeller(
+          i,
+          vtolThrustAxis(this.aircraft, s, i),
+          true,
+          power.thrust[i] * rotor.factors[i],
+        ),
+      );
     }
     for (
       let i = 0;
@@ -446,6 +501,7 @@ export class Simulation {
         // Ground effect adds thrust at equal shaft power, so reaction torque is unchanged.
         torque[2] +=
           power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
+        propeller(i, [0, 0, -1], true, thrust);
       } else {
         const thrust = power.thrust[i] * speedFactor;
         // Down- and right-thrust tilt the thrust line, as on real airframes.
@@ -460,6 +516,16 @@ export class Simulation {
         thrustForce = add(thrustForce, vector);
         if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
+        propeller(
+          i,
+          [
+            Math.cos(down) * Math.cos(right),
+            Math.cos(down) * Math.sin(right),
+            Math.sin(down),
+          ],
+          false,
+          thrust,
+        );
       }
     }
     // Quadratic body drag, bounded so one explicit step cannot reverse the
@@ -486,6 +552,7 @@ export class Simulation {
           ),
         ) as Vec3);
     force = add(force, bodyDrag);
+    torque = add(add(torque, propellerGyro), pFactor);
     torque = add(
       torque,
       s.omega.map(
@@ -504,6 +571,8 @@ export class Simulation {
       aero,
       bodyDrag,
       density: rho,
+      propellerGyro,
+      pFactor,
     };
   }
   private acceleration(s: State, c: Controls) {
@@ -536,6 +605,13 @@ export class Simulation {
       return this.state;
     const c = cleanControls(raw),
       s = this.state;
+    if (c.gust)
+      this.gusts.trigger(
+        s.time,
+        this.environment.discreteGusts?.amplitudeMps ??
+          PHYSICS.gust.amplitudeMps,
+      );
+    this.gusts.advance(s.time, dt, this.environment.discreteGusts);
     if (this.turbulence) {
       const height = -s.position[2];
       this.turbulence.advance(

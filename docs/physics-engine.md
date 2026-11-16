@@ -75,7 +75,9 @@ are now permanent tests:
 
 ## Verification tests
 
-`tests/physics-verification.test.ts` (12 tests) runs in `npm test`:
+`tests/physics-verification.test.ts` (12 tests) and
+`tests/propeller-gust.test.ts` (34 tests, second table)
+run in `npm test`:
 
 | Check                                       | Requirement                                        | Result               |
 | ------------------------------------------- | -------------------------------------------------- | -------------------- |
@@ -91,8 +93,27 @@ are now permanent tests:
 | Parked aircraft                             | zero velocity, < 0.1 mm drift                      | Pass                 |
 | Density lapse                               | `ρ_field·e^(−h/H)`                                 | Pass                 |
 
-The [JSBSim comparison](physics-reference.md) still passes 92 cases and 1012
-checks with these changes.
+Propeller and gust checks (`tests/propeller-gust.test.ts`):
+
+| Check                                               | Requirement                                               | Result |
+| --------------------------------------------------- | --------------------------------------------------------- | ------ |
+| 1. Zero rpm                                         | M_gyro and M_p exactly 0                                  | Pass   |
+| 2. Gyroscopic moment, tilted axis and in-sim        | hand-computed −ω×H within 1 %                             | Pass   |
+| 3. Precession sign                                  | CW + pitch-up → yaw right; yaw right → pitch down         | Pass   |
+| 4. P-factor                                         | 0 at α_p = 0; one-way growth; \|Δ\| = k_p·sin α_p·R       | Pass   |
+| Reaction torque                                     | M_x = −T·`torquePerThrustM` for CW                        | Pass   |
+| 5. Slipstream                                       | v_i = √(T/(2ρA_p)) at V = 0; T ≤ 0 and NaN safe           | Pass   |
+| 6. Gust profile and seeding                         | 0 at ends, W_g mid; same seed → same series; Poisson rate | Pass   |
+| 7. dt convergence with propeller effects and a gust | error ratio 3–5.5                                         | Pass   |
+| 8. No parameters                                    | identical to explicit zeros; 0.10.0 recordings replay     | Pass   |
+| 9. 1000 randomized flights with 8 m/s gusts         | finite, no tunnelling, speed < 150 m/s, rate < 100 rad/s  | Pass   |
+
+The [JSBSim comparison](physics-reference.md) passes 92 cases and 1012 checks.
+Before the presets gained propeller parameters, every metric was bit-identical
+to 0.10.0. The adapter now mirrors the gyroscopic and P-factor moments, and its
+propulsion cases add body rates. With the mirror removed, nine propulsion cases
+fail by 0.05–0.56 N·m against a 1·10⁻⁸ N·m limit, so the comparison exercises
+the new terms. `npm run physics:validate` passes unchanged.
 
 ## Debug overlay
 
@@ -106,6 +127,99 @@ Tick **Flight setup → Field → Physics debug** or press <kbd>G</kbd> in fligh
   last 20 s. With power off in calm air, the total falls only through drag.
 - **Minimap wind arrow:** the live wind speed and direction at the aircraft.
 
+## Propeller side effects (0.11.0)
+
+All four effects live in `src/core/propeller-effects.ts` and
+`src/core/propwash.ts`. They are evaluated per motor at each RK2 stage and
+summed. `Forces.propellerGyro` and `Forces.pFactor` report the totals.
+
+**Spin convention.** This is unchanged from the reaction torque. A fixed-wing
+`"cw"` propeller turns clockwise seen from the cockpit, so its angular velocity
+direction ŝ is along the thrust axis ê. A multirotor or VTOL `"cw"` rotor turns
+clockwise seen from above, so ŝ = −ê. The tilted thrust line from
+`downThrustDeg`/`rightThrustDeg` is used for ê.
+
+| Effect            | Formula                                                                           | Inputs (motor fields, units)                                                       |
+| ----------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Gyroscopic moment | H = I_p·Ω·ŝ, M_gyro = −ω × H                                                      | `propInertiaKgM2` I_p (kg·m²); `maxRpm` (rev/min); Ω = maxRpm·2π/60·(n/n_max)      |
+| P-factor          | Δ = k_p·R·(v_⊥ × ŝ)/max(\|v_p\|, v_fade), so \|Δ\| = k_p·R·sin α_p; M_p = Δ × T·ê | `pFactor` k_p (–, 0–0.5); R = `propDiameterM`/2 (m); T after the speed falloff (N) |
+| Reaction torque   | M = −Q·ŝ with Q = T·`torquePerThrustM` (existing, about body X for fixed-wing)    | `torquePerThrustM` (m)                                                             |
+| Slipstream        | v_i = −V/2 + √((V/2)² + T/(2ρA_p)), over the wing root and tail (existing)        | `propDiameterM`, thrust                                                            |
+
+- **Gyroscopic.** n/n_max is the powertrain's shaft-speed ratio, the same
+  value that drives thrust unloading. A CW propeller yaws the nose right in a
+  pitch-up and pitches it down in a right yaw. Counter-rotating rotors at equal
+  speed cancel.
+- **P-factor.** v_p = v + ω × r is the propeller's velocity relative to the
+  air, and v_⊥ is its part in the disk plane. The blade whose tangential
+  velocity adds to v_⊥ carries more thrust, so for a CW propeller at positive
+  α the thrust centre moves right and the nose yaws left. v_fade = max(3 m/s,
+  0.1·Ω·R). Above it this is exactly the k_p·sin α_p·R law. Below it, at taxi
+  and launch speed or at rest, the shift grows with the in-plane advance ratio
+  v_⊥/(Ω·R), as blade-element theory gives. It is never singular, and it is
+  exactly zero at zero thrust or zero cross-flow. Negative (braking) thrust
+  gives no P-factor.
+- **Reaction torque** was already present and is only verified. A CW
+  fixed-wing propeller rolls the aircraft left by exactly T·`torquePerThrustM`.
+  No preset declared `spin` before 0.11.0, so the reaction torque had never
+  acted on a fixed-wing preset.
+- **Slipstream** was already present. `diskInducedVelocity` returns
+  √(T/(2ρA_p)) at V = 0 and 0 for T ≤ 0 or non-finite input. With power at
+  zero airspeed, the elevator produces a pitching moment, which tests check.
+
+**Presets.** The single-motor presets ef-apprentice-sts, ef-night-radian,
+ft-22-raptor, ft-explorer, ft-mighty-mini-arrow, ft-simple-cub, ft-spitfire,
+ft-tiny-trainer and vt-simple-trainer now declare `spin: "cw"`, k_p = 0.3 and:
+
+- I_p = m_prop·D²/16, from their propeller part mass (a two-blade estimate);
+- `maxRpm` from the zero-thrust speed and propeller pitch, cross-checked against
+  KV × 11.1 V × 0.75.
+
+These are engineering estimates, not measurements. Twins, quads and the
+tiltrotor keep no propeller parameters.
+
+**Trim.** A real model needs aileron or rudder trim against propeller torque.
+`findTrim` now solves those offsets so that roll and yaw moments are zero in
+wings-level flight. A rudder-only model has no aileron, so it is trimmed with
+rudder plus a small sideslip, which its dihedral turns into a rolling moment.
+Symmetric aircraft keep exactly zero lateral trim. The browser applies the
+solved trims like the elevator trim. With power added hands-off, a trimmed
+CW-propeller model first yaws slightly right while it pitches up (gyroscopic),
+then turns gently left (torque and P-factor). This is the familiar "right
+rudder with power".
+
+## Discrete gusts (0.11.0)
+
+`src/core/discrete-gust.ts` adds gusts on top of the mean wind and Dryden
+turbulence:
+
+- **Profile:** `w(τ) = (W_g/2)·(1 − cos(2π·τ/t_g))` for 0 ≤ τ ≤ t_g.
+- **Onsets:** a Poisson process with mean interval `meanIntervalS`, using
+  exponential waiting times from a seeded mulberry32 stream separate from
+  Dryden. Overlapping gusts add up, at most 4 at once.
+- **Peak** `amplitudeMps` (m/s) is set by the user.
+- **Length** t_g is drawn uniformly from 1–3 s.
+- **Direction:** uniform azimuth, elevation within ±20°.
+
+The gust is evaluated at each integrator stage time, so the scheme stays second
+order. A run with the same seed, timestep and control frames is identical.
+
+**Profile correction.** The requested profile (W_g/2)(1 − cos(π·t/t_g))
+reaches W_g at t_g and does not return to zero, which contradicts the
+requirement that the gust be zero at both ends and peak in the middle. The
+full-wave form with 2π satisfies that requirement and is the certification
+"1−cos" discrete gust.
+
+**UI.** The Field panel gains:
+
+- a discrete-gust rate slider, 0–6 per minute (0 is off);
+- a gust peak slider, 0.5–8 m/s;
+- **Trigger a gust now** (key <kbd>U</kbd>).
+
+A manual trigger is recorded as `gust: true` in that step's control frame, so
+replay reproduces it. The minimap wind arrow includes the gust, turns orange
+and reads "gust" while one blows.
+
 ## Adaptations and assumptions
 
 - **Inclined plane.** The field is flat. The friction law is verified with the
@@ -118,8 +232,18 @@ Tick **Flight setup → Field → Physics debug** or press <kbd>G</kbd> in fligh
   is tested on the parked aircraft. The resting snap is the sleep equivalent:
   any thrust or a velocity above the threshold wakes it. Stress uses 1000
   randomized flights.
-- **Magnus effect.** There is no spinning sphere. Propeller gyroscopic precession
-  and P-factor, the aircraft analogues, are not modeled yet.
+- **Magnus effect.** There is no spinning sphere. The aircraft analogues,
+  propeller gyroscopic precession and P-factor, are modeled from 0.11.0.
+- **Propeller limits.** The following are not modeled:
+  - the spin-up torque I_p·dΩ/dt;
+  - slipstream swirl;
+  - shaft speed rising as the propeller unloads in flight (Ω follows the static
+    thrust law);
+  - gust gradients along the airframe.
+
+  The reaction torque stays about body X for fixed-wing aircraft, as before.
+  k_p and I_p are estimates.
+
 - **Wind profile.** The near-ground profile is logarithmic (neutral boundary
   layer) rather than the power law `(h/h_ref)^α`. Both describe the same
   gradient, and the logarithmic form is standard below about 100 m.
