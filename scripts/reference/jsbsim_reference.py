@@ -559,16 +559,47 @@ def model_xml(aircraft, density, mode="airframe"):
                 ]
                 axial = uvw[0]
                 reaction_sign = -1 if m.get("spin") == "cw" else 1
-            factor = op(
-                "max",
-                0,
-                op(
-                    "difference",
-                    1,
-                    op("quotient", op("max", 0, axial), m["zeroThrustSpeedMps"]),
-                ),
-            )
             tilted = not vtol and aircraft["vehicleType"] != "multirotor"
+            if tilted:
+                # Fixed-wing: zero-thrust speed scales with shaft speed
+                # n/n_max = sqrt(bench thrust / max thrust) x voltage ratio;
+                # above it the propeller brakes (negative factor).
+                rpm = variable(
+                    f"motor-{i}/rpm-ratio",
+                    op(
+                        "product",
+                        op("pow", op("quotient", thrust[i], m["maxThrustN"]), 0.5),
+                        ratio,
+                    ),
+                )
+                factor = op(
+                    "ifthen",
+                    op("gt", rpm, 0),
+                    op(
+                        "min",
+                        1,
+                        op(
+                            "difference",
+                            1,
+                            op(
+                                "quotient",
+                                op("max", 0, axial),
+                                op("product", m["zeroThrustSpeedMps"], rpm),
+                            ),
+                        ),
+                    ),
+                    0,
+                )
+            else:
+                factor = op(
+                    "max",
+                    0,
+                    op(
+                        "difference",
+                        1,
+                        op("quotient", op("max", 0, axial), m["zeroThrustSpeedMps"]),
+                    ),
+                )
             for j, direction in enumerate(axis):
                 f = op("product", t, factor, direction)
                 unit = [int(j == k) for k in range(3)]

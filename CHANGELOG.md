@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Realistic throttle response: propeller thrust now unloads at a zero-thrust speed proportional to shaft speed (advance-ratio law), and brakes above it. A moderate throttle increase now gives a steady climb at constant speed instead of a sharp pitch-up, and closing the throttle slows the aircraft. Simulation compatibility advances to 0.9.3; the JSBSim adapter mirrors it (92 cases, 1012 checks pass).
+
 - Realistic stalls: add wing downwash at the horizontal tail (2·CL/(π·AR), reduced in ground effect) and the post-stall centre-of-pressure shift. Aircraft now stall when the elevator is raised slowly and drop their nose; tail authority and static stability fall to realistic values. Add a shared builder's power-test solver (`src/core/thrust-line.ts`); the Simple Trainer gets a calculated 1.3° down-thrust. The Bronco, Apprentice and Explorer no longer loop on hands-off full throttle. Simulation compatibility advances to 0.9.2; the JSBSim adapter mirrors both terms (92 cases, 1012 checks pass).
 
 - Detailed models for the six generated aircraft: smooth superellipse fuselages, tapered/elliptical/swept planforms with cambered sections, painted canvas liveries (RAF roundels, camouflage, stripes, tips), canopy, spinner, tyres and hinge-accurate control surfaces. A new visual-only `visual` block drives them; physics is unchanged, and the original plan models are untouched.

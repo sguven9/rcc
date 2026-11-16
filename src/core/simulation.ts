@@ -16,7 +16,7 @@ import {
   wingGroundEffect,
   type WindProfile,
 } from "./atmosphere";
-import { powertrain } from "./powertrain";
+import { powertrain, thrustSpeedFactor } from "./powertrain";
 import { rotorCommands } from "./multirotor";
 import { surfaceCommand } from "./surface-control";
 import { surfaceActuation, advanceSurfaceCommand } from "./actuation";
@@ -263,7 +263,11 @@ export class Simulation {
           const radius = motor.propDiameterM / 2,
             thrust =
               power.thrust[i] *
-              clamp(1 - Math.max(0, flow[0]) / motor.zeroThrustSpeedMps, 0, 1);
+              thrustSpeedFactor(
+                flow[0],
+                motor.zeroThrustSpeedMps,
+                power.rpmRatio[i],
+              );
           const induced = diskInducedVelocity(
             thrust,
             axial,
@@ -401,10 +405,10 @@ export class Simulation {
       i++
     ) {
       const m = this.aircraft.motors[i],
-        speedFactor = clamp(
-          1 - Math.max(0, flow[0]) / m.zeroThrustSpeedMps,
-          0,
-          1,
+        speedFactor = thrustSpeedFactor(
+          flow[0],
+          m.zeroThrustSpeedMps,
+          power.rpmRatio[i],
         );
       if (this.aircraft.vehicleType === "multirotor") {
         const axis = rotate(s.orientation, [0, 0, 1]),

@@ -6,7 +6,11 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.9.2** adds [wing downwash at the tail and the post-stall
+Simulation **0.9.3** scales the propeller's zero-thrust speed with shaft
+speed and adds propeller braking above it
+([part-throttle thrust](component-models.md#propeller-thrust-at-part-throttle-093)),
+so moderate throttle changes give realistic climbs; it rejects 0.9.2 recordings.
+Simulation 0.9.2 added [wing downwash at the tail and the post-stall
 centre-of-pressure shift](component-models.md#stall-break-and-tail-downwash-092),
 so aircraft show a nose-down stall break; it rejects 0.9.1 recordings.
 Simulation 0.9.1 replaced the propeller-slipstream estimate with an
@@ -68,7 +72,7 @@ Check the following when changing browser integration:
 
 ## What is modeled
 
-Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response and speed falloff, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, wing downwash at horizontal tails, a post-stall centre-of-pressure shift (nose-down stall break), actuator-disk propeller slipstream over surfaces behind a tractor propeller, optional down/right thrust angles, and wheel contact with rolling/lateral friction.
+Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response, advance-ratio thrust falloff scaled with shaft speed and propeller braking, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, wing downwash at horizontal tails, a post-stall centre-of-pressure shift (nose-down stall break), actuator-disk propeller slipstream over surfaces behind a tractor propeller, optional down/right thrust angles, and wheel contact with rolling/lateral friction.
 
 ## What is not modeled
 

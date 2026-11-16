@@ -71,6 +71,30 @@ the Simple Trainer (1.3°) and Night Radian (0.4°) need any. The Bronco, Tiny
 Trainer and most generated aircraft already pitch slightly nose-down with
 power once tail downwash is modeled.
 
+## Propeller thrust at part throttle (0.9.3)
+
+A fixed-pitch propeller's thrust follows its advance ratio `J = V/(n·D)`.
+The linear law `C_T(J) = C_T0·(1 − J/J0)` makes thrust vanish at
+`V = V0·(n/n_max)`, so at part throttle the propeller unloads at a
+proportionally lower airspeed. Earlier versions used the full-throttle
+zero-thrust speed at every command. That overstated part-throttle thrust in
+flight, so a small throttle increase produced a large excess thrust and a sharp
+pitch-up.
+
+The shaft-speed ratio comes from the bench curve: static thrust ∝ n², so
+`n/n_max = √(T_bench/T_max)`, scaled by terminal voltage. Above the zero-thrust
+speed the factor turns negative and the propeller brakes. That drag,
+`T0·r·(V/V0 − r)`, is bounded and vanishes at idle, so closing the throttle
+slows the aircraft and lowers the nose as on a real model. The VTOL rotor model
+keeps its earlier full-speed falloff.
+
+With this change, raising the throttle 15 % above cruise trim gives a steady
+4–25° climb at roughly constant airspeed on every fixed-wing preset, which is
+the familiar "power sets climb, elevator sets speed" behaviour.
+`tests/throttle-response.test.ts` checks it. Cruise trims now need more
+throttle (for example the Bronco 0.24 → 0.37 at 12 m/s), because part-throttle
+propellers deliver less thrust at speed.
+
 ## Stall break and tail downwash (0.9.2)
 
 Two textbook effects make low-speed behaviour realistic:
@@ -113,11 +137,11 @@ The bundled presets' estimated power is high. Fresh-pack static thrust-to-weight
 is about 1.4 for the Simple Trainer, 1.2 for the Bronco and 1.3 for the Tiny
 Trainer. Hands-off full-throttle tests from trimmed cruise give:
 
-| Aircraft (0.9.2)                       | Result over 16 s             | Main contributor                              |
+| Aircraft (0.9.3)                       | Result over 20 s             | Main contributor                              |
 | -------------------------------------- | ---------------------------- | --------------------------------------------- |
-| Tiny Trainer                           | Settles into a 13° climb     | Moderate thrust at speed                      |
-| FT Bronco (both tails), Apprentice STS | Settles into a 30–45° climb  | Thrust-to-weight about 1.1–1.2                |
-| FT Explorer                            | Settles into a 42–44° climb  | Thrust-to-weight 1.3                          |
+| Tiny Trainer                           | Settles into a 15° climb     | Moderate thrust at speed                      |
+| FT Bronco (both tails), Apprentice STS | Settles into a 35–45° climb  | Thrust-to-weight about 1.1–1.2                |
+| FT Explorer                            | Settles into a 51° climb     | Thrust-to-weight 1.3                          |
 | Simple Trainer, Simple Cub, Spitfire   | Climbs to vertical and loops | Thrust ≈ weight below 6 m/s                   |
 | Night Radian                           | Climbs steeply and loops     | Very low drag; thrust ≈ weight at climb speed |
 | FT-22, Mighty Mini Arrow               | Loops                        | Thrust-to-weight above 1.5                    |

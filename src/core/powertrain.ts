@@ -81,11 +81,43 @@ export function powertrain(
       (performance?.referenceDensityKgM3 ?? 1.225)
     );
   });
+  // Shaft speed relative to full command at the reference voltage: static
+  // thrust ∝ n², and n ∝ terminal voltage at a fixed command.
+  const rpmRatio = bench.map((p, i) => {
+    const max = a.motors[i].maxThrustN;
+    const voltageRatio = battery
+      ? soc > 0
+        ? voltage / a.motors[i].performance!.referenceVoltage
+        : 0
+      : 1;
+    return max > 0 ? Math.sqrt(Math.max(0, p.thrust) / max) * voltageRatio : 0;
+  });
   return {
     thrust,
+    rpmRatio,
     voltage: soc > 0 ? voltage : 0,
     current,
     powerW: voltage * current,
     soc: clamp(soc, 0, 1),
   };
+}
+
+/**
+ * Fixed-pitch propeller thrust in forward flight from the linear advance-ratio
+ * law C_T(J) = C_T0·(1 − J/J0) with J = V/(n·D). Thrust falls to zero at
+ * V = V0·(n/n_max), so the zero-thrust speed scales with shaft speed: at part
+ * throttle the propeller unloads at a proportionally lower airspeed. Above it
+ * the factor turns negative and the propeller brakes (drag); since the static
+ * thrust scales with n², that drag, T0·r·(V/V0 − r), stays bounded and
+ * vanishes as the command goes to zero. `zeroThrustSpeedMps` is V0 at full
+ * command and the reference voltage.
+ */
+export function thrustSpeedFactor(
+  axialSpeedMps: number,
+  zeroThrustSpeedMps: number,
+  rpmRatio: number,
+) {
+  const v = Math.max(0, axialSpeedMps);
+  if (!(rpmRatio > 0)) return 0;
+  return Math.min(1, 1 - v / (zeroThrustSpeedMps * rpmRatio));
 }
