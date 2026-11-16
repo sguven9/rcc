@@ -17,8 +17,7 @@
 import { writeFileSync } from "node:fs";
 import { parseAircraft } from "../src/core/schema";
 import { massProperties } from "../src/core/aircraft";
-import { calmEnvironment, Simulation } from "../src/core/simulation";
-import { findTrim } from "../src/core/trim";
+import { solveDownThrust } from "../src/core/thrust-line";
 
 type V3 = [number, number, number];
 const r = (n: number, d = 4) => Number(n.toFixed(d));
@@ -873,28 +872,8 @@ function build(spec: Spec) {
     for (const p of a.contactPoints)
       if (p.id === "prop-tip") (p.positionM as V3)[2] = r(cgZ + propR);
   }
-  // Builder's power-trim test: choose down-thrust so that full power changes the
-  // pitching moment as little as possible at the trimmed cruise state.
-  const powerMoment = (down: number) => {
-    const trial = parseAircraft(a);
-    trial.motors[0].downThrustDeg = down;
-    const trim = findTrim(trial, spec.trimSpeedMps, calmEnvironment());
-    const sim = new Simulation(trial);
-    const state = structuredClone(trim.state);
-    state.motors = [1];
-    return sim.forces(state, { ...trim.controls, throttle: 1 }).torque[1];
-  };
-  // Sign-agnostic bisection (a pusher behind the CG reverses the effect).
-  let lo = -5,
-    hi = 8,
-    found = powerMoment(lo) * powerMoment(hi) < 0;
-  if (found)
-    for (let i = 0; i < 30; i++) {
-      const mid = (lo + hi) / 2;
-      if (powerMoment(mid) * powerMoment(lo) > 0) lo = mid;
-      else hi = mid;
-    }
-  const downThrust = found ? r((lo + hi) / 2, 1) : 0;
+  // Builder's power-trim test (shared solver in src/core/thrust-line.ts).
+  const downThrust = solveDownThrust(parseAircraft(a));
   (a.motors[0] as Record<string, unknown>).downThrustDeg = downThrust;
   (a.provenance as Record<string, unknown>).thrustLine = {
     status: "calculated",

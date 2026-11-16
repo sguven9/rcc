@@ -107,8 +107,10 @@ The VTOL rotor model does not use it yet.
   stability classes other than neutral.
 - Gust gradients across the span (Dryden `p`, `q`, `r` terms). Every surface sees
   the same gust, so turbulence does not roll the aircraft by itself.
-- Ground-effect reduction of wing downwash at the tail. Wing–tail downwash is
-  not modeled at all, so the pitch-down change in a real flare is missing.
+- Downwash lag. Since simulation 0.9.2 the tail sees the wing's downwash
+  `2·C_L/(π·AR)`, reduced by the wing's ground-effect factor, so a flare loses
+  some tail download as in a real aircraft. The time lag of that downwash
+  (the α̇ term) is not modeled.
 - Partial ground effect over slopes, mountain terrain or obstacles; the solver's
   ground is still a flat plane at zero height.
 - Forward-flight rotor ground effect, recirculation and multirotor interaction

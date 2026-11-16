@@ -6,7 +6,10 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.9.1** replaces the propeller-slipstream estimate with an
+Simulation **0.9.2** adds [wing downwash at the tail and the post-stall
+centre-of-pressure shift](component-models.md#stall-break-and-tail-downwash-092),
+so aircraft show a nose-down stall break; it rejects 0.9.1 recordings.
+Simulation 0.9.1 replaced the propeller-slipstream estimate with an
 [actuator-disk model and adds optional down/right thrust](component-models.md#propeller-slipstream-and-thrust-line-091);
 it rejects 0.9.0 recordings. Simulation 0.9.0 added [wing/rotor ground effect, a logarithmic wind gradient
 and MIL-F-8785C Dryden turbulence](atmosphere-and-ground-effect.md); it rejects
@@ -65,11 +68,11 @@ Check the following when changing browser integration:
 
 ## What is modeled
 
-Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response and speed falloff, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, actuator-disk propeller slipstream over surfaces behind a tractor propeller, optional down/right thrust angles, and wheel contact with rolling/lateral friction.
+Rigid-body 6-DOF dynamics, uniform-box mass components, quasi-steady surface lift/drag/moments, approximate stall blend, control effectiveness, simple thrust response and speed falloff, rate damping, local wind/gusts, optional logarithmic wind gradient and seeded Dryden turbulence, McCormick wing and Cheeseman–Bennett rotor ground effect, wing downwash at horizontal tails, a post-stall centre-of-pressure shift (nose-down stall break), actuator-disk propeller slipstream over surfaces behind a tractor propeller, optional down/right thrust angles, and wheel contact with rolling/lateral friction.
 
 ## What is not modeled
 
-Structural flexibility or failure, foamboard fold mechanics, CFD, automatic conversion of section polars into finite-wing data, dynamic stall, validated wing/wake/downwash interactions (including ground-effect downwash change at the tail), spanwise gust gradients, P-factor/gyroscopic effects, detailed electrical/thermal systems, suspension and tire deformation, radio latency or RF behavior, terrain collision beyond a flat plane, and validated real-aircraft flight characteristics.
+Structural flexibility or failure, foamboard fold mechanics, CFD, automatic conversion of section polars into finite-wing data, dynamic stall, downwash lag and validated wake interactions, spanwise gust gradients, P-factor/gyroscopic effects, detailed electrical/thermal systems, suspension and tire deformation, radio latency or RF behavior, terrain collision beyond a flat plane, and validated real-aircraft flight characteristics.
 
 Reference geometry is intentionally simplified. Visual meshes represent the same dimensions used in flight calculations, but are not manufacturing drawings. Component mass allocations are estimates even when the total reference mass is published.
 

@@ -73,7 +73,7 @@
     },
     "thrustLine": {
       "status": "calculated",
-      "note": "Thrust line at the CG height with 3.2° down-thrust, solved so full power leaves the pitching moment unchanged at the 9 m/s trim (the usual builder's power test). The kit's actual motor angle is not published here."
+      "note": "Thrust line at the CG height with 0° down-thrust, solved so full power leaves the pitching moment unchanged at the 9 m/s trim (the usual builder's power test). The kit's actual motor angle is not published here."
     }
   },
   "parts": [
@@ -418,7 +418,7 @@
           }
         ]
       },
-      "downThrustDeg": 3.2
+      "downThrustDeg": 0
     }
   ],
   "fuselageDragAreaM2": 0.00126,

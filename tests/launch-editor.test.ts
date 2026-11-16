@@ -73,8 +73,15 @@ describe("launch and wheel contact", () => {
   it("accelerates and takes off under power", () => {
     const g = fitLandingGear(a),
       sim = new Simulation(g, calmEnvironment(), launchState(g, "ground"));
+    // Rotate with a quarter of up elevator, then relax it once airborne, as a
+    // pilot does; holding it would pitch up into a stall with realistic
+    // (downwash-reduced) tail authority.
     for (let i = 0; i < 1200; i++)
-      sim.step({ ...neutralControls(), throttle: 0.8, pitch: 0.25 });
+      sim.step({
+        ...neutralControls(),
+        throttle: 0.8,
+        pitch: sim.state.status === "grounded" ? 0.25 : 0,
+      });
     expect(sim.state.status).toBe("flying");
     expect(sim.state.position[0]).toBeGreaterThan(30);
     expect(-sim.state.position[2]).toBeGreaterThan(5);

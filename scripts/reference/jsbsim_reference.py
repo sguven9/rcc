@@ -142,7 +142,13 @@ def model_xml(aircraft, density, mode="airframe"):
     speed = variable("speed", op("sqrt", op("sum", *(op("pow", u, 2) for u in uvw))))
 
     if mode == "airframe":
-        for i, surface in enumerate(aircraft["surfaces"]):
+        surfaces = list(enumerate(aircraft["surfaces"]))
+        # Wings first: their lift coefficient sets the downwash at the tail.
+        surfaces.sort(key=lambda item: item[1]["kind"] != "wing")
+        wings = [w for w in aircraft["surfaces"] if w["kind"] == "wing"]
+        wing_area = sum(w["spanM"] * w["chordM"] for w in wings)
+        wing_terms = []
+        for i, surface in surfaces:
             if surface.get("polar") or surface.get("reynoldsPolars"):
                 raise ValueError(
                     "Tabulated polar adapter is not implemented; refusing to substitute analytical data"
@@ -164,6 +170,30 @@ def model_xml(aircraft, density, mode="airframe"):
                 math.sin(math.radians(surface["rollDeg"])),
                 math.cos(math.radians(surface["rollDeg"])),
             )
+            # Downwash eps = 2 CL_w / (pi AR) at horizontal tails at least 1.5
+            # mean chords behind the wing (no ground effect at these altitudes).
+            if surface["kind"] == "horizontal-tail" and wings and wing_terms:
+                span = aircraft["reference"]["spanM"]
+                chord = wing_area / span
+                wing_x = (
+                    sum(w["positionM"][0] * w["spanM"] * w["chordM"] for w in wings)
+                    / wing_area
+                )
+                if wing_x - surface["positionM"][0] >= 1.5 * chord:
+                    aspect = span * span / wing_area
+                    eps = variable(
+                        f"s{i}/downwash",
+                        op(
+                            "product",
+                            2 / (math.pi * aspect * wing_area),
+                            op("sum", *wing_terms)
+                            if len(wing_terms) > 1
+                            else wing_terms[0],
+                        ),
+                    )
+                    local[2] = op(
+                        "difference", local[2], op("product", eps, op("abs", local[0]))
+                    )
             u = variable(f"s{i}/u", local[0])
             w = variable(
                 f"s{i}/w",
@@ -247,6 +277,30 @@ def model_xml(aircraft, density, mode="airframe"):
                     op("product", blend, 1.3, op("pow", op("sin", alpha), 2)),
                 ),
             )
+            if surface["kind"] == "wing":
+                wing_terms.append(
+                    op("product", cl, surface["spanM"] * surface["chordM"])
+                )
+            # Post-stall centre of pressure moves aft: cm -> -CN (0.25 sqrt|sin a|).
+            normal = op(
+                "sum",
+                op("product", cl, op("cos", alpha)),
+                op("product", cd, op("sin", alpha)),
+            )
+            cm = variable(
+                f"s{i}/cm",
+                op(
+                    "sum",
+                    op("product", op("difference", 1, blend), surface["cm"]),
+                    op(
+                        "product",
+                        -0.25,
+                        blend,
+                        normal,
+                        op("pow", op("abs", op("sin", alpha)), 0.5),
+                    ),
+                ),
+            )
             qs = variable(
                 f"s{i}/qs",
                 op(
@@ -278,7 +332,7 @@ def model_xml(aircraft, density, mode="airframe"):
             load(f"surface-{i}-normal", fz, [0, -sr, cr], surface["positionM"])
             load(
                 f"surface-{i}-pitch",
-                op("product", qs, surface["chordM"] * surface["cm"]),
+                op("product", qs, cm, surface["chordM"]),
                 [0, cr, sr],
             )
         for j in range(3):
@@ -357,6 +411,26 @@ def model_xml(aircraft, density, mode="airframe"):
             functions.append(
                 f'<axis name="{axis}"><function>{op("product", qs, coefficient)}</function></axis>'
             )
+        # Pitching moment with the post-stall centre-of-pressure shift (lbf·ft).
+        normal = op(
+            "sum",
+            op("product", cl, op("cos", alpha)),
+            op("product", cd, op("sin", alpha)),
+        )
+        cm = op(
+            "sum",
+            op("product", op("difference", 1, blend), s["cm"]),
+            op(
+                "product",
+                -0.25,
+                blend,
+                normal,
+                op("pow", op("abs", op("sin", alpha)), 0.5),
+            ),
+        )
+        functions.append(
+            f'<axis name="PITCH"><function>{op("product", qs, s["chordM"] / FT, cm)}</function></axis>'
+        )
 
     if mode == "propulsion":
 

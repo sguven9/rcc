@@ -57,6 +57,10 @@
     "operatingPoint": {
       "status": "estimated",
       "note": "Default cruise/airborne trim 9 m/s (about 1.8 times the analytical stall-speed estimate), hand release 8.5 m/s. Operating defaults, not measured flight speeds. Faster 12 m/s trim is available in headless tests but is a poor power-off glide trim for this low-wing-loading build."
+    },
+    "thrustLine": {
+      "status": "calculated",
+      "note": "1.3° down-thrust solved with the builder's power test (src/core/thrust-line.ts): full power leaves the pitching moment unchanged at the 9 m/s trim. Vortex RC does not publish the firewall angle; confirm on the kit."
     }
   },
   "parts": [
@@ -199,7 +203,7 @@
       "positionM": [0.225, 0, 0],
       "sizeM": [0.012, 0.2286, 0.022],
       "color": "#e66e20",
-      "model": "9 \u00d7 4.7 slow-fly prop + saver (mass estimated)",
+      "model": "9 × 4.7 slow-fly prop + saver (mass estimated)",
       "material": {
         "name": "Molded propeller",
         "finish": "plastic"
@@ -552,7 +556,7 @@
       "partId": "motor",
       "propPartId": "propeller",
       "model": "DYS CF2822-14 1200 KV (performance estimated)",
-      "propeller": "9 \u00d7 4.7 slow-fly",
+      "propeller": "9 × 4.7 slow-fly",
       "propBlades": 2,
       "propDiameterM": 0.2286,
       "maxThrustN": 6.2,
@@ -589,7 +593,8 @@
             "currentA": 13.5
           }
         ]
-      }
+      },
+      "downThrustDeg": 1.3
     }
   ],
   "battery": {

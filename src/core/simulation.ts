@@ -1,7 +1,12 @@
 import { ObstacleCollisions, type Obstacle } from "./obstacles";
 import { initialVtolState, vtolCommands, vtolRotorLoads } from "./vtol";
 import type { VtolCommand, VtolState } from "./vtol-config";
-import { surfacePolar, STANDARD_AIR_VISCOSITY } from "./aerodynamics";
+import {
+  surfacePolar,
+  STANDARD_AIR_VISCOSITY,
+  downwashAngle,
+  postStallMoment,
+} from "./aerodynamics";
 import { diskInducedVelocity, slipstreamAt, spanCoverage } from "./propwash";
 import {
   DrydenTurbulence,
@@ -96,6 +101,8 @@ export interface SurfaceForce {
   stalled: boolean;
   /** McCormick induced-drag factor; 1 outside ground effect. */
   groundEffect: number;
+  /** Wing downwash angle applied at this tail surface, degrees (0 for wings). */
+  downwashDeg: number;
 }
 export interface Forces {
   force: Vec3;
@@ -217,9 +224,30 @@ export class Simulation {
       force = add(force, f);
       torque = add(torque, cross(sub(position, this.properties.cg), f));
     };
-    for (const [surfaceIndex, wing] of this.aircraft.surfaces.entries()) {
+    // Wings first: their lift sets the downwash seen by the tail.
+    const order = this.aircraft.surfaces
+      .map((_, i) => i)
+      .sort(
+        (i, j) =>
+          Number(this.aircraft.surfaces[i].kind !== "wing") -
+          Number(this.aircraft.surfaces[j].kind !== "wing"),
+      );
+    const records: SurfaceForce[] = [];
+    let wingLift = 0,
+      wingArea = 0,
+      wingGround = 0;
+    for (const surfaceIndex of order) {
+      const wing = this.aircraft.surfaces[surfaceIndex];
       const r = sub(wing.positionM, this.properties.cg),
         v = add(flow, cross(s.omega, r));
+      const downwash = downwashAngle(
+        this.aircraft,
+        wing,
+        wingArea > 0 ? wingLift / wingArea : 0,
+        wingArea > 0 ? wingGround / wingArea : 1,
+      );
+      // Downwash: air moving down at the tail lowers its angle of attack.
+      if (downwash) v[2] -= downwash * Math.abs(v[0]);
       const orient = axisQ([1, 0, 0], radians(wing.rollDeg));
       const normal = rotate(orient, [0, 0, -1]),
         span = rotate(orient, [0, 1, 0]);
@@ -276,7 +304,12 @@ export class Simulation {
         wing.cd0 +
         (cl * cl) / (Math.PI * wing.aspectRatio * wing.efficiency) +
         blend * 1.3 * Math.sin(alpha) ** 2;
-      let cm = wing.cm;
+      // Past the stall the normal force's centre of pressure moves aft of c/4
+      // towards mid-chord (flat-plate data), giving the nose-down stall break.
+      const normalCoefficient = cl * Math.cos(alpha) + cd * Math.sin(alpha);
+      let cm =
+        (1 - blend) * wing.cm +
+        blend * postStallMoment(normalCoefficient, alpha);
       const reynolds =
         (speed * wing.chordM) /
         (this.environment.kinematicViscosityM2S ?? STANDARD_AIR_VISCOSITY);
@@ -330,7 +363,13 @@ export class Simulation {
       );
       apply(f, wing.positionM);
       torque = add(torque, scale(span, cm * pressure * wing.chordM));
-      surfaces.push({
+      if (wing.kind === "wing") {
+        const area = wing.spanM * wing.chordM;
+        wingLift += cl * area;
+        wingArea += area;
+        wingGround += groundEffect * area;
+      }
+      records[surfaceIndex] = {
         id: wing.id,
         kind: wing.kind,
         position: wing.positionM,
@@ -341,8 +380,10 @@ export class Simulation {
         outsidePolarEnvelope: coefficients.outsideEnvelope,
         stalled: Math.abs(alpha) > stall,
         groundEffect,
-      });
+        downwashDeg: (downwash * 180) / Math.PI,
+      };
     }
+    surfaces.push(...records);
     if (this.aircraft.vtol) {
       const rotor = vtolRotorLoads(
         this.aircraft,

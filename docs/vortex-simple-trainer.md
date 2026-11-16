@@ -109,7 +109,8 @@ also produces a transient roll moment before sideslip banks the aircraft.
 
 The electrical curve is an estimated static motor/prop combination, with the
 existing approximate voltage sag, speed falloff and consumption model. The
-preset does not identify propeller reaction torque. Downwash, dynamic stall,
+preset does not identify propeller reaction torque. Its 1.3° down-thrust is
+calculated by the builder's power test, not taken from the kit. Downwash lag, dynamic stall,
 P-factor, gyro effects, foam flex and measured hinge loads remain unresolved.
 Displayed endurance is particularly sensitive to the unmeasured current curve.
 

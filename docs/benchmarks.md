@@ -28,9 +28,12 @@ inspect the [tested source revision](https://github.com/adithya-s-k/RCForge/tree
 **After this snapshot:** simulation 0.9.0 added ground effect, an optional wind
 gradient and Dryden turbulence ([equations](atmosphere-and-ground-effect.md)).
 Simulation 0.9.1 replaced the propeller-slipstream estimate
-([details](component-models.md#propeller-slipstream-and-thrust-line-091)).
-Local re-runs of the JSBSim comparison on both versions passed the same 56
-cases and 616 checks. Ground effect is exactly zero above two spans, where those
+([details](component-models.md#propeller-slipstream-and-thrust-line-091)), and
+0.9.2 added tail downwash and the post-stall moment
+([details](component-models.md#stall-break-and-tail-downwash-092)).
+Local re-runs of the JSBSim comparison passed on each version. With the
+adapter mirroring the new terms, 0.9.2 passes 92 cases and 1012 checks across
+15 aircraft. Ground effect is exactly zero above two spans, where those
 cases fly. The NASA comparison was not re-run because its source was
 unreachable from that environment. No new dated snapshot has been published, so
 the table above still describes 0.8.1.

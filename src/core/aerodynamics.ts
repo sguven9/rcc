@@ -74,3 +74,39 @@ export function surfacePolar(
       ),
   };
 }
+
+/**
+ * Post-stall pitching moment about c/4 from the normal force, with the centre
+ * of pressure moving from c/4 towards mid-chord as x_cp = 0.25 + 0.25·√|sin α|
+ * (≈0.42c at 40°, 0.5c at 90°; flat-plate trend, Hoerner, Fluid-Dynamic Lift).
+ * Blended in with the existing stall blend, so attached flow is unchanged.
+ */
+export function postStallMoment(normalCoefficient: number, alphaRad: number) {
+  return -normalCoefficient * 0.25 * Math.sqrt(Math.abs(Math.sin(alphaRad)));
+}
+
+/**
+ * Wing downwash at a horizontal tail, radians: ε = 2·C_L/(π·AR) (elliptic-wing
+ * far-field estimate, e.g. Etkin & Reid), reduced in ground effect by the
+ * wing's area-weighted McCormick factor. Applied only to tails at least 1.5
+ * mean chords behind the wing; elevons on the wing's trailing edge are part of
+ * its lifting system and see none.
+ */
+export function downwashAngle(
+  a: Aircraft,
+  surface: Surface,
+  wingLiftCoefficient: number,
+  wingGroundFactor: number,
+) {
+  if (surface.kind !== "horizontal-tail") return 0;
+  const wings = a.surfaces.filter((w) => w.kind === "wing");
+  if (!wings.length) return 0;
+  const area = wings.reduce((n, w) => n + w.spanM * w.chordM, 0);
+  const span = a.reference.spanM,
+    chord = area / span,
+    x =
+      wings.reduce((n, w) => n + w.positionM[0] * w.spanM * w.chordM, 0) / area;
+  if (x - surface.positionM[0] < 1.5 * chord) return 0;
+  const aspect = (span * span) / area;
+  return (2 * wingLiftCoefficient * wingGroundFactor) / (Math.PI * aspect);
+}

@@ -44,8 +44,10 @@ recommended pack is added.
   the pitch speed at full rpm.
 - **Thrust line.** The motor sits at the CG height. Its down-thrust is solved so
   that full power leaves the pitching moment unchanged at the trim speed, which is
-  how builders set motor angles. The result is 1.5–4.1° for the tractor models
-  and 0° for the pusher Arrow. These are not the kits' published angles.
+  how builders set motor angles. With tail downwash modeled (simulation
+  0.9.2), only the Night Radian needs any (0.4°). The others already pitch
+  slightly nose-down with power, and up-thrust solutions are clamped to 0.
+  These are not the kits' published angles.
 
 ### Motor-model calibration
 

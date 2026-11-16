@@ -64,8 +64,42 @@ propeller, however small the propeller was. It then compensated with an
 arbitrary `exp(−0.7·dx)` decay. The new model has no tuned decay term.
 
 Optional motor `downThrustDeg` and `rightThrustDeg` tilt the thrust line, as a
-builder angles a firewall. Both default to 0, and bundled aircraft do not set
-them because no source gives their values.
+builder angles a firewall. Both default to 0. `src/core/thrust-line.ts` solves
+the builder's power test: the angle at which full power leaves the pitching
+moment unchanged at the cruise trim. Up-thrust solutions are clamped to 0. Only
+the Simple Trainer (1.3°) and Night Radian (0.4°) need any. The Bronco, Tiny
+Trainer and most generated aircraft already pitch slightly nose-down with
+power once tail downwash is modeled.
+
+## Stall break and tail downwash (0.9.2)
+
+Two textbook effects make low-speed behaviour realistic:
+
+- **Post-stall centre of pressure.** Past the stall the normal force acts aft of
+  the quarter chord, at `x_cp = 0.25 + 0.25·√|sin α|` of the chord (≈0.42c at
+  40°, 0.5c at 90°; the flat-plate trend in Hoerner's _Fluid-Dynamic Lift_). The
+  extra moment `−C_N·(x_cp − 0.25)` is blended in with the existing stall blend,
+  so attached flow is unchanged. This is the nose-down stall break.
+- **Wing downwash at the tail.** A horizontal tail at least 1.5 mean chords
+  behind the wing sees the downwash `ε = 2·C_L/(π·AR)` of the area-weighted wing
+  lift, reduced by the wing's ground-effect factor. Elevons on a wing's trailing
+  edge see none. Downwash lowers the tail's effective stability, as on real
+  aircraft. It also collapses when the wing stalls, which adds to the nose drop.
+
+Effect on the bundled aircraft (static stability Cm_α at trim, per radian):
+Tiny Trainer −1.9 → −1.0, Bronco −1.2 → −0.54, Simple Trainer −1.0 → −0.56.
+The generated aircraft fall between −0.75 and −1.1. All remain statically stable;
+typical real aircraft lie between −0.3 and −1.5.
+
+With power off and the elevator raised slowly to full over six seconds, the
+earlier model could not stall most aircraft: they mushed at about 15° with the
+nose level. Now they reach 16–22°, drop the nose within about half a second of
+the stall, recover speed and repeat, with no tumbling. Flying wings (FT-22,
+Mighty Mini Arrow) still cannot be stalled with their elevons, and the Explorer
+and Night Radian mush gently. Abrupt full up elevator from cruise is a loop
+entry, not a stall test. Without power, the aircraft runs out of speed at the top
+and slides back, as a real one would. `tests/stall-behaviour.test.ts` covers the
+slow-ramp stall.
 
 ### Full throttle with the trim held
 
@@ -79,11 +113,17 @@ The bundled presets' estimated power is high. Fresh-pack static thrust-to-weight
 is about 1.4 for the Simple Trainer, 1.2 for the Bronco and 1.3 for the Tiny
 Trainer. Hands-off full-throttle tests from trimmed cruise give:
 
-| Aircraft       | Result over 16 s                                        | Main contributors                                   |
-| -------------- | ------------------------------------------------------- | --------------------------------------------------- |
-| Tiny Trainer   | Settles into a 17–20° climb at constant speed           | Moderate thrust at speed (22 m/s zero-thrust speed) |
-| FT Bronco      | Loops; with 1.5° downthrust settles into a 30–40° climb | Blown inner wing and tail                           |
-| Simple Trainer | Loops even with 5° downthrust                           | Thrust ≈ weight below 6 m/s; thrust line below CG   |
+| Aircraft (0.9.2)                       | Result over 16 s             | Main contributor                              |
+| -------------------------------------- | ---------------------------- | --------------------------------------------- |
+| Tiny Trainer                           | Settles into a 13° climb     | Moderate thrust at speed                      |
+| FT Bronco (both tails), Apprentice STS | Settles into a 30–45° climb  | Thrust-to-weight about 1.1–1.2                |
+| FT Explorer                            | Settles into a 42–44° climb  | Thrust-to-weight 1.3                          |
+| Simple Trainer, Simple Cub, Spitfire   | Climbs to vertical and loops | Thrust ≈ weight below 6 m/s                   |
+| Night Radian                           | Climbs steeply and loops     | Very low drag; thrust ≈ weight at climb speed |
+| FT-22, Mighty Mini Arrow               | Loops                        | Thrust-to-weight above 1.5                    |
+
+Before 0.9.2 the Bronco and Apprentice also looped. Tail downwash removed the
+power-induced pitch-up that caused it.
 
 These are tests of estimated presets, not flight measurements. Measured static
 thrust and a measured downthrust angle would change them.
