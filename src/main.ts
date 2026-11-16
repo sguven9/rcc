@@ -29,6 +29,7 @@ import "./view/flight-navigation.css";
 import {
   createFlightNavigation,
   setNavigationField,
+  setNavigationWind,
 } from "./view/flight-navigation";
 import { setupArduino } from "./app/arduino";
 import { renderBudget } from "./view/render-budget";
@@ -59,6 +60,9 @@ import "./view/editor-workspace.css";
 import "./view/light-theme.css";
 import { setupEditorWorkspace } from "./app/editor-workspace";
 import "./view/position-panel.css";
+import "./view/physics-debug.css";
+import { EnergyGraph, PHYSICS_DEBUG_LEGEND } from "./view/physics-debug";
+import { PHYSICS } from "./core/physics-config";
 import { setPositionField } from "./view/position-panel";
 import "./view/flight-feedback.css";
 import { ZodError } from "zod";
@@ -127,7 +131,11 @@ let baseline = preferredAircraft(
     originals.filter((a) => hostAllows({ kind: "aircraft", id: a.id })),
   ),
   aircraft = structuredClone(baseline),
-  environment = calmEnvironment(),
+  // The browser applies the isothermal density lapse above the field.
+  environment: ReturnType<typeof calmEnvironment> = {
+    ...calmEnvironment(),
+    densityScaleHeightM: PHYSICS.densityScaleHeightM,
+  },
   mode: LaunchMode = "ground",
   page = "fly",
   running = false,
@@ -298,7 +306,21 @@ function showScenery(env: typeof environment) {
   setNavigationField(site);
   setPositionField(site);
 }
+// Physics debug overlay: force arrows in the scene plus a rolling energy graph.
+const energyGraph = new EnergyGraph($<HTMLCanvasElement>("energy-graph"));
+$("physics-debug-legend").innerHTML = PHYSICS_DEBUG_LEGEND.map(
+  (v) =>
+    `<li><i style="background:#${v.color.toString(16).padStart(6, "0")}"></i>${v.label}</li>`,
+).join("");
+function setPhysicsDebug(on: boolean) {
+  scene?.setPhysicsDebug(on);
+  $("physics-debug-panel").hidden = !on;
+  energyGraph.reset();
+}
+$("physics-debug").onchange = () =>
+  setPhysicsDebug($<HTMLInputElement>("physics-debug").checked);
 function reset() {
+  energyGraph.reset();
   const cameraMode = flightCamera;
   showScenery(environment);
   environment = { ...environment, obstacles: scene?.fieldObstacles ?? [] };
@@ -842,17 +864,41 @@ $<HTMLInputElement>("import-aircraft").onchange = async (e) => {
   }
   (e.target as HTMLInputElement).value = "";
 };
+const windDirectionLabel = (deg: number) =>
+  `${deg}° ${
+    deg === 0
+      ? "headwind"
+      : deg === 180
+        ? "tailwind"
+        : deg === 90 || deg === 270
+          ? "crosswind"
+          : deg < 90 || deg > 270
+            ? "quartering head"
+            : "quartering tail"
+  }`;
+$("wind-direction").oninput = () => {
+  $("wind-direction-value").textContent = windDirectionLabel(
+    Number($<HTMLInputElement>("wind-direction").value),
+  );
+};
+$("turbulence-intensity").oninput = () => {
+  $("turbulence-intensity-value").textContent =
+    `${Number($<HTMLInputElement>("turbulence-intensity").value).toFixed(1)}×`;
+};
 for (const id of [
   "wind-speed",
   "wind-direction",
   "gusts",
   "turbulence",
+  "turbulence-intensity",
   "wind-gradient",
 ])
   $(id).onchange = () => {
     const speed = Number($<HTMLInputElement>("wind-speed").value),
       angle =
-        (Number($<HTMLSelectElement>("wind-direction").value) * Math.PI) / 180;
+        (Number($<HTMLInputElement>("wind-direction").value) * Math.PI) / 180;
+    const turbulent = $<HTMLInputElement>("turbulence").checked;
+    $<HTMLInputElement>("turbulence-intensity").disabled = !turbulent;
     if (!Number.isFinite(speed) || speed < 0 || speed > 12) {
       message("Wind speed must be between 0 and 12 m/s.");
       return;
@@ -861,8 +907,9 @@ for (const id of [
       ...environment,
       windMps: [-speed * Math.cos(angle), speed * Math.sin(angle), 0],
       gustMps: $<HTMLInputElement>("gusts").checked ? 1 : 0,
-      turbulence: $<HTMLInputElement>("turbulence").checked
-        ? "dryden"
+      turbulence: turbulent ? "dryden" : undefined,
+      turbulenceIntensity: turbulent
+        ? Number($<HTMLInputElement>("turbulence-intensity").value)
         : undefined,
       windProfile: $<HTMLInputElement>("wind-gradient").checked
         ? defaultWindProfile()
@@ -1005,6 +1052,11 @@ window.addEventListener("keydown", (e) => {
     responsePanel.cycle();
   if (page !== "fly" || ownsKeyboard(e.target)) return;
   if (e.code === "KeyF" && !e.repeat) locateAircraft();
+  if (e.code === "KeyG" && !e.repeat) {
+    const box = $<HTMLInputElement>("physics-debug");
+    box.checked = !box.checked;
+    setPhysicsDebug(box.checked);
+  }
   if (e.code === "KeyV" && !e.repeat) cycleFlightCamera();
   if (e.code === "KeyC" && !e.repeat && !replay) responsePanel.cycle();
   if (e.code === "KeyP" && !e.repeat) {
@@ -1409,8 +1461,14 @@ function frame(now: number) {
       stats();
       if (page === "aircraft") updateControlTest(controlPreview, previewStatus);
       positioning.update();
-      if (page === "fly")
+      if (page === "fly") {
         updateNavigation(sim.state, scene?.pilotPosition ?? { x: -8, z: -14 });
+        setNavigationWind(sim.airVelocity(sim.state));
+        if (!$("physics-debug-panel").hidden) {
+          energyGraph.push(sim);
+          energyGraph.draw();
+        }
+      }
       const hardware = input.source === "controller";
       const source = hardware
         ? controller.type === "transmitter"

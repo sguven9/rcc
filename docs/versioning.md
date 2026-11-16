@@ -7,7 +7,7 @@ RCForge separates application releases, simulation compatibility, file formats a
 | Version                  | Current value                   | When it changes                                                             |
 | ------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
 | Application              | 0.8.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
-| Physics and recordings   | 0.9.3                           | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
+| Physics and recordings   | 0.10.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
 | Aircraft definition      | `schemaVersion: 1`              | An incompatible aircraft file format change                                 |
 | Aircraft history archive | `formatVersion: 1`              | An incompatible backup format change                                        |
 | Documentation            | `next` (development)            | Current guides update with source; releases get immutable `X.Y.Z` snapshots |
@@ -75,6 +75,15 @@ Contributors normally leave version numbers alone. Maintainers prepare a release
 6. Commit the new snapshot and rerun `npm run release:check`. Inspect the version selector and links at `/docs/X.Y.Z/`. The snapshot is release documentation; it does not emulate an older simulator or publish anything.
 7. Review and merge the release PR. Tag the tested release commit as `vX.Y.Z`, publish release notes and deploy its tested build. Tagging, publishing and deployment are explicit maintainer actions; changing package metadata or freezing docs does not perform them.
 8. Verify the header version, docs version, assets and first-run workflows at the deployed address. Follow [deployment](deployment.md). Never overwrite a published documentation snapshot; corrections belong to the next release.
+
+## Engine audit compatibility (0.10.0)
+
+Simulation **0.10.0** changes ground contact (split impulse, static/kinetic
+friction, contact pose correction, resting snap), samples actuators at RK2
+stage times, bounds body drag, and adds the optional
+`environment.densityScaleHeightM` and `environment.turbulenceIntensity`.
+Trajectories change slightly, so 0.9.3 recordings are rejected. Aircraft files
+load unchanged. See [physics engine audit](physics-engine.md).
 
 ## Part-throttle thrust compatibility (0.9.3)
 

@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Physics engine audit ([report](docs/physics-engine.md)). Fix static-friction creep (contact pose correction), the resting residual velocity (split impulse, resting snap), and first-order actuator coupling (RK2 stage-time sampling). Add static/kinetic friction with material combination, a body-drag stability bound, the optional density lapse with height, turbulence intensity, wind direction in 15° steps, a live minimap wind arrow, and a physics debug overlay (force arrows and an energy graph, key G). Constants move to `src/core/physics-config.ts`. Add 12 analytical verification tests. Simulation compatibility advances to 0.10.0.
+
 - Realistic throttle response: propeller thrust now unloads at a zero-thrust speed proportional to shaft speed (advance-ratio law), and brakes above it. A moderate throttle increase now gives a steady climb at constant speed instead of a sharp pitch-up, and closing the throttle slows the aircraft. Simulation compatibility advances to 0.9.3; the JSBSim adapter mirrors it (92 cases, 1012 checks pass).
 
 - Realistic stalls: add wing downwash at the horizontal tail (2·CL/(π·AR), reduced in ground effect) and the post-stall centre-of-pressure shift. Aircraft now stall when the elevator is raised slowly and drop their nose; tail authority and static stability fall to realistic values. Add a shared builder's power-test solver (`src/core/thrust-line.ts`); the Simple Trainer gets a calculated 1.3° down-thrust. The Bronco, Apprentice and Explorer no longer loop on hands-off full throttle. Simulation compatibility advances to 0.9.2; the JSBSim adapter mirrors both terms (92 cases, 1012 checks pass).

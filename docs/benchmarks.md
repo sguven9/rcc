@@ -34,8 +34,9 @@ Simulation 0.9.1 replaced the propeller-slipstream estimate
 scaled propeller unloading with shaft speed
 ([details](component-models.md#propeller-thrust-at-part-throttle-093)).
 Local re-runs of the JSBSim comparison passed on each version. With the
-adapter mirroring the new terms, 0.9.3 passes 92 cases and 1012 checks across
-15 aircraft. Ground effect is exactly zero above two spans, where those
+adapter mirroring the new terms, 0.10.0 passes 92 cases and 1012 checks across
+15 aircraft. The [engine audit](physics-engine.md) adds analytical tests for free
+fall, terminal velocity, friction, wind, energy and timestep convergence. Ground effect is exactly zero above two spans, where those
 cases fly. The NASA comparison was not re-run because its source was
 unreachable from that environment. No new dated snapshot has been published, so
 the table above still describes 0.8.1.

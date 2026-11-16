@@ -7,6 +7,7 @@ import { powertrain } from "../core/powertrain";
 import { sceneries, type SceneryId } from "../core/scenery";
 import { surfaceCommand } from "../core/surface-control";
 import * as T from "three";
+import { PhysicsDebugArrows } from "./physics-debug";
 import type { Aircraft } from "../core/schema";
 import type { Simulation, Controls } from "../core/simulation";
 import { massProperties } from "../core/aircraft";
@@ -107,6 +108,9 @@ export class FlightScene {
   private lightTheme = false;
   private arrows: T.ArrowHelper[] = [];
   private forces = new T.Group();
+  /** Physics debug overlay: total force and velocity arrows at the CG. */
+  readonly physicsDebug = new PhysicsDebugArrows();
+  private physicsDebugEnabled = false;
   private orbitYaw = 0.65;
   private orbitPitch = 0.35;
   private orbitZoom = 1;
@@ -148,7 +152,12 @@ export class FlightScene {
     sun.shadow.normalBias = 0.006;
     this.scene.add(sun, sun.target);
     this.field = createField(this.scene);
-    this.scene.add(this.forces, this.studioGroup, this.debris.group);
+    this.scene.add(
+      this.forces,
+      this.studioGroup,
+      this.debris.group,
+      this.physicsDebug.group,
+    );
     this.placementMarker.visible = false;
     this.placementRing.rotation.x = -Math.PI / 2;
     this.placementMarker.add(this.placementRing, this.placementArrow);
@@ -430,6 +439,11 @@ export class FlightScene {
   get fieldObstacles() {
     return this.field.obstacles;
   }
+  /** Show per-surface loads plus total force/velocity arrows (rendering only). */
+  setPhysicsDebug(on: boolean) {
+    this.physicsDebugEnabled = on;
+    this.showForces = on;
+  }
   setScenery(id: SceneryId) {
     if (this.scenery === id) return;
     this.scenery = id;
@@ -580,6 +594,8 @@ export class FlightScene {
     const s = sim.state,
       pos = this.studio ? new T.Vector3(0, 0, 0) : toWorld(s.position);
     this.visual.group.position.copy(pos);
+    this.physicsDebug.group.visible = this.physicsDebugEnabled && !this.studio;
+    this.physicsDebug.update(sim, pos);
     followAircraftShadow(
       this.sun,
       pos,

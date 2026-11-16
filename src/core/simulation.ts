@@ -19,6 +19,7 @@ import {
 import { powertrain, thrustSpeedFactor } from "./powertrain";
 import { rotorCommands } from "./multirotor";
 import { surfaceCommand } from "./surface-control";
+import { PHYSICS } from "./physics-config";
 import { surfaceActuation, advanceSurfaceCommand } from "./actuation";
 import { resolveGroundContacts } from "./ground";
 import type { Aircraft } from "./schema";
@@ -42,8 +43,8 @@ import {
   type Quat,
 } from "./math";
 export { SIM_VERSION } from "./versions";
-export const FIXED_DT = 1 / 120;
-export const GRAVITY = 9.80665;
+export const FIXED_DT = PHYSICS.fixedDt;
+export const GRAVITY = PHYSICS.gravity;
 export interface Controls {
   roll: number;
   pitch: number;
@@ -70,6 +71,19 @@ export interface Environment {
   windProfile?: WindProfile;
   /** Seeded MIL-F-8785C low-altitude Dryden turbulence scaled by the mean wind. */
   turbulence?: "dryden";
+  /** Turbulence intensity multiplier on the MIL-F-8785C σ values (default 1). */
+  turbulenceIntensity?: number;
+  /**
+   * Optional isothermal density lapse above the field: ρ = ρ_field·e^(−h/H),
+   * with H in metres (8500 in the browser). Omitted: uniform density.
+   */
+  densityScaleHeightM?: number;
+}
+/** Air density at a height above the field. */
+export function densityAt(e: Environment, heightM: number) {
+  return e.densityScaleHeightM
+    ? e.densityKgM3 * Math.exp(-Math.max(0, heightM) / e.densityScaleHeightM)
+    : e.densityKgM3;
 }
 export const calmEnvironment = (): Environment => ({
   windMps: [0, 0, 0],
@@ -109,6 +123,12 @@ export interface Forces {
   torque: Vec3;
   surfaces: SurfaceForce[];
   airspeed: number;
+  /** Body-frame breakdown for diagnostics: thrust, surface aerodynamics, body drag. */
+  thrust: Vec3;
+  aero: Vec3;
+  bodyDrag: Vec3;
+  /** Air density used at this state, kg/m³. */
+  density: number;
 }
 export const initialState = (
   a: Aircraft,
@@ -176,6 +196,10 @@ export class Simulation {
     torque: [0, 0, 0],
     surfaces: [],
     airspeed: 0,
+    thrust: [0, 0, 0],
+    aero: [0, 0, 0],
+    bodyDrag: [0, 0, 0],
+    density: 0,
   };
   constructor(
     public readonly aircraft: Aircraft,
@@ -204,19 +228,25 @@ export class Simulation {
   /** World air velocity at the CG: sheared mean wind, gusts and turbulence. */
   airVelocity(s: State): Vec3 {
     const wind = windAt(s.time, this.environment, -s.position[2]);
-    return this.turbulence ? add(wind, this.turbulence.gust) : wind;
+    return this.turbulence
+      ? add(
+          wind,
+          scale(
+            this.turbulence.gust,
+            this.environment.turbulenceIntensity ?? 1,
+          ),
+        )
+      : wind;
   }
   forces(s: State, c: Controls): Forces {
+    const rho = densityAt(this.environment, -s.position[2]);
+    let thrustForce: Vec3 = [0, 0, 0],
+      vtolThrust: Vec3 = [0, 0, 0];
     const flow = rotate(
       inverseQ(s.orientation),
       sub(s.velocity, this.airVelocity(s)),
     );
-    const power = powertrain(
-      this.aircraft,
-      s.motors,
-      s.batterySoc,
-      this.environment.densityKgM3,
-    );
+    const power = powertrain(this.aircraft, s.motors, s.batterySoc, rho);
     let force: Vec3 = [0, 0, 0],
       torque: Vec3 = [0, 0, 0];
     const surfaces: SurfaceForce[] = [];
@@ -268,12 +298,7 @@ export class Simulation {
                 motor.zeroThrustSpeedMps,
                 power.rpmRatio[i],
               );
-          const induced = diskInducedVelocity(
-            thrust,
-            axial,
-            this.environment.densityKgM3,
-            radius,
-          );
+          const induced = diskInducedVelocity(thrust, axial, rho, radius);
           if (!(induced > 0)) continue;
           const slip = slipstreamAt(dx, induced, axial, radius);
           const offset = sub(motor.positionM, wing.positionM);
@@ -353,13 +378,7 @@ export class Simulation {
           cl = clGround;
         }
       }
-      const pressure =
-        0.5 *
-        this.environment.densityKgM3 *
-        speed *
-        speed *
-        wing.spanM *
-        wing.chordM;
+      const pressure = 0.5 * rho * speed * speed * wing.spanM * wing.chordM;
       const liftDirection = unit(cross(span, direction)); // upward for forward flow; perpendicular to local airflow
       const f = add(
         scale(liftDirection, cl * pressure),
@@ -398,6 +417,7 @@ export class Simulation {
       );
       force = add(force, rotor.force);
       torque = add(torque, rotor.torque);
+      vtolThrust = rotor.force;
     }
     for (
       let i = 0;
@@ -422,6 +442,7 @@ export class Simulation {
             ? rotorGroundEffect(rotorHeight / axis[2], m.propDiameterM / 2)
             : 1);
         apply([0, 0, -thrust], m.positionM);
+        thrustForce = add(thrustForce, [0, 0, -thrust]);
         // Ground effect adds thrust at equal shaft power, so reaction torque is unchanged.
         torque[2] +=
           power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
@@ -430,42 +451,41 @@ export class Simulation {
         // Down- and right-thrust tilt the thrust line, as on real airframes.
         const down = radians(m.downThrustDeg ?? 0),
           right = radians(m.rightThrustDeg ?? 0);
-        apply(
-          [
-            thrust * Math.cos(down) * Math.cos(right),
-            thrust * Math.cos(down) * Math.sin(right),
-            thrust * Math.sin(down),
-          ],
-          m.positionM,
-        );
+        const vector: Vec3 = [
+          thrust * Math.cos(down) * Math.cos(right),
+          thrust * Math.cos(down) * Math.sin(right),
+          thrust * Math.sin(down),
+        ];
+        apply(vector, m.positionM);
+        thrustForce = add(thrustForce, vector);
         if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
       }
     }
-    if (this.aircraft.bodyDragAreaM2) {
-      force = add(
-        force,
-        flow.map(
-          (v, i) =>
-            -0.5 *
-            this.environment.densityKgM3 *
-            this.aircraft.bodyDragAreaM2![i] *
-            Math.abs(v) *
+    // Quadratic body drag, bounded so one explicit step cannot reverse the
+    // air-relative velocity of a very light, draggy body.
+    const limit = (v: number, f: number) => {
+      const bound =
+        (PHYSICS.maxDragVelocityFractionPerStep *
+          this.properties.mass *
+          Math.abs(v)) /
+        PHYSICS.fixedDt;
+      return Math.sign(f) * Math.min(Math.abs(f), bound);
+    };
+    const bodyDrag: Vec3 = this.aircraft.bodyDragAreaM2
+      ? (flow.map((v, i) =>
+          limit(
             v,
-        ) as Vec3,
-      );
-    } else {
-      force = add(
-        force,
-        scale(
-          flow,
-          -0.5 *
-            this.environment.densityKgM3 *
-            length(flow) *
-            this.aircraft.fuselageDragAreaM2,
-        ),
-      );
-    }
+            -0.5 * rho * this.aircraft.bodyDragAreaM2![i] * Math.abs(v) * v,
+          ),
+        ) as Vec3)
+      : (flow.map((v) =>
+          limit(
+            v,
+            -0.5 * rho * length(flow) * this.aircraft.fuselageDragAreaM2 * v,
+          ),
+        ) as Vec3);
+    force = add(force, bodyDrag);
     torque = add(
       torque,
       s.omega.map(
@@ -473,7 +493,18 @@ export class Simulation {
           -w * this.aircraft.angularDamping[i] * (1 + length(flow) * 0.1),
       ) as Vec3,
     );
-    return { force, torque, surfaces, airspeed: length(flow) };
+    if (this.aircraft.vtol) thrustForce = vtolThrust;
+    const aero = surfaces.reduce<Vec3>((n, f) => add(n, f.force), [0, 0, 0]);
+    return {
+      force,
+      torque,
+      surfaces,
+      airspeed: length(flow),
+      thrust: thrustForce,
+      aero,
+      bodyDrag,
+      density: rho,
+    };
   }
   private acceleration(s: State, c: Controls) {
     const f = this.forces(s, c);
@@ -499,7 +530,7 @@ export class Simulation {
     );
   }
   step(raw: Controls, dt = FIXED_DT): State {
-    if (!Number.isFinite(dt) || dt <= 0 || dt > 1 / 30)
+    if (!Number.isFinite(dt) || dt <= 0 || dt > PHYSICS.maxDt)
       throw new Error("Simulation timestep must be in (0, 1/30] seconds");
     if (this.state.status === "crashed" || this.state.status === "landed")
       return this.state;
@@ -532,6 +563,11 @@ export class Simulation {
       (this.aircraft.vehicleType === "multirotor"
         ? rotorCommands(this.aircraft, s, c)
         : null);
+    // Actuators advance over the step; the integrator samples them at the
+    // matching instants (start for k1, midpoint average for k2) so actuator
+    // dynamics keep the scheme second order instead of leading by dt/2.
+    const startMotors = [...s.motors],
+      startCommands = s.surfaceCommands ? [...s.surfaceCommands] : undefined;
     s.motors = s.motors.map((v, i) => {
       const m = this.aircraft.motors[i];
       const target =
@@ -553,9 +589,26 @@ export class Simulation {
         return advanceSurfaceCommand(previous, target, this.actuations[i], dt);
       });
     }
-    const k1 = this.acceleration(s, c);
+    const average = (a: number[], b: number[]) =>
+      a.map((v, i) => (v + b[i]) / 2);
+    const hasStartCommands =
+      startCommands !== undefined &&
+      s.surfaceCommands !== undefined &&
+      startCommands.length === s.surfaceCommands.length;
+    const k1 = this.acceleration(
+      {
+        ...s,
+        motors: startMotors,
+        surfaceCommands: hasStartCommands ? startCommands : s.surfaceCommands,
+      },
+      c,
+    );
     const mid: State = {
       ...s,
+      motors: average(startMotors, s.motors),
+      surfaceCommands: hasStartCommands
+        ? average(startCommands!, s.surfaceCommands!)
+        : s.surfaceCommands,
       time: s.time + dt / 2,
       position: add(s.position, scale(s.velocity, dt / 2)),
       velocity: add(s.velocity, scale(k1.velocity, dt / 2)),
@@ -567,7 +620,7 @@ export class Simulation {
       this.aircraft,
       mid.motors,
       mid.batterySoc,
-      this.environment.densityKgM3,
+      densityAt(this.environment, -mid.position[2]),
     );
     this.state = {
       ...s,
@@ -601,8 +654,21 @@ export class Simulation {
       );
     if (
       !this.collisions.resolve(s, this.state, this.environment.obstacles ?? [])
-    )
+    ) {
+      const before = { v: this.state.velocity, w: this.state.omega };
       this.resolveGround(c, dt);
+      // The midpoint position update used the pre-contact velocity. Contact
+      // impulses act over the step, so apply half their velocity change to the
+      // pose as well: a body held by static friction then stays exactly put
+      // instead of creeping ½·a·dt² per step.
+      if (this.state.status === "grounded") {
+        const dv = sub(this.state.velocity, before.v),
+          dw = sub(this.state.omega, before.w);
+        this.state.position = add(this.state.position, scale(dv, dt / 2));
+        if (length(dw) > 0)
+          this.state.orientation = advanceQ(this.state.orientation, dw, dt / 2);
+      }
+    }
     this.lastForces = this.forces(this.state, c);
     return this.state;
   }

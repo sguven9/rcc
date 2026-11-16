@@ -1,0 +1,41 @@
+.physics-debug-panel {
+  position: absolute;
+  right: 20px;
+  bottom: 116px;
+  width: 300px;
+  z-index: 5;
+  background: color-mix(in srgb, var(--ui-panel) 93%, transparent);
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 11px;
+}
+.physics-debug-panel canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+.physics-debug-legend {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+}
+.physics-debug-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@media (max-width: 700px) {
+  .physics-debug-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 220px;
+  }
+}

@@ -68,6 +68,8 @@ const descriptions: Record<string, string> = {
     "Run deterministic RCForge physics experiments, inspect trim and flight envelopes, and compare telemetry when changing aircraft definitions.",
   benchmarks:
     "Read RCForge's simulation benchmarks: gravity checks, JSBSim comparisons, NASA rotation references, unsolved trim conditions and remaining realism limits.",
+  "physics-engine":
+    "Audit of RCForge's flight engine: fixed timestep, integration, contacts, friction, drag and wind, with defects fixed and analytical verification tests.",
   "catalog-aircraft":
     "How RCForge builds its Simple Cub, Explorer, Spitfire, Arrow, Night Radian and Apprentice presets from published specs, with a calibrated motor model.",
   "manisa-field":

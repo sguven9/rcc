@@ -234,6 +234,8 @@ export function parseRecording(raw: unknown): Recording {
             )
             .optional(),
           turbulence: z.literal("dryden").optional(),
+          turbulenceIntensity: finite.min(0).max(3).optional(),
+          densityScaleHeightM: finite.min(1000).max(20000).optional(),
         })
         .strict(),
       initialState: z

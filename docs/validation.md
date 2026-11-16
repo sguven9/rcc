@@ -6,7 +6,11 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.9.3** scales the propeller's zero-thrust speed with shaft
+Simulation **0.10.0** fixes static-friction creep and the resting residual
+velocity, keeps actuator dynamics second order, adds static/kinetic friction,
+a drag stability bound and the optional density lapse
+([physics engine audit](physics-engine.md)); it rejects 0.9.3 recordings.
+Simulation 0.9.3 scaled the propeller's zero-thrust speed with shaft
 speed and adds propeller braking above it
 ([part-throttle thrust](component-models.md#propeller-thrust-at-part-throttle-093)),
 so moderate throttle changes give realistic climbs; it rejects 0.9.2 recordings.

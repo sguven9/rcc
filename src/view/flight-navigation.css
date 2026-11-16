@@ -90,7 +90,7 @@
     monospace;
   width: 100%;
 }
-.nav-map-heading > span:last-child {
+.nav-map-heading > span#nav-heading {
   color: #efbd78;
 }
 .nav-map-footer {
@@ -140,4 +140,20 @@
     .flight-navigation {
     visibility: hidden;
   }
+}
+.nav-map .nav-wind svg {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.nav-wind {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #5fc9f0;
+  font-weight: 600;
+}
+.nav-wind b {
+  font-weight: 600;
 }

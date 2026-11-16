@@ -109,6 +109,12 @@ export const pages = [
     file: "docs/manisa-field.md",
   },
   {
+    slug: "physics-engine",
+    title: "Physics engine audit & tests",
+    group: "Understand the simulation",
+    file: "docs/physics-engine.md",
+  },
+  {
     slug: "atmosphere-and-ground-effect",
     title: "Turbulence and ground effect",
     group: "Understand the simulation",

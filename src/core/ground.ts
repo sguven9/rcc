@@ -1,6 +1,7 @@
 import type { Aircraft } from "./schema";
 import type { State, Controls } from "./simulation";
 import type { massProperties } from "./aircraft";
+import { PHYSICS, slidingFriction, type GroundSurface } from "./physics-config";
 import {
   add,
   sub,
@@ -15,19 +16,30 @@ import {
   length,
   type Vec3,
 } from "./math";
-/** Sequential point impulses with wheel rolling/lateral friction. Flat terrain at world Z=0. */
+/**
+ * Sequential point impulses with Coulomb friction on flat terrain at world Z=0.
+ *
+ * - Normal impulses are inelastic (restitution 0), so resting wheels do not
+ *   bounce. Penetration is removed by position projection beyond a small slop
+ *   (split impulse): no Baumgarte velocity is injected, so a resting aircraft
+ *   keeps exactly zero velocity instead of a residual upward speed.
+ * - Friction impulses are clamped to the Coulomb cone |j_t| ≤ μ·j_n on the
+ *   accumulated impulse, so friction stops relative motion without reversing it.
+ *   Sliding uses μ_k above a slip speed, static μ_s below; pairs combine as
+ *   √(μ_contact·μ_surface). Tyres roll with C_rr resistance.
+ */
 export function resolveGroundContacts(
   s: State,
   a: Aircraft,
   properties: ReturnType<typeof massProperties>,
   c: Controls,
   dt: number,
-  surface: "asphalt" | "grass" | "dirt" = "asphalt",
+  surface: GroundSurface = "asphalt",
 ) {
-  const lateralFriction =
-    surface === "grass" ? 0.5 : surface === "dirt" ? 0.55 : 0.65;
-  const rollingFriction =
-    surface === "grass" ? 0.09 : surface === "dirt" ? 0.055 : 0.025;
+  const config = PHYSICS.contact;
+  const tyre = slidingFriction("tyre", surface),
+    skid = slidingFriction("skid", surface);
+  const rollingFriction = PHYSICS.friction.rolling[surface];
   const { mass, cg, inverseInertia } = properties;
   const bodyToWorld = (v: Vec3) => rotate(s.orientation, v),
     worldToBody = (v: Vec3) => rotate(inverseQ(s.orientation), v);
@@ -55,7 +67,7 @@ export function resolveGroundContacts(
       rollingImpulse: 0,
     };
   });
-  const touching = contacts.filter((v) => v.depth >= -0.001);
+  const touching = contacts.filter((v) => v.depth >= -config.touchToleranceM);
   if (!touching.length) {
     s.status = "flying";
     return;
@@ -63,8 +75,9 @@ export function resolveGroundContacts(
   const hard = touching.some(
     (v) =>
       v.depth >= 0 &&
-      (pointVelocity(v.r)[2] > (v.p.kind !== "body" ? 4 : 2.2) ||
-        (v.p.kind === "body" && length(s.velocity) > 3)),
+      (pointVelocity(v.r)[2] >
+        (v.p.kind !== "body" ? config.crashSinkMps : config.bodyCrashSinkMps) ||
+        (v.p.kind === "body" && length(s.velocity) > config.bodyCrashSpeedMps)),
   );
   const body = touching.find((v) => v.depth >= 0 && v.p.kind === "body");
   if (hard || body) {
@@ -78,18 +91,25 @@ export function resolveGroundContacts(
   }
   s.status = "grounded";
   const wheels = touching.filter((v) => v.p.kind !== "body");
-  for (let iteration = 0; iteration < 8; iteration++)
-    for (const wheel of wheels) {
-      const { r, p, depth } = wheel,
+  // Static or kinetic sliding friction, chosen once from the pre-solve slip.
+  const sliding = wheels.map((wheel) => {
+    const v = pointVelocity(wheel.r),
+      slip = Math.hypot(v[0], v[1]) > config.slipSpeedMps;
+    const mu = wheel.p.kind === "skid" ? skid : tyre;
+    return slip ? mu.kinetic : mu.static;
+  });
+  for (let iteration = 0; iteration < config.iterations; iteration++)
+    for (const [index, wheel] of wheels.entries()) {
+      const { r, p } = wheel,
         n: Vec3 = [0, 0, -1];
+      const lateralFriction = sliding[index];
       let velocity = pointVelocity(r);
-      const bias = (Math.max(0, depth - 0.0001) * 0.15) / dt;
       // Project accumulated impulses, not each iteration's increment. Later
       // contacts must be able to release excess support from earlier iterations.
       const previousNormal = wheel.normalImpulse;
       wheel.normalImpulse = Math.max(
         0,
-        previousNormal + (-dot(velocity, n) + bias) / effectiveMass(r, n),
+        previousNormal - dot(velocity, n) / effectiveMass(r, n),
       );
       apply(r, scale(n, wheel.normalImpulse - previousNormal));
       const steer = p.steering ? c.yaw * 0.45 : 0;
@@ -114,6 +134,16 @@ export function resolveGroundContacts(
       );
       apply(r, scale(forward, wheel.rollingImpulse - previousRolling));
     }
+  // Position projection (split impulse): remove most penetration beyond the slop.
   const depth = Math.max(0, ...wheels.map((v) => v.depth));
-  s.position[2] -= depth * 0.65;
+  s.position[2] -= Math.max(0, depth - config.slopM) * config.projection;
+  // Rest: an unpowered aircraft that has stopped is held exactly still.
+  if (
+    s.motors.every((m) => m < 1e-3) &&
+    length(s.velocity) < config.restSpeedMps &&
+    length(s.omega) < config.restRateRadS
+  ) {
+    s.velocity = [0, 0, 0];
+    s.omega = [0, 0, 0];
+  }
 }

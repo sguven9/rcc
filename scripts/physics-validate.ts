@@ -138,12 +138,14 @@ for (const electric of aircraft.filter((a) => a.battery)) {
     er = createRecording(esim);
   const ec = { ...neutralControls(), throttle: 0.5 },
     before = esim.state.batterySoc!,
-    current = powertrain(electric, es.motors, before).current;
+    current = powertrain(electric, es.motors, before).current,
+    startMotors = [...esim.state.motors];
   esim.step(ec);
   er.frames.push(ec);
+  // Charge is integrated with the step's midpoint motor commands.
   const integratedCurrent = powertrain(
     electric,
-    esim.state.motors,
+    startMotors.map((v, i) => (v + esim.state.motors[i]) / 2),
     before,
   ).current;
   const chargeError = Math.abs(
