@@ -96,12 +96,31 @@ interface Spec {
         finChordM: number;
       };
   gear: "taildragger" | "tricycle" | "none";
+  /** Visual-only detail; canopy x is relative to the root leading edge. */
+  visual: {
+    fuselage: "box" | "rounded" | "round";
+    finish: "foam" | "gloss";
+    wing: Record<string, unknown>;
+    tail: Record<string, unknown>;
+    canopy?: {
+      relXM: number;
+      lengthM: number;
+      heightM: number;
+      widthM: number;
+    };
+    spinner?: boolean;
+    markings?: string;
+    camouflage?: boolean;
+    underside?: string;
+  };
   body: {
     widthM: number;
     heightM: number;
     boom?: { widthM: number };
     /** Nose station ahead of the wing leading edge as a fraction of length. */
     noseFraction?: number;
+    /** Optional fuselage sections (fractions of length/width/height). */
+    loft?: { x: number; width: number; top: number; bottom: number }[];
   };
   color: string;
   accent: string;
@@ -456,7 +475,7 @@ function build(spec: Spec) {
 
   // Fuselage (pod + optional boom).
   const bodyLength = noseX - tailEnd;
-  const loft = [
+  const loft = spec.body.loft ?? [
     { x: -0.5, width: 0.3, top: -0.25, bottom: 0.2 },
     { x: -0.15, width: 0.7, top: -0.4, bottom: 0.35 },
     { x: 0.2, width: 1, top: -0.5, bottom: 0.5 },
@@ -712,6 +731,22 @@ function build(spec: Spec) {
     name: spec.name,
     description: spec.description,
     credit: spec.credit,
+    visual: (() => {
+      const { canopy, ...rest } = spec.visual;
+      return {
+        ...rest,
+        ...(canopy
+          ? {
+              canopy: {
+                xM: r(rootLeadingX + canopy.relXM),
+                lengthM: canopy.lengthM,
+                heightM: canopy.heightM,
+                widthM: canopy.widthM,
+              },
+            }
+          : {}),
+      };
+    })(),
     livery: {
       body: spec.color,
       wing: spec.color,
@@ -946,7 +981,26 @@ const specs: Spec[] = [
       rudder: true,
     },
     gear: "taildragger",
-    body: { widthM: 0.06, heightM: 0.07 },
+    visual: {
+      fuselage: "rounded",
+      finish: "foam",
+      wing: { tipChordRatio: 1, tip: "rounded" },
+      tail: { tipChordRatio: 0.7, tip: "rounded" },
+      canopy: { relXM: 0.03, lengthM: 0.12, heightM: 0.028, widthM: 0.05 },
+      markings: "cub-stripe",
+    },
+    body: {
+      widthM: 0.06,
+      heightM: 0.07,
+      loft: [
+        { x: -0.5, width: 0.25, top: -0.3, bottom: 0.15 },
+        { x: -0.2, width: 0.65, top: -0.45, bottom: 0.35 },
+        { x: 0.1, width: 1, top: -0.5, bottom: 0.5 },
+        { x: 0.38, width: 1, top: -0.5, bottom: 0.5 },
+        { x: 0.47, width: 0.92, top: -0.38, bottom: 0.46 },
+        { x: 0.5, width: 0.82, top: -0.3, bottom: 0.4 },
+      ],
+    },
     color: "#f2d24b",
     accent: "#262626",
     trimSpeedMps: 9,
@@ -1015,6 +1069,15 @@ const specs: Spec[] = [
       rudder: true,
     },
     gear: "none",
+    visual: {
+      fuselage: "rounded",
+      finish: "foam",
+      wing: { tipChordRatio: 0.72, tip: "rounded", taperFromEta: 0.4 },
+      tail: { tipChordRatio: 0.7, tip: "rounded" },
+      canopy: { relXM: 0.2, lengthM: 0.13, heightM: 0.03, widthM: 0.05 },
+      spinner: true,
+      markings: "wingtips",
+    },
     body: { widthM: 0.08, heightM: 0.09, boom: { widthM: 0.02 } },
     color: "#e8e9e4",
     accent: "#d0502c",
@@ -1084,7 +1147,29 @@ const specs: Spec[] = [
       rudder: true,
     },
     gear: "taildragger",
-    body: { widthM: 0.07, heightM: 0.09 },
+    visual: {
+      fuselage: "round",
+      finish: "foam",
+      wing: { tipChordRatio: 0.4, tip: "elliptical" },
+      tail: { tipChordRatio: 0.5, tip: "elliptical" },
+      canopy: { relXM: -0.13, lengthM: 0.14, heightM: 0.035, widthM: 0.045 },
+      spinner: true,
+      markings: "raf-roundels",
+      camouflage: true,
+      underside: "#a9b4b3",
+    },
+    body: {
+      widthM: 0.07,
+      heightM: 0.09,
+      loft: [
+        { x: -0.5, width: 0.18, top: -0.22, bottom: 0.12 },
+        { x: -0.2, width: 0.55, top: -0.38, bottom: 0.33 },
+        { x: 0.1, width: 0.95, top: -0.47, bottom: 0.5 },
+        { x: 0.33, width: 1, top: -0.5, bottom: 0.5 },
+        { x: 0.46, width: 0.8, top: -0.36, bottom: 0.4 },
+        { x: 0.5, width: 0.5, top: -0.24, bottom: 0.26 },
+      ],
+    },
     color: "#7d8a63",
     accent: "#5b6e86",
     trimSpeedMps: 12,
@@ -1136,18 +1221,25 @@ const specs: Spec[] = [
       efficiency: 0.8,
       cm: 0.005,
       stallDeg: 13,
-      sweepOffsetM: 0.06,
+      sweepOffsetM: 0.16,
     },
     tail: {
       kind: "elevons",
       elevonSpanM: 0.22,
       elevonChordM: 0.05,
-      elevonArmM: 0.2,
+      elevonArmM: 0.22,
       maxDeg: 20,
       finHeightM: 0.08,
       finChordM: 0.08,
     },
     gear: "none",
+    visual: {
+      fuselage: "rounded",
+      finish: "foam",
+      wing: { tipChordRatio: 0.4, tip: "square", sweepM: 0.16 },
+      tail: { tipChordRatio: 0.65, tip: "rounded", sweepM: 0.03 },
+      markings: "wingtips",
+    },
     body: { widthM: 0.05, heightM: 0.045 },
     color: "#3a72b8",
     accent: "#f0f0ea",
@@ -1217,7 +1309,28 @@ const specs: Spec[] = [
       rudder: true,
     },
     gear: "none",
-    body: { widthM: 0.065, heightM: 0.08, noseFraction: 0.36 },
+    visual: {
+      fuselage: "round",
+      finish: "gloss",
+      wing: { tipChordRatio: 0.55, tip: "rounded", taperFromEta: 0.5 },
+      tail: { tipChordRatio: 0.65, tip: "rounded", sweepM: 0.02 },
+      canopy: { relXM: 0.1, lengthM: 0.2, heightM: 0.025, widthM: 0.05 },
+      spinner: true,
+      markings: "wingtips",
+    },
+    body: {
+      widthM: 0.065,
+      heightM: 0.08,
+      noseFraction: 0.36,
+      loft: [
+        { x: -0.5, width: 0.16, top: -0.12, bottom: 0.12 },
+        { x: -0.1, width: 0.42, top: -0.27, bottom: 0.27 },
+        { x: 0.15, width: 0.85, top: -0.45, bottom: 0.45 },
+        { x: 0.35, width: 1, top: -0.5, bottom: 0.5 },
+        { x: 0.47, width: 0.8, top: -0.36, bottom: 0.4 },
+        { x: 0.5, width: 0.48, top: -0.22, bottom: 0.25 },
+      ],
+    },
     color: "#f1f1ec",
     accent: "#e07a1c",
     trimSpeedMps: 8,
@@ -1286,7 +1399,27 @@ const specs: Spec[] = [
       rudder: true,
     },
     gear: "tricycle",
-    body: { widthM: 0.09, heightM: 0.12 },
+    visual: {
+      fuselage: "round",
+      finish: "gloss",
+      wing: { tipChordRatio: 1, tip: "rounded" },
+      tail: { tipChordRatio: 0.72, tip: "rounded" },
+      canopy: { relXM: 0.06, lengthM: 0.2, heightM: 0.045, widthM: 0.07 },
+      spinner: true,
+      markings: "trainer-stripes",
+    },
+    body: {
+      widthM: 0.09,
+      heightM: 0.12,
+      loft: [
+        { x: -0.5, width: 0.22, top: -0.22, bottom: 0.16 },
+        { x: -0.2, width: 0.6, top: -0.42, bottom: 0.35 },
+        { x: 0.1, width: 0.95, top: -0.5, bottom: 0.5 },
+        { x: 0.33, width: 1, top: -0.48, bottom: 0.5 },
+        { x: 0.46, width: 0.9, top: -0.35, bottom: 0.45 },
+        { x: 0.5, width: 0.7, top: -0.25, bottom: 0.32 },
+      ],
+    },
     color: "#f4f4f2",
     accent: "#c4302b",
     trimSpeedMps: 11,

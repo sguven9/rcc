@@ -7,6 +7,21 @@
     "name": "Flite Test",
     "url": "https://store.flitetest.com/ft-mighty-mini-arrow"
   },
+  "visual": {
+    "fuselage": "rounded",
+    "finish": "foam",
+    "wing": {
+      "tipChordRatio": 0.4,
+      "tip": "square",
+      "sweepM": 0.16
+    },
+    "tail": {
+      "tipChordRatio": 0.65,
+      "tip": "rounded",
+      "sweepM": 0.03
+    },
+    "markings": "wingtips"
+  },
   "livery": {
     "body": "#3a72b8",
     "wing": "#3a72b8",
@@ -57,8 +72,8 @@
       "id": "fuselage",
       "kind": "body",
       "massKg": 0.0212,
-      "positionM": [-0.0563, 0, 0],
-      "sizeM": [0.5, 0.05, 0.045],
+      "positionM": [-0.0031, 0, 0],
+      "sizeM": [0.5938, 0.05, 0.045],
       "color": "#3a72b8",
       "material": {
         "name": "Foam airframe",
@@ -101,7 +116,7 @@
       "id": "left-wing-structure",
       "kind": "wing",
       "massKg": 0.0371,
-      "positionM": [-0.0562, -0.184, 0],
+      "positionM": [-0.1062, -0.184, 0],
       "sizeM": [0.175, 0.368, 0.0175],
       "color": "#3a72b8",
       "orientationDeg": [0, 1, 0],
@@ -114,7 +129,7 @@
       "id": "right-wing-structure",
       "kind": "wing",
       "massKg": 0.0371,
-      "positionM": [-0.0562, 0.184, 0],
+      "positionM": [-0.1062, 0.184, 0],
       "sizeM": [0.175, 0.368, 0.0175],
       "color": "#3a72b8",
       "orientationDeg": [0, 1, 0],
@@ -127,7 +142,7 @@
       "id": "left-fin-structure",
       "kind": "tail",
       "massKg": 0.0053,
-      "positionM": [-0.22, -0.358, -0.04],
+      "positionM": [-0.24, -0.358, -0.04],
       "sizeM": [0.08, 0.004, 0.08],
       "color": "#f0f0ea",
       "material": {
@@ -139,7 +154,7 @@
       "id": "right-fin-structure",
       "kind": "tail",
       "massKg": 0.0053,
-      "positionM": [-0.22, 0.358, -0.04],
+      "positionM": [-0.24, 0.358, -0.04],
       "sizeM": [0.08, 0.004, 0.08],
       "color": "#f0f0ea",
       "material": {
@@ -151,7 +166,7 @@
       "id": "motor",
       "kind": "motor",
       "massKg": 0.03,
-      "positionM": [-0.1713, 0, 0.0013],
+      "positionM": [-0.2213, 0, 0.0013],
       "sizeM": [0.03, 0.028, 0.028],
       "color": "#c64222",
       "model": "2205 2300 KV"
@@ -160,7 +175,7 @@
       "id": "propeller",
       "kind": "equipment",
       "massKg": 0.004,
-      "positionM": [-0.1913, 0, 0.0013],
+      "positionM": [-0.2412, 0, 0.0013],
       "sizeM": [0.012, 0.1524, 0.02],
       "color": "#2b2d30",
       "model": "6 × 4.5 (pusher)",
@@ -173,7 +188,7 @@
       "id": "esc",
       "kind": "equipment",
       "massKg": 0.012,
-      "positionM": [-0.0912, 0, 0.009],
+      "positionM": [-0.1412, 0, 0.009],
       "sizeM": [0.045, 0.025, 0.01],
       "color": "#292d31",
       "model": "12–20 A ESC"
@@ -227,7 +242,7 @@
       "id": "battery",
       "kind": "battery",
       "massKg": 0.075,
-      "positionM": [0.1326, 0, 0.0067],
+      "positionM": [0.0372, 0, 0.0067],
       "sizeM": [0.1, 0.034, 0.024],
       "color": "#b79d4f",
       "model": "3S 850 mAh LiPo (mass estimated)",
@@ -241,7 +256,7 @@
     {
       "id": "left-wing",
       "kind": "wing",
-      "positionM": [-0.03, -0.184, 0],
+      "positionM": [-0.08, -0.184, 0],
       "spanM": 0.368,
       "chordM": 0.175,
       "aspectRatio": 4.2057,
@@ -257,7 +272,7 @@
     {
       "id": "right-wing",
       "kind": "wing",
-      "positionM": [-0.03, 0.184, 0],
+      "positionM": [-0.08, 0.184, 0],
       "spanM": 0.368,
       "chordM": 0.175,
       "aspectRatio": 4.2057,
@@ -273,7 +288,7 @@
     {
       "id": "left-elevon",
       "kind": "horizontal-tail",
-      "positionM": [-0.2, -0.238, 0],
+      "positionM": [-0.22, -0.238, 0],
       "spanM": 0.22,
       "chordM": 0.05,
       "aspectRatio": 4.4,
@@ -305,7 +320,7 @@
     {
       "id": "left-fin",
       "kind": "vertical-tail",
-      "positionM": [-0.22, -0.358, -0.04],
+      "positionM": [-0.24, -0.358, -0.04],
       "spanM": 0.08,
       "chordM": 0.08,
       "aspectRatio": 1,
@@ -321,7 +336,7 @@
     {
       "id": "right-elevon",
       "kind": "horizontal-tail",
-      "positionM": [-0.2, 0.238, 0],
+      "positionM": [-0.22, 0.238, 0],
       "spanM": 0.22,
       "chordM": 0.05,
       "aspectRatio": 4.4,
@@ -353,7 +368,7 @@
     {
       "id": "right-fin",
       "kind": "vertical-tail",
-      "positionM": [-0.22, 0.358, -0.04],
+      "positionM": [-0.24, 0.358, -0.04],
       "spanM": 0.08,
       "chordM": 0.08,
       "aspectRatio": 1,
@@ -370,7 +385,7 @@
   "motors": [
     {
       "id": "motor",
-      "positionM": [-0.1913, 0, 0.0013],
+      "positionM": [-0.2412, 0, 0.0013],
       "partId": "motor",
       "propPartId": "propeller",
       "model": "2205 2300 KV",
@@ -421,39 +436,39 @@
     }
   ],
   "fuselageDragAreaM2": 0.00067,
-  "bodyDragAreaM2": [0.0007, 0.018, 0.025],
+  "bodyDragAreaM2": [0.0007, 0.0214, 0.0297],
   "angularDamping": [0.0013, 0.0029, 0.0037],
   "reference": {
     "spanM": 0.736,
     "areaM2": 0.1288,
     "cgFromLeadingEdgeM": 0.035,
-    "leadingEdgeXM": 0.0137,
+    "leadingEdgeXM": -0.0363,
     "trimSpeedMps": 12
   },
   "contactPoints": [
     {
       "id": "belly-front",
-      "positionM": [0.1137, 0, 0.0225],
+      "positionM": [0.2137, 0, 0.0225],
       "spanLinked": false
     },
     {
       "id": "belly-rear",
-      "positionM": [-0.065, 0, 0.0225],
+      "positionM": [-0.115, 0, 0.0225],
       "spanLinked": false
     },
     {
       "id": "nose",
-      "positionM": [0.1937, 0, 0.0135],
+      "positionM": [0.2937, 0, 0.0135],
       "spanLinked": false
     },
     {
       "id": "prop-tip",
-      "positionM": [-0.1913, 0, 0.0775],
+      "positionM": [-0.2412, 0, 0.0775],
       "spanLinked": false
     },
     {
       "id": "tail-tip",
-      "positionM": [-0.3063, 0, 0],
+      "positionM": [-0.3, 0, 0],
       "spanLinked": false
     },
     {

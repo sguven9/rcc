@@ -7,6 +7,28 @@
     "name": "Flite Test",
     "url": "https://www.amainhobbies.com/flite-test-spitfire-speed-build-electric-airplane-kit-flt-1007/p673671"
   },
+  "visual": {
+    "fuselage": "round",
+    "finish": "foam",
+    "wing": {
+      "tipChordRatio": 0.4,
+      "tip": "elliptical"
+    },
+    "tail": {
+      "tipChordRatio": 0.5,
+      "tip": "elliptical"
+    },
+    "spinner": true,
+    "markings": "raf-roundels",
+    "camouflage": true,
+    "underside": "#a9b4b3",
+    "canopy": {
+      "xM": -0.0838,
+      "lengthM": 0.14,
+      "heightM": 0.035,
+      "widthM": 0.045
+    }
+  },
   "livery": {
     "body": "#7d8a63",
     "wing": "#7d8a63",
@@ -72,33 +94,39 @@
       "bodyLoft": [
         {
           "x": -0.5,
-          "width": 0.3,
-          "top": -0.25,
-          "bottom": 0.2
+          "width": 0.18,
+          "top": -0.22,
+          "bottom": 0.12
         },
         {
-          "x": -0.15,
-          "width": 0.7,
-          "top": -0.4,
-          "bottom": 0.35
+          "x": -0.2,
+          "width": 0.55,
+          "top": -0.38,
+          "bottom": 0.33
         },
         {
-          "x": 0.2,
+          "x": 0.1,
+          "width": 0.95,
+          "top": -0.47,
+          "bottom": 0.5
+        },
+        {
+          "x": 0.33,
           "width": 1,
           "top": -0.5,
           "bottom": 0.5
         },
         {
-          "x": 0.42,
-          "width": 0.95,
-          "top": -0.45,
-          "bottom": 0.48
+          "x": 0.46,
+          "width": 0.8,
+          "top": -0.36,
+          "bottom": 0.4
         },
         {
           "x": 0.5,
-          "width": 0.75,
-          "top": -0.3,
-          "bottom": 0.38
+          "width": 0.5,
+          "top": -0.24,
+          "bottom": 0.26
         }
       ]
     },

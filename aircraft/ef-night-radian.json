@@ -7,6 +7,28 @@
     "name": "E-flite / Horizon Hobby",
     "url": "https://www.air-rc.com/aircraft/E-flite_Night-Radian-20m_EFL36500"
   },
+  "visual": {
+    "fuselage": "round",
+    "finish": "gloss",
+    "wing": {
+      "tipChordRatio": 0.55,
+      "tip": "rounded",
+      "taperFromEta": 0.5
+    },
+    "tail": {
+      "tipChordRatio": 0.65,
+      "tip": "rounded",
+      "sweepM": 0.02
+    },
+    "spinner": true,
+    "markings": "wingtips",
+    "canopy": {
+      "xM": 0.1444,
+      "lengthM": 0.2,
+      "heightM": 0.025,
+      "widthM": 0.05
+    }
+  },
   "livery": {
     "body": "#f1f1ec",
     "wing": "#f1f1ec",
@@ -72,33 +94,39 @@
       "bodyLoft": [
         {
           "x": -0.5,
-          "width": 0.3,
-          "top": -0.25,
-          "bottom": 0.2
+          "width": 0.16,
+          "top": -0.12,
+          "bottom": 0.12
         },
         {
-          "x": -0.15,
-          "width": 0.7,
-          "top": -0.4,
-          "bottom": 0.35
+          "x": -0.1,
+          "width": 0.42,
+          "top": -0.27,
+          "bottom": 0.27
         },
         {
-          "x": 0.2,
+          "x": 0.15,
+          "width": 0.85,
+          "top": -0.45,
+          "bottom": 0.45
+        },
+        {
+          "x": 0.35,
           "width": 1,
           "top": -0.5,
           "bottom": 0.5
         },
         {
-          "x": 0.42,
-          "width": 0.95,
-          "top": -0.45,
-          "bottom": 0.48
+          "x": 0.47,
+          "width": 0.8,
+          "top": -0.36,
+          "bottom": 0.4
         },
         {
           "x": 0.5,
-          "width": 0.75,
-          "top": -0.3,
-          "bottom": 0.38
+          "width": 0.48,
+          "top": -0.22,
+          "bottom": 0.25
         }
       ]
     },

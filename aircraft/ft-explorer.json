@@ -7,6 +7,27 @@
     "name": "Flite Test",
     "url": "https://flitetest.com/articles/ft-explorer-build"
   },
+  "visual": {
+    "fuselage": "rounded",
+    "finish": "foam",
+    "wing": {
+      "tipChordRatio": 0.72,
+      "tip": "rounded",
+      "taperFromEta": 0.4
+    },
+    "tail": {
+      "tipChordRatio": 0.7,
+      "tip": "rounded"
+    },
+    "spinner": true,
+    "markings": "wingtips",
+    "canopy": {
+      "xM": 0.25,
+      "lengthM": 0.13,
+      "heightM": 0.03,
+      "widthM": 0.05
+    }
+  },
   "livery": {
     "body": "#e8e9e4",
     "wing": "#e8e9e4",

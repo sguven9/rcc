@@ -9,6 +9,13 @@ import { buildQuad } from "./quad-model";
 import { buildPanel } from "./planform";
 import { buildFoamWing } from "./foam-wing";
 import { propellerBlade } from "./propeller";
+import {
+  canopy,
+  detailedFuselage,
+  detailedSurface,
+  spinner,
+  wheel as detailedWheel,
+} from "./detailed-airframe";
 import { disposeModel } from "./dispose-model";
 import type { SurfaceControl } from "../core/surface-control";
 import * as T from "three";
@@ -434,6 +441,9 @@ export function buildAircraft(
     tailPaint = paint(a.livery?.tail);
   const surfacePaint = (kind: string) =>
     kind === "wing" ? wingPaint : tailPaint;
+  // Detailed generic airframe (smooth lofts, planforms, painted textures).
+  const detailed = !!a.visual && !planModel && !a.vtol;
+  let fuselageTop: { x: number; top: number }[] = [];
   const hardware = a.vtol ? vtolHardware() : undefined;
   const propellerMaterials = new Map<string, T.Material>();
   const servoMaterials = new Map<string, T.Material>();
@@ -442,6 +452,37 @@ export function buildAircraft(
     const firstChild = group.children.length;
     if (hardware?.part(group, p, a)) {
       // Detailed fixtures and electronics remain tied to their installed mass part.
+    } else if (
+      detailed &&
+      (p.kind === "body" || p.kind === "boom") &&
+      p.bodyLoft
+    ) {
+      const [x, , z] = p.positionM,
+        [l, w, h] = p.sizeM;
+      const sections = p.bodyLoft.map((s) => ({
+        x: x + s.x * l,
+        width: s.width * w,
+        top: z + s.top * h,
+        bottom: z + s.bottom * h,
+      }));
+      if (p.kind === "body" && !fuselageTop.length)
+        fuselageTop = sections.map((s) => ({ x: s.x, top: s.top }));
+      group.add(detailedFuselage(a, p, sections));
+    } else if (detailed && p.kind === "boom") {
+      const [x, , z] = p.positionM,
+        [l, w, h] = p.sizeM;
+      group.add(
+        detailedFuselage(a, p, [
+          {
+            x: x - l / 2,
+            width: w * 0.7,
+            top: z - h * 0.35,
+            bottom: z + h * 0.35,
+          },
+          { x: x, width: w * 0.85, top: z - h * 0.43, bottom: z + h * 0.43 },
+          { x: x + l / 2, width: w, top: z - h / 2, bottom: z + h / 2 },
+        ]),
+      );
     } else if ((p.kind === "body" || p.kind === "boom") && p.bodyLoft) {
       const [x, y, z] = p.positionM,
         [l, w, h] = p.sizeM;
@@ -621,6 +662,8 @@ export function buildAircraft(
         baseColor,
         y,
       );
+    } else if (p.servo && detailed) {
+      // Servos sit inside the detailed skins; their mass remains in the ledger.
     } else if (p.servo) {
       const housing = new T.Group();
       housing.position.set(...p.positionM);
@@ -689,6 +732,20 @@ export function buildAircraft(
     );
     if (hardware && assembly && !p.servo) batchStatic(assembly);
   }
+  if (detailed && a.visual?.canopy && fuselageTop.length > 1) {
+    const topAt = (x: number) => {
+      const pts = [...fuselageTop].sort((p, q) => p.x - q.x);
+      if (x <= pts[0].x) return pts[0].top;
+      for (let i = 1; i < pts.length; i++)
+        if (x <= pts[i].x) {
+          const t = (x - pts[i - 1].x) / (pts[i].x - pts[i - 1].x);
+          return pts[i - 1].top + (pts[i].top - pts[i - 1].top) * t;
+        }
+      return pts.at(-1)!.top;
+    };
+    const glass = canopy(a, topAt);
+    if (glass) group.add(glass);
+  }
   if (isBronco || isTiny || a.id === "vt-simple-trainer") {
     // Retention hardware is included in the structural mass allocation.
     // These assembly positions are visual estimates around the authored wing chord.
@@ -755,6 +812,21 @@ export function buildAircraft(
     surface.rotation.x = radians(s.rollDeg);
     surface.rotation.y = radians(s.incidenceDeg);
     group.add(surface);
+    if (detailed && !s.panel && !s.foamWing) {
+      const built = detailedSurface(a, s);
+      surface.add(built.group);
+      if (s.control && built.pivot)
+        controls.push({
+          surfaceId: s.id,
+          pivot: built.pivot,
+          hingeAxis: built.hingeAxis,
+          axis: s.control.axis,
+          gain: s.control.gain,
+          control: s.control,
+          max: radians(surfaceActuation(a, s).maxDeg),
+        });
+      continue;
+    }
     if (s.panel || s.foamWing) {
       const panel = s.foamWing
         ? buildFoamWing(s, baseColor)
@@ -968,6 +1040,17 @@ export function buildAircraft(
       [shaft * 0.009, 0, 0],
     );
     hub.rotation.z = (-shaft * Math.PI) / 2;
+    if (detailed && a.visual?.spinner) {
+      const cone = spinner(
+        Math.max(0.008, motor.propDiameterM * 0.075),
+        a.livery?.accent ?? "#c9ccd0",
+      );
+      cone.position.x = shaft * 0.004;
+      if (shaft < 0) cone.rotation.z = Math.PI / 2;
+      cone.name = "spinner";
+      prop.add(cone);
+      hub.visible = false;
+    }
     if (a.vtol) {
       const assembly = group.children.slice(firstMotorChild);
       const pivot = new T.Group();
@@ -1001,6 +1084,13 @@ export function buildAircraft(
       contact.strutAnchorM ? 0.0016 : 0.0026,
       aluminum,
     );
+    if (detailed) {
+      const assembly = detailedWheel(r, Math.max(0.01, r * 0.45));
+      assembly.position.set(x, y, z - r);
+      assembly.name = contact.id;
+      group.add(assembly);
+      continue;
+    }
     const tire = contact.wheelColor
       ? new T.MeshStandardMaterial({
           color: contact.wheelColor,

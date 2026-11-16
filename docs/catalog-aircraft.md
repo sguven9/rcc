@@ -61,6 +61,30 @@ bench points fall within ±25 %. The generator stops with an error if they drift
 These are similar motors, not the exact installed ones. Treat each preset's
 thrust as accurate to roughly a quarter.
 
+## How they look
+
+These six use the detailed generic renderer (`src/view/detailed-airframe.ts`),
+driven by an optional, visual-only `visual` block in each JSON:
+
+- **Smooth fuselages.** Superellipse cross-sections: rounded boxes for the Flite
+  Test foam builds, round for the molded E-flite airframes. Smoothly resampled
+  stations replace the four-corner loft.
+- **Real planforms.** Taper, rounded and elliptical tips (the Spitfire), sweep
+  (the Arrow) and a constant-chord inner panel (the Night Radian), lofted from
+  cambered NACA-style sections. Each surface's drawn area is normalised to its
+  aerodynamic `spanM × chordM`, and a test checks the match.
+- **Painted liveries.** Canvas textures follow the surface curvature: RAF
+  roundels, fin flash, two-tone camouflage with a light underside, a Cub
+  lightning stripe, trainer stripes, coloured tips, weathering and panel lines.
+  Gloss and foam finishes have different roughness.
+- **Details.** Canopy, spinner, rubber tyres with hubs, and ailerons, elevators
+  and rudders that pivot about their real (tapered) hinge lines.
+
+The block never reaches the physics: a test compares forces with and without
+`visual` and `livery`. Servo housings are hidden inside the skins; their mass
+stays in the ledger. The original Bronco, Tiny Trainer, FT-22 and Vortex Simple
+Trainer keep their plan-traced foam models.
+
 ## How they fly
 
 At their trim throttle all six are statically stable. They also damp a pitch

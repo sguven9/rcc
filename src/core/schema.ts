@@ -34,6 +34,17 @@ const polarTable = z
       points.every((p, i) => i === 0 || p.alphaDeg > points[i - 1].alphaDeg),
     "Polar angles must be strictly increasing",
   );
+/** Drawn planform; chords are normalised to the surface's aerodynamic area. */
+const planformSchema = z
+  .object({
+    tipChordRatio: finite.min(0.2).max(1),
+    tip: z.enum(["square", "rounded", "elliptical"]),
+    /** Span fraction where taper begins (constant chord inboard). */
+    taperFromEta: finite.min(0).max(0.95).optional(),
+    /** Quarter-chord aft displacement at the tip, metres. */
+    sweepM: finite.min(-1).max(1).optional(),
+  })
+  .strict();
 const provenance = z
   .object({
     status: z.enum(["sourced", "calculated", "estimated", "calibrated"]),
@@ -74,6 +85,34 @@ export const AircraftSchema = z
       .strict()
       .optional(),
     pilotResponse: PilotResponseSchema.optional(),
+    /** Visual-only detail for the generic renderer; physics never reads it. */
+    visual: z
+      .object({
+        fuselage: z.enum(["box", "rounded", "round"]).optional(),
+        finish: z.enum(["foam", "gloss"]).optional(),
+        wing: planformSchema.optional(),
+        tail: planformSchema.optional(),
+        canopy: z
+          .object({
+            xM: finite,
+            lengthM: positive.max(2),
+            heightM: positive.max(0.5),
+            widthM: positive.max(0.5),
+          })
+          .strict()
+          .optional(),
+        spinner: z.boolean().optional(),
+        markings: z
+          .enum(["raf-roundels", "cub-stripe", "trainer-stripes", "wingtips"])
+          .optional(),
+        camouflage: z.boolean().optional(),
+        underside: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     /** Optional paint scheme for the generic renderer; plan models keep their own. */
     livery: z
       .object({

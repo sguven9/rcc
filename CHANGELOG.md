@@ -4,6 +4,8 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Detailed models for the six generated aircraft: smooth superellipse fuselages, tapered/elliptical/swept planforms with cambered sections, painted canvas liveries (RAF roundels, camouflage, stripes, tips), canopy, spinner, tyres and hinge-accurate control surfaces. A new visual-only `visual` block drives them; physics is unchanged, and the original plan models are untouched.
+
 - Add six catalog aircraft generated from published specifications: FT Simple Cub, FT Explorer, FT Spitfire, FT Mighty Mini Arrow, E-flite Night Radian 2.0 m and Apprentice STS 1.5 m. Thrust/current tables come from a DC motor model calibrated against published bench points; down-thrust is solved with the builder's power test. Add an optional aircraft `livery` for the generic renderer.
 
 - Replace the propeller-slipstream estimate with an actuator-disk model (correct span coverage, slipstream development and contraction, no tuned decay). Add optional motor `downThrustDeg` and `rightThrustDeg`. Simulation compatibility advances to 0.9.1 and rejects 0.9.0 replays; aircraft files remain compatible.
