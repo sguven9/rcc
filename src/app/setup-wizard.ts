@@ -179,7 +179,9 @@ export class SetupWizard {
     this.q("#wizard-count").textContent =
       `Step ${this.step + 1} of ${STEPS.length}`;
     this.q("#wizard-back").hidden = this.step === 0;
-    this.q("#wizard-skip").hidden = this.step === STEPS.length - 1;
+    // Keep the footer grid stable: hide the skip link without removing it.
+    this.q("#wizard-skip").style.visibility =
+      this.step === STEPS.length - 1 ? "hidden" : "";
     this.q("#wizard-next").textContent =
       this.step === STEPS.length - 1 ? "Save and start flying" : "Next";
     this.render();
