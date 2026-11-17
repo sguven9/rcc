@@ -163,6 +163,12 @@ export const pages = [
     file: "docs/scenery-rendering.md",
   },
   {
+    slug: "rendering",
+    title: "Graphics engine and quality presets",
+    group: "Understand the simulation",
+    file: "docs/rendering.md",
+  },
+  {
     slug: "contributing",
     title: "Make your first contribution",
     group: "Contribute & maintain",

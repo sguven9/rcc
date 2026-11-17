@@ -11,6 +11,7 @@ import {
   buildFpvHousing,
 } from "../src/view/fpv-camera";
 import { buildAircraft, disposeAircraft } from "../src/view/model";
+import { RENDER_CONFIG } from "../src/render/render-config";
 
 afterEach(() => vi.unstubAllGlobals());
 it("installs once, changes mass/CG and removes the camera transactionally", () => {
@@ -73,7 +74,11 @@ it("places the optical center at the mounted lens, relative to CG and body attit
       mount.position.clone().applyQuaternion(body).add(position),
     ),
   ).toBeLessThan(1e-12);
-  expect(camera.near).toBe(0.003);
+  // Render-only value: 0.003 m relied on the logarithmic depth buffer, which
+  // the PBR renderer dropped (post-processing needs linear depth); the near
+  // plane now comes from the render config (3 cm lens clearance).
+  expect(camera.near).toBe(RENDER_CONFIG.camera.fpvNear);
+  expect(camera.near).toBeLessThanOrEqual(0.05);
   expect(camera.fov).toBe(90);
   disposeAircraft(housing);
 });

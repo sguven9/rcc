@@ -15,6 +15,10 @@ export class FlightClock {
     )
       throw new Error("Invalid flight clock interval");
   }
+  /** Fraction of a step elapsed since the last one (render interpolation). */
+  get alpha() {
+    return Math.min(1, this.remainder / this.stepSeconds);
+  }
   reset(nowMs?: number) {
     this.previous = nowMs;
     this.remainder = 0;

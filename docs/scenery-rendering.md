@@ -126,7 +126,7 @@ passes were added, and no photorealistic vegetation claim is made.
 
 ## Clouds, foliage and distant aircraft
 
-The existing CC0 sky photograph is restored. It loads once (5.2 MB compressed HDR source), is reduced to a 1024 × 512 logarithmic RGBA8 texture with mipmaps (about 2.7 MiB GPU memory), and is shared across the three fields. Initial HDR decoding temporarily needs a larger CPU buffer. Field haze and tint preserve each site's light; sun alignment follows the directional light. The gradient remains a fallback if the local image is unavailable. There is no HDR environment convolution, bloom, volumetric cloud pass or new downloaded asset.
+Since 0.9.0 the sky photograph is gone: a Rayleigh/Mie sky with procedural clouds that drift with the wind is computed on the GPU, and the same sky (without clouds) is pre-filtered into the image-based light. The time of day moves the sun, its colour, the exposure and the haze. Cascaded shadow maps replace the single aircraft-fitted shadow in the field. See [rendering](rendering.md) for the design, the quality presets and the measured cost.
 
 The foliage cutout now rejects the source atlas's translucent background fringe. One projected canopy card per plant supplements root occlusion, with sun-aligned shadows on the flat field. This costs one extra instanced draw per species (two to four per site), not a second shadow-map render. Shadows on raised terrain are omitted. Ground macro variation is reduced to avoid broad, painted-looking green patches. The sky, tree shadows and reduced bounce lighting give the aircraft a clearer silhouette and distinguish upper and lower surfaces.
 

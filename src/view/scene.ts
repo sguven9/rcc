@@ -15,7 +15,12 @@ import { type Vec3 } from "../core/math";
 import { buildAircraft, disposeAircraft, type AircraftVisual } from "./model";
 import { createField } from "./field";
 import type { Placement } from "../core/placement";
-import { renderBudget, renderPixelRatio } from "./render-budget";
+import { renderBudget } from "./render-budget";
+import { RenderEngine, type RenderSettings } from "../render/engine";
+import { lodLevel } from "../render/quality";
+import { QUALITY_PRESETS, RENDER_CONFIG } from "../render/render-config";
+import type { RenderSnapshot } from "../render/interpolation";
+import { propellerDiscs, upgradeAircraftMaterials } from "../render/materials";
 import { followAircraftShadow } from "./aircraft-shadow";
 import {
   fitInspectionCamera,
@@ -35,8 +40,18 @@ export type CameraMode = "ground" | "fpv" | "orbit";
 /** Fixed physical pilot position; head tracking uses bounded optical focus at distance. */
 export class FlightScene {
   renderer: T.WebGLRenderer;
+  /** The render layer (sky, IBL, shadows, fog, post, quality). */
+  readonly engine: RenderEngine;
   scene = new T.Scene();
-  camera = new T.PerspectiveCamera(55, 1, 0.15, 10000);
+  camera = new T.PerspectiveCamera(
+    55,
+    1,
+    RENDER_CONFIG.camera.pilotNear,
+    RENDER_CONFIG.camera.far,
+  );
+  private discs?: ReturnType<typeof propellerDiscs>;
+  /** Aircraft level of detail (render/quality `lodLevel`); 2 = far. */
+  private aircraftLod = 0;
   private drawingCamera = new T.OrthographicCamera();
   private inspectionView: InspectionView = "perspective";
   private modelSize = new T.Vector3(1, 1, 1);
@@ -118,20 +133,11 @@ export class FlightScene {
   private heading = new T.Vector3(0, 0, 1);
   private observer: ResizeObserver;
   constructor(private container: HTMLElement) {
-    this.renderer = new T.WebGLRenderer({
-      antialias: true,
-      logarithmicDepthBuffer: true,
-      powerPreference: "default",
-    });
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = T.PCFShadowMap;
-    this.renderer.outputColorSpace = T.SRGBColorSpace;
-    this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.engine = new RenderEngine(container);
+    this.renderer = this.engine.renderer;
     const canvas = this.renderer.domElement;
     canvas.tabIndex = 0;
     canvas.setAttribute("aria-label", "Interactive 3D aircraft view");
-    container.append(canvas);
     this.axisGuide.className = "axis-guide";
     this.axisGuide.setAttribute(
       "aria-label",
@@ -151,6 +157,8 @@ export class FlightScene {
     sun.shadow.normalBias = 0.006;
     this.scene.add(sun, sun.target);
     this.field = createField(this.scene);
+    this.engine.onQualityChange = (level) =>
+      this.field.grass.setDensity(QUALITY_PRESETS[level].grassDensity);
     this.scene.add(
       this.forces,
       this.studioGroup,
@@ -264,6 +272,18 @@ export class FlightScene {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
     this.resize();
+    this.engine.attach(
+      this.scene,
+      this.camera,
+      this.engine.settings,
+      sceneries[this.scenery].headingOffsetDeg ?? 0,
+    );
+    this.updateStudioBackground();
+  }
+  /** Graphics settings (quality, time of day); never part of a recording. */
+  setRenderSettings(settings: RenderSettings) {
+    this.engine.setSettings(settings);
+    this.updateStudioBackground();
   }
   get needsSmoothMotion() {
     return (
@@ -279,14 +299,37 @@ export class FlightScene {
     const w = this.container.clientWidth,
       h = this.container.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(renderPixelRatio(w, h, devicePixelRatio));
-    this.renderer.setSize(w, h);
+    this.engine.resize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
+  /**
+   * Far away (LOD 2) the aircraft's shadow is under a pixel: it stops casting
+   * so its meshes leave every shadow cascade's draw list.
+   */
+  private setAircraftLod(level: number) {
+    if (!this.visual || level === this.aircraftLod) return;
+    const far = level >= 2,
+      wasFar = this.aircraftLod >= 2;
+    this.aircraftLod = level;
+    if (far === wasFar) return;
+    this.visual.group.traverse((o) => {
+      const mesh = o as T.Mesh;
+      if (!mesh.isMesh) return;
+      if (far) {
+        mesh.userData.lodCastShadow = mesh.castShadow;
+        mesh.castShadow = false;
+      } else if (typeof mesh.userData.lodCastShadow === "boolean")
+        mesh.castShadow = mesh.userData.lodCastShadow;
+    });
+  }
+
   private disposeVisual() {
     this.debris.clear();
     this.impactVelocity.set(0, 0, 0);
+    this.discs?.dispose();
+    this.discs = undefined;
+    this.aircraftLod = 0;
     if (!this.visual) return;
     this.scene.remove(this.visual.group);
     disposeAircraft(this.visual.group);
@@ -296,7 +339,13 @@ export class FlightScene {
     this.endCameraPlacement();
     this.disposeVisual();
     this.visual = buildAircraft(a, editablePartId);
+    upgradeAircraftMaterials(this.visual.group);
+    this.discs = propellerDiscs(
+      this.visual.propellers,
+      a.motors.map((m) => m.propDiameterM),
+    );
     this.scene.add(this.visual.group);
+    this.engine.prepare(this.scene);
     const bounds = new T.Box3().setFromObject(this.visual.group);
     this.shadowRadius =
       Math.max(bounds.min.length(), bounds.max.length()) + 0.25;
@@ -481,15 +530,15 @@ export class FlightScene {
   private updateStudioBackground() {
     const color = this.lightTheme ? "#e2e7ed" : "#1d2024";
     this.scene.background = this.studio ? new T.Color(color) : null;
-    this.scene.fog = this.studio
-      ? new T.Fog(color, 8, 50)
-      : new T.Fog(sceneries[this.scenery].fog, 1800, 13000);
+    this.scene.fog = this.studio ? new T.Fog(color, 8, 50) : this.engine.fog();
   }
   setStudio(value: boolean) {
     this.studio = value;
     this.field.field.visible = !value;
     this.debris.group.visible = !value;
-    this.field.sky.visible = !value;
+    this.engine.setStudio(value);
+    // The flight scene is lit by the engine's cascaded sun and sky IBL.
+    this.sun.visible = value;
     this.studioGroup.visible = value;
     const site = sceneries[this.scenery];
     this.sun.color.set(value ? "#ffffff" : site.sunColor);
@@ -498,7 +547,7 @@ export class FlightScene {
     this.sun.shadow.normalBias = value ? 0.001 : 0.006;
     this.hemisphere.color.set(value ? "#e7edf5" : "#d6e3f1");
     this.hemisphere.groundColor.set(value ? "#73777d" : "#596348");
-    this.hemisphere.intensity = value ? 3 : 1.55;
+    this.hemisphere.intensity = value ? 3 : 0.35;
     this.updateStudioBackground();
     if (value) this.setCamera("orbit");
     this.resize();
@@ -574,6 +623,8 @@ export class FlightScene {
     c: Controls,
     dt: number,
     previewDeflections?: readonly number[],
+    /** Pose blended between physics steps (render/interpolation.ts). */
+    view?: RenderSnapshot,
   ) {
     if (!this.visual) return;
     if (!this.studio && this.pilotDestination) {
@@ -587,7 +638,8 @@ export class FlightScene {
     }
     this.resizeIfNeeded();
     const s = sim.state,
-      pos = this.studio ? new T.Vector3(0, 0, 0) : toWorld(s.position);
+      pose = view ?? s,
+      pos = this.studio ? new T.Vector3(0, 0, 0) : toWorld(pose.position);
     this.visual.group.position.copy(pos);
     this.physicsDebug.group.visible = this.physicsDebugEnabled && !this.studio;
     this.physicsDebug.update(sim, pos);
@@ -602,7 +654,9 @@ export class FlightScene {
     this.visual.group.quaternion
       .copy(conversion)
       .multiply(
-        this.studio ? new T.Quaternion() : new T.Quaternion(...s.orientation),
+        this.studio
+          ? new T.Quaternion()
+          : new T.Quaternion(...pose.orientation),
       );
     this.visual.cg.visible =
       this.showCG && this.studio && !this.cameraPlacement;
@@ -613,8 +667,8 @@ export class FlightScene {
       const deflection =
         (this.studio && previewDeflections
           ? previewDeflections[index]
-          : !this.studio && s.surfaceCommands?.[index] !== undefined
-            ? s.surfaceCommands[index]
+          : !this.studio && pose.surfaceCommands?.[index] !== undefined
+            ? pose.surfaceCommands[index]
             : surfaceCommand(v.control, c)) * v.max;
       if (v.hingeAxis)
         v.pivot.quaternion.setFromAxisAngle(v.hingeAxis, deflection);
@@ -626,18 +680,21 @@ export class FlightScene {
       s.batterySoc,
       sim.environment.densityKgM3,
     );
+    const spin = this.visual.propellers.map((_, i) =>
+      this.studio
+        ? 0
+        : Math.sqrt(rotorPower.thrust[i] / sim.aircraft.motors[i].maxThrustN) ||
+          0,
+    );
     this.visual.propellers.forEach(
       (p, i) =>
         (p.rotation.x +=
           dt *
-          (this.studio
-            ? 0
-            : Math.sqrt(
-                rotorPower.thrust[i] / sim.aircraft.motors[i].maxThrustN,
-              ) || 0) *
+          spin[i] *
           260 *
           (sim.aircraft.motors[i].spin === "ccw" ? -1 : 1)),
     );
+    this.discs?.update(spin);
     if (!this.studio && s.status === "crashed") {
       if (!this.debris.active) {
         this.visual.cg.visible = false;
@@ -706,7 +763,7 @@ export class FlightScene {
     if (this.mode === "fpv" && this.fpv && !this.studio) {
       placeFpvCamera(this.camera, this.fpv, pos, this.visual.group.quaternion);
     } else {
-      this.camera.near = 0.15;
+      this.camera.near = RENDER_CONFIG.camera.pilotNear;
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(target);
     }
@@ -718,6 +775,7 @@ export class FlightScene {
       this.camera.lookAt(new T.Vector3(...this.debugView.target));
     }
     this.camera.updateProjectionMatrix();
+    this.setAircraftLod(lodLevel(this.camera.position.distanceTo(pos)));
     let viewCamera: T.Camera = this.camera;
     if (this.studio && this.inspectionView !== "perspective") {
       fitInspectionCamera(
@@ -797,7 +855,14 @@ export class FlightScene {
     }
     this.cameraPlacement?.prepare(viewCamera);
     this.componentPlacement?.prepare(viewCamera);
-    this.renderer.render(this.scene, viewCamera);
+    const surfaceAir = sim.airVelocity(sim.state);
+    this.engine.frame({
+      scene: this.scene,
+      camera: viewCamera,
+      dt,
+      wind: [surfaceAir[0], surfaceAir[1]],
+      active: this.needsSmoothMotion || sim.state.status === "flying",
+    });
     this.cameraPlacement?.renderPreview();
   }
   private resizeIfNeeded() {

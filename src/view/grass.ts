@@ -103,8 +103,21 @@ export function addGrass(field: T.Group, profile: Scenery) {
   const group = new T.Group();
   group.name = "grass-blades";
   const dummy = new T.Object3D();
-  const meshes: { mesh: T.InstancedMesh; x: number; z: number }[] = [];
-  for (const [key, list] of tiles) {
+  const meshes: {
+    mesh: T.InstancedMesh;
+    x: number;
+    z: number;
+    total: number;
+  }[] = [];
+  for (const [key, ordered] of tiles) {
+    // Shuffle within the tile (seeded) so a lower density thins evenly.
+    const list = [...ordered];
+    let seed = list.length * 9301 + 49297;
+    for (let i = list.length - 1; i > 0; i--) {
+      seed = (seed * 16807) % 2147483647;
+      const j = seed % (i + 1);
+      [list[i], list[j]] = [list[j], list[i]];
+    }
     const mesh = new T.InstancedMesh(geometry, material, list.length);
     list.forEach((c, i) => {
       dummy.position.set(c.x, 0, c.z);
@@ -121,12 +134,18 @@ export function addGrass(field: T.Group, profile: Scenery) {
       mesh,
       x: (tx + 0.5) * GRASS.tileM,
       z: (tz + 0.5) * GRASS.tileM,
+      total: list.length,
     });
     group.add(mesh);
   }
   field.add(group);
   return {
     count: clumps.length,
+    /** Draw this fraction of the clumps (quality presets). */
+    setDensity(fraction: number) {
+      const f = Math.min(1, Math.max(0, fraction));
+      for (const t of meshes) t.mesh.count = Math.round(t.total * f);
+    },
     /** Advance sway time and wind (scene x/z, m/s) and cull far tiles. */
     update(camera: T.Camera, wind: [number, number], timeS: number) {
       uniforms.uTime.value = timeS;

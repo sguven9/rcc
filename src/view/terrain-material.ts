@@ -2,9 +2,17 @@ import * as T from "three";
 import { surfaceDetailGLSL } from "./surface-detail";
 
 /** Local CC0 scans; see public/scenery/README.md. All distances are metres. */
-export function surfaceTexture(name: string, color = false) {
+export function surfaceTexture(
+  name: string,
+  color = false,
+  onLoad?: (texture: T.Texture) => void,
+) {
   const texture = new T.TextureLoader().load(
     `${import.meta.env.BASE_URL}scenery/${name}`,
+    onLoad,
+    undefined,
+    // A missing optional texture leaves the material's base colour visible.
+    () => console.warn(`Scenery texture unavailable: ${name}`),
   );
   texture.wrapS = texture.wrapT = T.RepeatWrapping;
   texture.anisotropy = 4;

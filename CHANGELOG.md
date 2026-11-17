@@ -2,6 +2,23 @@
 
 Application releases are separate from physics/replay and aircraft format versions. See [versioning](docs/versioning.md). Unreleased entries describe the current development branch, not a published deployment.
 
+## 0.9.0 — Unreleased
+
+- New graphics engine in `src/render/` ([rendering guide](docs/rendering.md)):
+  - physically based lighting: a Rayleigh/Mie sky with sun disc and clouds that drift with the wind, image-based light generated from that sky, cascaded soft sun shadows, ambient occlusion (GTAO), height fog with aerial perspective, ACES tone mapping, bloom and an optional vignette;
+  - a **time-of-day** slider (06:00–19:15) moves the sun at the Manisa field's latitude; light colour, exposure and haze follow it;
+  - **quality presets** Low, Medium, High and Ultra with automatic selection and dynamic resolution, under Flight setup → Field; the choice is stored per browser and never enters a recording;
+  - motion is interpolated between the 120 Hz physics steps, so the aircraft moves smoothly at any display rate;
+  - aircraft get clearcoat paint, tinted glass, subtle wear and panel lines, and propeller discs at speed; the runway concrete and hangar sheets get procedural surface relief; foliage edges no longer show white fringes;
+  - WebGPU is detected but the renderer stays on WebGL2 until the custom shaders are ported; without WebGL2 the app explains why instead of failing.
+
+  Also:
+  - the 5.2 MB HDR sky photograph is removed;
+  - `npm run render:check` compares six reference views and checks draw-call and triangle budgets per preset;
+  - the FPV camera's near plane is now 3 cm (the logarithmic depth buffer was removed for post-processing).
+
+  Simulation compatibility is unchanged (0.14.0); recordings from 0.8.0 replay as before.
+
 ## 0.8.0 — Unreleased
 
 - New identity and first-run setup:

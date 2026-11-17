@@ -1,3 +1,4 @@
+import { proceduralLibrary, toTexture } from "../render/textures/procedural";
 import * as T from "three";
 import { surfaceTexture, terrainMaterial } from "./terrain-material";
 import { MANISA_PROPS, manisaAnchors } from "../core/site-props";
@@ -561,7 +562,19 @@ function corrugatedMaterial(color: string, lengthM: number, roughness = 0.6) {
   map.repeat.set(Math.round(lengthM / 0.25), 1);
   map.colorSpace = T.SRGBColorSpace;
   map.anisotropy = 4;
-  return new T.MeshStandardMaterial({ color, map, roughness, metalness: 0.15 });
+  // Procedural rib normals (render/textures) give the sheet real relief.
+  const normalMap = toTexture(proceduralLibrary().ribs, 64);
+  normalMap.repeat.copy(map.repeat);
+  const material = new T.MeshStandardMaterial({
+    color,
+    map,
+    normalMap,
+    normalScale: new T.Vector2(0.8, 0.8),
+    roughness: roughness * 0.75,
+    metalness: 0.45,
+  });
+  material.userData.ownedTextures = [normalMap];
+  return material;
 }
 
 type Markings = (ctx: CanvasRenderingContext2D, w: number, d: number) => void;

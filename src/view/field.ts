@@ -10,7 +10,7 @@ import { addGrass } from "./grass";
 import * as T from "three";
 import { terrainMaterial } from "./terrain-material";
 import { addVegetation } from "./vegetation";
-import { addLandscape, createSky } from "./landscape";
+import { addLandscape } from "./landscape";
 import { addRunway } from "./runway";
 /** Adjacent terrain patches share edges, never overlapping depth surfaces. */
 function patch(
@@ -139,24 +139,20 @@ export function createField(
     cone.position.x = 0.11 + i * 0.22;
     sock.add(cone);
   }
-  const sky = createSky(profile);
-  scene.add(sky);
   return {
     field,
     obstacles: collectFieldObstacles(field),
-    sky,
     sock,
     grass,
     update: (camera: T.Camera, wind: [number, number] = [0, 0], timeS = 0) => {
-      sky.position.copy(camera.position);
       grass.update(camera, wind, timeS);
     },
     dispose: () => {
-      scene.remove(field, sky);
+      scene.remove(field);
       const geometries = new Set<T.BufferGeometry>(),
         materials = new Set<T.Material>(),
         textures = new Set<T.Texture>();
-      for (const root of [field, sky])
+      for (const root of [field])
         root.traverse((o) => {
           if (o instanceof T.Mesh) {
             if (o instanceof T.InstancedMesh) o.dispose();

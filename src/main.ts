@@ -124,6 +124,8 @@ import {
 import { setupTabs } from "./app/tabs";
 import { storageKey } from "./config/brand";
 import { bootDone, bootProgress } from "./app/boot";
+import { StateInterpolator } from "./render/interpolation";
+import { parseRenderSettings, type RenderSettings } from "./render/engine";
 import { SetupWizard } from "./app/setup-wizard";
 import {
   needsRecalibration,
@@ -174,6 +176,8 @@ let baseline = preferredAircraft(
   gustRequested = false,
   releaseTrimConverged = true;
 const flightClock = new FlightClock(FIXED_DT);
+/** Previous/current physics poses for smooth drawing (render only). */
+const interpolator = new StateInterpolator();
 let placement: Placement | null = null;
 const initialAircraft = physicalAircraft();
 let sim = new Simulation(
@@ -481,6 +485,49 @@ $("fc-mode").onchange = () => {
   }
   seedFlightController();
 };
+/** Graphics settings: presentation only, never stored in recordings. */
+const RENDER_STORAGE_KEY = storageKey("render.v1");
+let renderSettings: RenderSettings = parseRenderSettings(
+  (() => {
+    try {
+      return localStorage.getItem(RENDER_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  })(),
+);
+const hourLabel = (h: number) =>
+  `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+function showRenderSettings() {
+  $<HTMLSelectElement>("gfx-quality").value = renderSettings.quality;
+  $<HTMLInputElement>("gfx-hour").value = String(renderSettings.hour);
+  $("gfx-hour-value").textContent = hourLabel(renderSettings.hour);
+  $<HTMLInputElement>("gfx-dynamic").checked = renderSettings.dynamicResolution;
+  $<HTMLInputElement>("gfx-vignette").checked = renderSettings.vignette;
+  const stats = scene?.engine.stats();
+  $("gfx-status").textContent = stats
+    ? `${renderSettings.quality === "auto" ? `Auto → ${stats.quality}` : stats.quality} · ${stats.backend.toUpperCase()} · ${stats.cascades} shadow cascade${stats.cascades > 1 ? "s" : ""}`
+    : "3D rendering unavailable";
+}
+function applyRenderSettings() {
+  renderSettings = {
+    quality: $<HTMLSelectElement>("gfx-quality")
+      .value as RenderSettings["quality"],
+    hour: Number($<HTMLInputElement>("gfx-hour").value),
+    dynamicResolution: $<HTMLInputElement>("gfx-dynamic").checked,
+    vignette: $<HTMLInputElement>("gfx-vignette").checked,
+  };
+  scene?.setRenderSettings(renderSettings);
+  try {
+    localStorage.setItem(RENDER_STORAGE_KEY, JSON.stringify(renderSettings));
+  } catch {
+    /* Preferences are optional. */
+  }
+  showRenderSettings();
+}
+for (const id of ["gfx-quality", "gfx-dynamic", "gfx-vignette"])
+  $(id).onchange = applyRenderSettings;
+$("gfx-hour").oninput = applyRenderSettings;
 /** OSD in FPV only (goggle overlay), fed by readInstruments(). */
 function updateOsd() {
   if (!osd.visible) return;
@@ -513,6 +560,7 @@ $("physics-debug").onchange = () =>
   setPhysicsDebug($<HTMLInputElement>("physics-debug").checked);
 function reset() {
   energyGraph.reset();
+  interpolator.reset();
   osd.reset();
   const cameraMode = flightCamera;
   showScenery(environment);
@@ -1506,6 +1554,7 @@ function frame(now: number) {
         }
         scene?.captureImpactVelocity(sim.state.velocity);
         sim.step(controls);
+        interpolator.push(sim.state);
         if (!replay) {
           recording.frames.push({ ...controls });
           if (recording.frames.length % 12 === 0)
@@ -1560,7 +1609,16 @@ function frame(now: number) {
     if (drawAccumulator >= renderInterval - 0.5) {
       const viewDt = Math.min((now - lastDraw) / 1000, 0.1);
       if (page === "fly") {
-        scene?.render(sim, controls, viewDt);
+        // Draw the pose between the last two physics steps (no judder).
+        scene?.render(
+          sim,
+          controls,
+          viewDt,
+          undefined,
+          running
+            ? interpolator.sample(flightClock.alpha, sim.state)
+            : undefined,
+        );
         updateOsd();
         const target =
           now < locatorUntil
@@ -1694,9 +1752,11 @@ try {
       });
   };
   scene.onGroundPick = (north, east) => positioning.pickGround(north, east);
+  scene.setRenderSettings(renderSettings);
 } catch (e) {
   message("3D rendering unavailable: " + errorText(e), true);
 }
+showRenderSettings();
 fillSelects();
 loadAircraft(baseline);
 applySite();

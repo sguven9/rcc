@@ -1,7 +1,10 @@
-/** Visual budgets only. Physics retains its independent 120 Hz step. */
+/**
+ * Scene content budgets (visual only; physics keeps its 120 Hz step). The
+ * drawing-buffer size, sun shadows and post effects follow the quality
+ * presets in src/render/render-config.ts.
+ */
 export const renderBudget = {
-  maxPixelRatio: 1.25,
-  maxPixels: 2_100_000,
+  /** Studio (editor) shadow map; the field uses cascaded shadows. */
   shadowSize: 1024,
   terrainSegments: 128,
   grassTufts: 2400,
@@ -9,15 +12,3 @@ export const renderBudget = {
   grassBlades: 3,
   idleFramesPerSecond: 30,
 } as const;
-
-export function renderPixelRatio(
-  width: number,
-  height: number,
-  deviceRatio: number,
-) {
-  return Math.min(
-    deviceRatio,
-    renderBudget.maxPixelRatio,
-    Math.sqrt(renderBudget.maxPixels / Math.max(1, width * height)),
-  );
-}

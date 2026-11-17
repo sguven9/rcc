@@ -6,7 +6,7 @@ The simulator separates application releases, simulation compatibility, file for
 
 | Version                  | Current value                   | When it changes                                                             |
 | ------------------------ | ------------------------------- | --------------------------------------------------------------------------- |
-| Application              | 0.8.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
+| Application              | 0.9.0 (development, unreleased) | A release of the whole workbench; source of truth is `package.json`         |
 | Physics and recordings   | 0.14.0                          | Dynamics or replay behavior changes; source of truth is `SIM_VERSION`       |
 | Aircraft definition      | `schemaVersion: 1`              | An incompatible aircraft file format change                                 |
 | Aircraft history archive | `formatVersion: 1`              | An incompatible backup format change                                        |

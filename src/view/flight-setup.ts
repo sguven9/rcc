@@ -30,6 +30,10 @@ export function flightSetupMarkup() {
       <label class="check-label"><input type="checkbox" id="wind-gradient"/> Wind gradient near ground (wind set at 10 m)</label>
       <label class="check-label"><input type="checkbox" id="osd-toggle" checked/> On-screen display (OSD) <kbd>O</kbd></label>
       <div class="two-col"><div><label for="osd-speed-unit">OSD speed</label><select id="osd-speed-unit"><option value="kmh">km/h</option><option value="mps">m/s</option><option value="kt">knots</option></select></div><div><label for="osd-alt-unit">OSD altitude</label><select id="osd-alt-unit"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+      <div class="two-col"><div><label for="gfx-quality">Graphics quality</label><select id="gfx-quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="ultra">Ultra</option></select></div><div><label for="gfx-hour">Time of day · <output id="gfx-hour-value">15:30</output></label><input id="gfx-hour" type="range" min="6" max="19.25" step="0.25" value="15.5" aria-label="Time of day at the field, hours"/></div></div>
+      <p id="gfx-status" class="small muted" role="status"></p>
+      <label class="check-label"><input type="checkbox" id="gfx-dynamic" checked/> Dynamic resolution (keeps the frame rate)</label>
+      <label class="check-label"><input type="checkbox" id="gfx-vignette" checked/> Lens vignette</label>
       <label class="check-label"><input type="checkbox" id="physics-debug"/> Physics debug: force arrows and energy graph <kbd>G</kbd></label>
       <p class="setup-change-note">Changing the aircraft, launch mode or field resets this flight.</p>
     </section>

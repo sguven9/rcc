@@ -1,3 +1,4 @@
+import { proceduralLibrary, toTexture } from "../render/textures/procedural";
 import * as T from "three";
 import { runwayOf, type RunwayLayout, type Scenery } from "../core/scenery";
 import {
@@ -24,7 +25,7 @@ function concreteMaterial(layout: RunwayLayout) {
     sz = canvas.height / 16;
   for (let i = 0; i < 8; i++)
     for (let j = 0; j < 4; j++) {
-      const tone = 176 + Math.round((rand() - 0.5) * 22);
+      const tone = 160 + Math.round((rand() - 0.5) * 22);
       ctx.fillStyle = `rgb(${tone + 4},${tone + 1},${tone - 6})`;
       ctx.fillRect(i * 5 * sx, j * 4 * sz, 5 * sx, 4 * sz);
     }
@@ -66,7 +67,26 @@ function concreteMaterial(layout: RunwayLayout) {
   map.repeat.set(layout.length / 40, layout.width / 16);
   map.colorSpace = T.SRGBColorSpace;
   map.anisotropy = 8;
-  return new T.MeshStandardMaterial({ map, roughness: 0.93 });
+  // Procedural micro-relief and roughness variation (render/textures),
+  // repeating every 1.5 m: broom-finished concrete under low sun.
+  const detail = proceduralLibrary().concrete;
+  const along = layout.length / 1.5,
+    across = layout.width / 1.5;
+  const normalMap = toTexture(detail.normal, detail.size);
+  normalMap.repeat.set(along, across);
+  const roughnessMap = toTexture(detail.roughness, detail.size);
+  roughnessMap.repeat.set(along, across);
+  const material = new T.MeshStandardMaterial({
+    map,
+    normalMap,
+    normalScale: new T.Vector2(0.3, 0.3),
+    roughnessMap,
+    roughness: 1,
+    // Warm multiplier offsets the blue sky light on bright concrete (estimate).
+    color: new T.Color("#f2e9dc"),
+  });
+  material.userData.ownedTextures = [normalMap, roughnessMap];
+  return material;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { bleedAlpha } from "../render/textures/alpha-bleed";
 import * as T from "three";
 import {
   isClearArea,
@@ -108,15 +109,32 @@ export function addVegetation(field: T.Group, profile: Scenery) {
     planted = profile.plantedTrees ?? [];
   const rand = seededRandom(profile.seed + 380),
     dummy = new T.Object3D();
-  const atlas = surfaceTexture("vegetation-v2.png", true);
+  const atlas = surfaceTexture("vegetation-v2.png", true, (texture) => {
+    // Bleed leaf colour into transparent texels: no white fringes at edges.
+    const image = texture.image as HTMLImageElement;
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(image, 0, 0);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    bleedAlpha(pixels.data, canvas.width, canvas.height, 6);
+    ctx.putImageData(pixels, 0, 0);
+    texture.image = canvas;
+    texture.needsUpdate = true;
+  });
   atlas.wrapS = atlas.wrapT = T.ClampToEdgeWrapping;
   // Keep an alpha-tested, depth-writing cutout. No sorting, temporal noise or
   // bright opaque backing; the new atlas has foliage-colored transparent RGB.
-  const foliage = new T.MeshBasicMaterial({
+  // Lit (sun, sky IBL, cascaded shadows) so trees match the physical sky.
+  const foliage = new T.MeshStandardMaterial({
     map: atlas,
     alphaTest: 0.68,
     side: T.DoubleSide,
     color: dry ? "#ded5c3" : "#d5dbcd",
+    roughness: 0.92,
+    metalness: 0,
     alphaToCoverage: true,
   });
   foliage.onBeforeCompile = (shader) => {
@@ -136,7 +154,7 @@ export function addVegetation(field: T.Group, profile: Scenery) {
        diffuseColor.rgb *= mix(0.7, 1.0, smoothstep(0.0, 0.8, plantHeight));`,
     );
   };
-  foliage.customProgramCacheKey = () => "foliage-v4";
+  foliage.customProgramCacheKey = () => "foliage-v5";
   // A single projected canopy card per plant adds directional grounding without
   // submitting distant vegetation to the aircraft's moving shadow map.
   const sunDirection = new T.Vector3(...profile.sun).normalize();

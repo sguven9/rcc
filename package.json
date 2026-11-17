@@ -1,6 +1,6 @@
 {
   "name": "rcsim",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Free, open-source RC flight simulator with customizable aircraft, components, controllers and environments",
@@ -32,7 +32,8 @@
     "references:fetch": "tsx scripts/references.ts fetch",
     "references:check": "tsx scripts/references.ts check",
     "release:check": "npm run check && npm run docs:check && npm run references:check && npm run format:check && npm run physics:validate && npm run physics:envelope",
-    "brand:assets": "tsx scripts/brand-assets.ts"
+    "brand:assets": "tsx scripts/brand-assets.ts",
+    "render:check": "tsx scripts/render-check.ts"
   },
   "dependencies": {
     "@fontsource/figtree": "^5.3.0",

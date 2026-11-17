@@ -66,6 +66,7 @@ const descriptions: Record<string, string> = {
   "flite-test-reconstruction": `References and assumptions for ${N}'s Flite Test aircraft models, including Tiny Trainer, FT-22 and Bronco geometry and control surfaces.`,
   "vortex-simple-trainer": `Source references, geometry and modeling assumptions for the Vortex RC Simple Trainer preset in ${N}'s free RC flight simulator.`,
   "realism-plan": `${N}'s physics research plan: evidence, aerodynamic modeling, parameter uncertainty and validation work needed to improve the simulator.`,
+  rendering: `How ${N} draws its flying field: physically based sky, lighting, shadows and post effects, quality presets, budgets and measured cost.`,
   "scenery-rendering": `How ${N} renders flying fields, terrain, vegetation and sky efficiently in the browser. Learn the boundaries for customizing environments.`,
   contributing: `Contribute to ${N}, the RC flight simulator. Fork the code, run checks and submit aircraft, controls, scenery or documentation changes.`,
   "agent-workflow": `Use your coding agent to contribute to ${N}: inspect the architecture, edit aircraft or components, validate changes and preserve source attribution.`,

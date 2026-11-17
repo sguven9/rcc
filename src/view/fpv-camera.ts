@@ -1,3 +1,4 @@
+import { RENDER_CONFIG } from "../render/render-config";
 import * as T from "three";
 import type { Aircraft } from "../core/schema";
 import { fpvLensOffset, fpvViewpoint } from "../core/fpv";
@@ -48,7 +49,8 @@ export function placeFpvCamera(
     mount.forward.clone().applyQuaternion(bodyToScene).add(camera.position),
   );
   camera.fov = mount.fov;
-  camera.near = 0.003;
+  // Close enough for the lens, far enough for linear-depth precision.
+  camera.near = RENDER_CONFIG.camera.fpvNear;
 }
 export function buildFpvHousing(a: Aircraft) {
   const part = a.parts.find((p) => p.id === a.fpv?.partId);
