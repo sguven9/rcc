@@ -43,8 +43,14 @@ export class Osd {
   private on = true;
   /** True only in the FPV camera: the OSD is the goggles' overlay. */
   private fpv = true;
+  /** Only during a flight: menus are never covered by the OSD. */
+  private flying = false;
   get visible() {
-    return this.on && this.fpv;
+    return this.on && this.fpv && this.flying;
+  }
+  set inFlight(value: boolean) {
+    this.flying = value;
+    $("osd").hidden = !this.visible;
   }
   set enabled(value: boolean) {
     this.on = value;

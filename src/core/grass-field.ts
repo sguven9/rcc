@@ -12,12 +12,12 @@ import { surfaceAt, type Scenery } from "./scenery";
 
 export const GRASS = {
   /** Clump grid spacing before jitter, m (≈1 clump per 0.8 m²). */
-  spacingM: 0.9,
+  spacingM: 0.8,
   /** Square tiles used for culling, m. */
   tileM: 16,
   /** Blades fade (shrink) to nothing between these camera distances, m. */
-  fadeStartM: 45,
-  fadeEndM: 65,
+  fadeStartM: 35,
+  fadeEndM: 55,
   /** Clump height near the runway edge and far from it, m. */
   shortM: 0.07,
   tallM: 0.34,

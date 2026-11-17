@@ -207,6 +207,7 @@ function errorText(e: unknown) {
  */
 function setImmersive(on: boolean) {
   setImmersiveMode(document, on);
+  osd.inFlight = on;
 }
 document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement && running)
@@ -258,22 +259,6 @@ function updateFlightInfo() {
     if (b.dataset.launch === "airborne")
       b.textContent = quad || a.vtol ? "Hover" : "In flight";
   });
-  const scenario = $<HTMLSelectElement>("scenario");
-  for (const option of scenario.options) {
-    option.disabled =
-      ((quad || !!a.vtol) && ["glide", "stall"].includes(option.value)) ||
-      (option.value === "vtol-transition" && !a.vtol) ||
-      (option.value === "roll-pulse" && !aircraftChannels(a).includes("roll"));
-    if (option.value === "cruise")
-      option.textContent =
-        quad || a.vtol ? "Stationary hover" : "Trimmed cruise";
-  }
-  if (scenario.selectedOptions[0]?.disabled) scenario.value = "cruise";
-  $("experiment-description").textContent = a.vtol
-    ? "Hover begins at 3 m. The 50 s conversion scenario starts at 15 m, requests Cruise at 3 s and Hover at 24 s; this tests the ideal-state controller."
-    : quad
-      ? "Starts in hover at 3 m with calculated power. Pitch and roll pulses test the configured controller. No altitude hold."
-      : "Each aircraft starts at its authored trim speed and 18 m with calculated trim. Field weather is retained.";
   const note = flightModelNote({
     quad,
     controlMode: a.multirotor?.mode,
@@ -827,9 +812,6 @@ $("save-aircraft").onclick = () => {
 };
 $("apply-and-fly").onclick = () => {
   if (applyDraft()) location.hash = "/fly";
-};
-$("apply-experiment-draft").onclick = () => {
-  if (applyDraft()) $("run-experiment").click();
 };
 setupAircraftHistory({
   getDraft: () => {

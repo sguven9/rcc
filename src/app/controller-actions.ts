@@ -159,18 +159,6 @@ export class ControllerActions {
           this.standard || !d,
           keyboard,
         );
-      const turnLabel = $("keyboard-turn-label");
-      turnLabel.textContent =
-        keyboard.turnAxis === "yaw"
-          ? "Rudder left / right"
-          : "Roll left / right";
-      $("keyboard-yaw-guide").hidden = keyboard.yaw === false;
-      $("keyboard-aircraft-note").textContent =
-        keyboard.turnAxis === "yaw"
-          ? "Rudder-only aircraft · ← / → or Q / E steer. No ailerons installed."
-          : keyboard.yaw === false
-            ? "Arrow keys pitch and roll. This aircraft has no yaw control."
-            : "Arrow keys pitch and roll · Q / E yaw.";
     }
     document
       .querySelectorAll<SVGGElement>("[data-pad-button]")

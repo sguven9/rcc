@@ -4,6 +4,24 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Simplified flight app. Removed:
+  - the brand, Docs, Local session, version and GitHub links;
+  - the Experiments page;
+  - the Northfield, Alpine and Desert sites (Manisa only, no site picker);
+  - keyboard, gamepad and flight-stick input (RC transmitter only);
+  - the chase camera;
+  - the Gentle/Standard/Direct presets.
+
+  Added:
+  - an **Expos** page with per-channel expo (1 − e)·x + e·x³, curve previews, reset and persistence;
+  - FPV as the default view from a massless `viewpoint` in every aircraft file, with a static 3D scale cockpit in front of the lens;
+  - an OSD shown only in FPV during flight;
+  - full-screen flight with every panel hidden (Esc pauses and restores);
+  - instanced grass that sways with the simulated wind, with distance LOD;
+  - per-contact ground materials.
+
+  Throttle-induced climb was diagnosed as speed stability (γ ≈ asin(ΔT/W)), not a thrust moment, and is pinned by new tests ([diagnosis](docs/physics-engine.md#throttle-and-pitch-diagnosis-0130)). Simulation compatibility is now 0.13.0.
+
 - Dynamic propeller shaft speed ([details](docs/physics-engine.md#dynamic-shaft-speed-0120)). Motors with `motorPowerW` integrate Ω from motor, propeller and friction torque, so a dive overspeeds the propeller up to redline, a climb loads it, a throttle cut windmills, and a spin-up reacts on the airframe. Also adds slipstream swirl on the tail, an optional constant-speed governor and piston density scaling. The airframe reaction becomes −(Q_motor − Q_f)·ŝ, and H uses I_prop + I_motor. Ω uses a linearly implicit midpoint update: second order and stable for light propellers. Nine presets gain estimated power, rotor inertia and redline. Trim banks to cancel the side force of a sideslip trim. The debug panel shows per-motor rpm and torques, and the energy graph includes shaft energy. The JSBSim adapter mirrors the shaft torque, and the independent RK4 check now integrates Ω. Simulation 0.12.0 opens 0.10.0 and 0.11.0 recordings.
 
 - Propeller side effects and discrete gusts ([details](docs/physics-engine.md#propeller-side-effects-0110)). Add the gyroscopic moment −ω×(I_p·Ω·ŝ) and P-factor thrust-centre shift k_p·sin α_p·R per motor, opt-in through new motor fields `propInertiaKgM2`, `maxRpm` and `pFactor`, and set them with `spin: "cw"` on nine single-motor presets. Add seeded Poisson-triggered "1−cos" gusts with Field-panel rate and peak sliders, a trigger button (key U) and a highlighted minimap wind arrow. The trim solver adds aileron/rudder (or sideslip) trim for propeller torque, applied in flight. Replacing a motor/prop package now drops the old propeller's inertia, rpm and P-factor. The JSBSim adapter mirrors the new moments. Simulation compatibility advances to 0.11.0 and still opens 0.10.0 recordings.

@@ -188,6 +188,55 @@ CW-propeller model first yaws slightly right while it pitches up (gyroscopic),
 then turns gently left (torque and P-factor). This is the familiar "right
 rudder with power".
 
+## Throttle and pitch: diagnosis (0.13.0)
+
+The report "the aircraft climbs when I add power" was measured on eight
+presets. Each was trimmed in level flight and given a +35 % throttle step with
+the elevator held. Each candidate cause was then switched off in turn:
+slipstream on the tail, thrust line through the CG, quasi-static instead of
+dynamic shaft speed, and no propeller side effects.
+
+- **Immediate nose-up moment: small.** 0.3 s after the step the pitching
+  moment changed by at most 0.05 N·m. With a +0.1 step the pitch changed by
+  less than 0.6° in the first 0.5 s. Turning off any single candidate did not
+  change the climb materially: no wrong axis or sign was found.
+- **The climb comes from speed stability.** With the elevator fixed, a
+  statically stable aircraft holds its trim airspeed (measured within ±3 %).
+  Extra thrust therefore becomes a climb angle γ ≈ asin(ΔT/W). Measured
+  phugoid-averaged climb angles match this within ≈10 % on most presets; the
+  worst case, the Tiny Trainer, is ≈30 % low (3.6° against 5.2°).
+- **Why it looked large.** The presets have thrust-to-weight ratios of 1.0–3.5
+  (Simple Cub 1.99, Mighty Mini Arrow 3.47), so +35 % throttle means
+  ΔT/W ≈ 0.3–0.5, a 20–30° climb. Down-thrust from 0° to 6° changed the peak
+  pitch by only a few degrees.
+
+This is real flight mechanics, not a bug: in a real aircraft, power controls
+climb and the elevator controls speed. The physics was not altered to hide it.
+The trim solver computes only the initial balance and never compensates
+throttle changes. Accelerating in level flight needs a modest forward stick:
+the elevator difference between level trim at V and at 1.2·V is below 25 %
+of travel on every preset tested. `tests/throttle-climb.test.ts` pins these
+results:
+
+- no pitch jump;
+- airspeed held;
+- γ ≈ asin(ΔT/W);
+- energy gain bounded by propulsive work;
+- a power-off glide.
+
+## Ground materials (0.13.0)
+
+When `environment.surfaceZones` is set (the browser always sets it), every wheel
+and skid uses the material under it, from the site's zones:
+
+- paved: runway, taxiway, aprons, pad and road;
+- grass;
+- dirt: everything else.
+
+The coefficients are those in `PHYSICS.friction`: sliding μ and rolling C_rr
+for asphalt, grass and dirt. Concrete is treated as asphalt. Recordings
+without the flag keep one surface for the whole field.
+
 ## Dynamic shaft speed (0.12.0)
 
 `src/core/rotor-dynamics.ts` makes each propeller's shaft speed Ω (rad/s) a

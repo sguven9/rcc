@@ -242,7 +242,9 @@ let atlas: T.CanvasTexture | undefined;
 export function buildFpvCockpit(lensX: number) {
   if (typeof document === "undefined") return undefined;
   atlas ??= atlasTexture();
-  const x0 = lensX + 0.034; // panel face distance from the lens
+  // Panel face 5 cm ahead: displays ≈27° below the sight line, the panel
+  // fills the lower third and the middle ≈45 % of a 90° FPV view.
+  const x0 = lensX + 0.05;
   const parts = [
     // Glare shield over the panel, slightly wider, top just below the sight line.
     block(0.016, 0.084, 0.005, x0 - 0.002, 0, 0.011, SWATCH.shield),
@@ -250,9 +252,9 @@ export function buildFpvCockpit(lensX: number) {
     // Panel face and body.
     block(0.006, 0.078, 0.032, x0 + 0.003, 0, 0.03, SWATCH.panel),
     // Displays (pfd centre, map left, engine right), slightly proud of the face.
-    display(0.021, 0.016, x0 - 0.0005, 0, 0.026, SCREEN.pfd),
-    display(0.017, 0.013, x0 - 0.0005, -0.021, 0.027, SCREEN.map),
-    display(0.017, 0.013, x0 - 0.0005, 0.021, 0.027, SCREEN.engine),
+    display(0.021, 0.016, x0 - 0.0013, 0, 0.026, SCREEN.pfd),
+    display(0.017, 0.013, x0 - 0.0013, -0.021, 0.027, SCREEN.map),
+    display(0.017, 0.013, x0 - 0.0013, 0.021, 0.027, SCREEN.engine),
     // Display bezels.
     block(0.002, 0.024, 0.019, x0 + 0.0003, 0, 0.026, SWATCH.bezel),
     block(0.002, 0.02, 0.016, x0 + 0.0003, -0.021, 0.027, SWATCH.bezel),

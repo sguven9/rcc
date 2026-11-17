@@ -6,7 +6,11 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.12.0** makes the propeller shaft speed a state for motors
+Simulation **0.13.0** adds per-contact ground materials (paved, grass,
+dirt) and documents the throttle/pitch diagnosis
+([details](physics-engine.md#throttle-and-pitch-diagnosis-0130)). It opens
+0.10.0–0.12.0 recordings unchanged.
+Simulation 0.12.0 made the propeller shaft speed a state for motors
 with `motorPowerW` (spin-up torque, overspeed in a dive, windmilling, swirl,
 optional governor; [details](physics-engine.md#dynamic-shaft-speed-0120)).
 It opens 0.10.0 and 0.11.0 recordings unchanged.

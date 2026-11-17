@@ -13,9 +13,9 @@ import type { Scenery } from "../core/scenery";
 /** One clump of unit height: three tapered blades, vertex-coloured root → tip. */
 function clumpGeometry() {
   const blades: T.BufferGeometry[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const g = new T.BufferGeometry();
-    const w = 0.035;
+    const w = 0.07;
     // Root quad, mid quad, tip: 5 vertices, 3 triangles, slight bend.
     const pos = [
       -w,
@@ -35,15 +35,16 @@ function clumpGeometry() {
       0.06,
     ];
     const color = [
-      0.16, 0.2, 0.07, 0.16, 0.2, 0.07, 0.3, 0.33, 0.14, 0.3, 0.33, 0.14, 0.52,
-      0.47, 0.24,
+      // Olive root to straw tip, matching the photographed grass palette.
+      0.22, 0.27, 0.1, 0.22, 0.27, 0.1, 0.4, 0.44, 0.18, 0.4, 0.44, 0.18, 0.66,
+      0.6, 0.32,
     ];
     g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
     g.setAttribute("color", new T.Float32BufferAttribute(color, 3));
     g.setIndex([0, 1, 2, 1, 3, 2, 2, 3, 4]);
     g.computeVertexNormals();
-    g.rotateY((i * Math.PI * 2) / 3);
-    g.translate(Math.cos(i * 2.1) * 0.03, 0, Math.sin(i * 2.1) * 0.03);
+    g.rotateY((i * Math.PI) / 4 + i * 0.3);
+    g.translate(Math.cos(i * 2.1) * 0.06, 0, Math.sin(i * 2.1) * 0.06);
     blades.push(g);
   }
   return mergeGeometries(blades)!;
