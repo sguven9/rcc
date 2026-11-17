@@ -1,4 +1,4 @@
-name: Verify RCForge
+name: Verify the simulator
 on:
   push:
     branches: [main]

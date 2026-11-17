@@ -82,7 +82,7 @@ export function fpvViewpoint(a: Aircraft): NonNullable<Aircraft["viewpoint"]> {
       0,
       part.positionM[2],
     ],
-    pitchDeg: a.vehicleType === "multirotor" ? 20 : 0,
+    pitchDeg: 0,
     fovDeg: 90,
   };
 }

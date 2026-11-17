@@ -112,7 +112,7 @@ The dropdown gains release entries as maintainers create them.
 | `references/local/`           | Optional personal source PDFs; never committed or deployed                                 |
 | `src/app/bundled-aircraft.ts` | One explicit browser aircraft registry                                                     |
 
-Run `npm run build` to produce the simulator and docs in a single `dist/`.
+Run `npm run build` to produce the simulator and the docs in a single `dist/`.
 `npm run preview` checks the production output. See [hosting](deployment.md) for
 directory URLs, caching and the release acceptance checks.
 

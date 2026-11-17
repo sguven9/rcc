@@ -34,6 +34,12 @@ import {
 import { SIM_VERSION } from "../src/core/versions";
 import { add, matVec, rotate, type Vec3 } from "../src/core/math";
 
+/** A motorless copy of the Tiny Trainer (old recordings of gliders replay). */
+const glider = () => {
+  const a = load("ft-tiny-trainer");
+  a.motors = [];
+  return parseAircraft(a);
+};
 const load = (id: string) =>
   parseAircraft(JSON.parse(readFileSync(`aircraft/${id}.json`, "utf8")));
 const cub = () => load("ft-simple-cub");
@@ -244,29 +250,32 @@ describe("7. spin-up reaction sign", () => {
   });
 });
 
-describe("8. counter-rotating rotors", () => {
+describe("8. counter-rotating propellers", () => {
   it("cancel at equal Ω and become asymmetric when one stops", () => {
-    const a = load("quad-x-450");
-    for (const m of a.motors)
+    // Twin-motor Bronco with opposite-handed propellers (formerly a quad).
+    const a = load("ft-bronco");
+    a.motors.forEach((m, i) =>
       Object.assign(m, {
+        spin: i === 0 ? "ccw" : "cw",
         propInertiaKgM2: 3e-5,
         maxRpm: 7800,
         motorPowerW: 90,
-      });
+      }),
+    );
     const parsed = parseAircraft(a);
     const s = initialState(parsed, 0, 50, 0);
     s.velocity = [0, 0, 0];
-    s.motors = [0.6, 0.6, 0.6, 0.6];
-    s.omega = [0.3, -0.2, 0]; // no yaw rate, so no yaw damping
+    s.motors = [0.6, 0.6];
+    s.omega = [0, -0.2, 0]; // pitch rate only: no roll damping or yaw-roll coupling
     const sim = new Simulation(parsed, calmEnvironment(), s);
     const w = 600;
-    s.rotorRadS = [w, w, w, w];
+    s.rotorRadS = [w, w];
     const even = sim.forces(s, { ...neutralControls(), throttle: 0.6 });
-    expect(Math.abs(even.torque[2])).toBeLessThan(1e-12);
+    expect(Math.abs(even.torque[0])).toBeLessThan(1e-9);
     expect(Math.hypot(...even.propellerGyro)).toBeLessThan(1e-12);
-    s.rotorRadS = [w, 0, w, w];
+    s.rotorRadS = [w, 0];
     const odd = sim.forces(s, { ...neutralControls(), throttle: 0.6 });
-    expect(Math.abs(odd.torque[2])).toBeGreaterThan(1e-3);
+    expect(Math.abs(odd.torque[0])).toBeGreaterThan(1e-3);
     expect(Math.hypot(...odd.propellerGyro)).toBeGreaterThan(1e-4);
   });
 });
@@ -332,8 +341,9 @@ describe("10. timestep convergence with dynamic shaft speed", () => {
 
 describe("11. compatibility", () => {
   it("opens 0.11.0 recordings unchanged and rejects 0.12.0 features in them", () => {
-    const a = load("quad-x-450"),
-      sim = new Simulation(a, calmEnvironment(), initialState(a, 0, 20, 0));
+    // A glider: propeller recordings from before 0.14.0 are rejected.
+    const a = glider(),
+      sim = new Simulation(a, calmEnvironment(), initialState(a, 12, 20, 0));
     const recording = createRecording(sim);
     for (let i = 0; i < 240; i++) {
       const c: Controls = { ...neutralControls(), throttle: 0.55, pitch: 0.1 };
@@ -348,11 +358,7 @@ describe("11. compatibility", () => {
     expect(parsed.simulationVersion).toBe(SIM_VERSION);
     expect(replayRecording(parsed)).toEqual(sim.state);
     const withPower = structuredClone(old);
-    Object.assign(withPower.aircraft.motors[0], {
-      propInertiaKgM2: 3e-5,
-      maxRpm: 7800,
-      motorPowerW: 90,
-    });
+    withPower.initialState.rotorRadS = [];
     expect(() => parseRecording(withPower)).toThrow(/0\.12\.0/);
   });
   it("replays a dynamic-rotor recording exactly", () => {

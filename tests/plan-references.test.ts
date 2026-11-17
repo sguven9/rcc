@@ -21,7 +21,7 @@ const plan = {
   sha256: createHash("sha256").update(data).digest("hex"),
 };
 let root: string;
-beforeEach(() => (root = mkdtempSync(join(tmpdir(), "rcforge-plans-"))));
+beforeEach(() => (root = mkdtempSync(join(tmpdir(), "sim-plans-"))));
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 describe("verified local plan cache", () => {
   it("rejects malformed references and duplicate identities", () => {

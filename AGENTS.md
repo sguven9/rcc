@@ -1,6 +1,6 @@
-# Working in RCForge
+# Working in the simulator
 
-RCForge is a local-first, open-source foundation for programmable RC aircraft. Coding agents are external contributors. Keep the simulator usable without AI services, accounts, API keys or a particular coding assistant.
+The simulator is a local-first, open-source foundation for programmable RC aircraft. Coding agents are external contributors. Keep the simulator usable without AI services, accounts, API keys or a particular coding assistant.
 
 ## Start here
 
@@ -13,17 +13,17 @@ Use the package manager and versions in the lockfile. Run `npm ci`, then `npm ru
 
 ## Architecture boundaries
 
-| Location                   | Responsibility                                                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `aircraft/*.json`          | Source-of-truth aircraft definitions; validate with `parseAircraft` / `AircraftSchema`                                                           |
-| `src/core/`                | Pure TypeScript dynamics, schema, mass/CG/inertia, trim, controls, recordings and deterministic experiments; no DOM, browser or Three.js imports |
-| `src/input/`               | Keyboard/HID/serial acquisition, mapping, calibration and normalized control commands                                                            |
-| `src/view/`                | Three.js geometry/scenery, camera behavior and SVG instruments; rendering must not change simulation state                                       |
-| `src/app/`                 | Aircraft editing, controller setup, placement, catalog and UI workflows                                                                          |
-| `src/main.ts`              | Browser composition, fixed-step loop and event wiring                                                                                            |
-| `scripts/`                 | Node CLI tools sharing the same core; optional Python asset preparation and Arduino compile checks                                               |
-| `hardware/rcforge_bridge/` | Classic ATmega328P Uno/Nano serial input firmware                                                                                                |
-| `tests/`                   | Physical invariants, input behavior, schema, deterministic replay and regression cases                                                           |
+| Location              | Responsibility                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `aircraft/*.json`     | Source-of-truth aircraft definitions; validate with `parseAircraft` / `AircraftSchema`                                                           |
+| `src/core/`           | Pure TypeScript dynamics, schema, mass/CG/inertia, trim, controls, recordings and deterministic experiments; no DOM, browser or Three.js imports |
+| `src/input/`          | Keyboard/HID/serial acquisition, mapping, calibration and normalized control commands                                                            |
+| `src/view/`           | Three.js geometry/scenery, camera behavior and SVG instruments; rendering must not change simulation state                                       |
+| `src/app/`            | Aircraft editing, controller setup, placement, catalog and UI workflows                                                                          |
+| `src/main.ts`         | Browser composition, fixed-step loop and event wiring                                                                                            |
+| `scripts/`            | Node CLI tools sharing the same core; optional Python asset preparation and Arduino compile checks                                               |
+| `hardware/rc_bridge/` | Classic ATmega328P Uno/Nano serial input firmware                                                                                                |
+| `tests/`              | Physical invariants, input behavior, schema, deterministic replay and regression cases                                                           |
 
 Prefer these existing boundaries over adding servers, frameworks or runtime dependencies. Keep the code readable and the application lightweight. Follow [src/view/render-budget.ts](src/view/render-budget.ts); a visual improvement must not make physics depend on frame rate.
 
@@ -44,20 +44,20 @@ Prefer these existing boundaries over adding servers, frameworks or runtime depe
 
 ## Aircraft and physics changes
 
-Read [aircraft authoring](docs/aircraft-authoring.md), [component models](docs/component-models.md), and [validation limits](docs/validation.md). For quads also read [multirotors](docs/multirotors.md).
+Read [aircraft authoring](docs/aircraft-authoring.md), [component models](docs/component-models.md), and [validation limits](docs/validation.md).
 
 Every new preset needs its own ID, metadata and provenance. Separate sourced, calculated, estimated and calibrated parameter groups. A plan gives geometry, not automatically aerodynamic coefficients or a complete mass ledger. Never copy another aircraft's coefficients and describe them as measured or sourced.
 
 The browser's bundled aircraft are explicitly imported into `src/app/bundled-aircraft.ts`. The CLI can load an ID from `aircraft/` or a JSON path. Additional aircraft can be imported in the editor without changing the built-in catalog. Browser edits are local preferences until exported; they do not rewrite repository JSON.
 
-Investigate failed trim, reversed torques and unstable integration. Do not hide them with artificial stabilization or lower thresholds just to pass tests. Fixed-wing and multirotor paths have different controls and launch assumptions. Retain existing models' behavior unless a deliberate, explained change is part of the task.
+Investigate failed trim, reversed torques and unstable integration. Do not hide them with artificial stabilization or lower thresholds just to pass tests. The simulator flies fixed-wing aircraft only; multirotor and VTOL support was removed. Retain existing models' behavior unless a deliberate, explained change is part of the task.
 
 ## Verification
 
 Use the checks appropriate to your change:
 
 - **Runtime, aircraft, physics or schema:** `npm run check` (validates all bundled definitions, runs tests, typechecks and builds).
-- **Dynamics:** also `npm run physics:validate`; add meaningful invariant, sign, convergence or measured-data regression coverage. Run `npm run physics:envelope` for new/modified aircraft and inspect unsuccessful trim and data coverage; it is a survey, not calibrated flight evidence. Read [the realism plan](docs/realism-plan.md) before expanding model fidelity. Run `npm run physics:reference` for changes to covered mass, force or integration behavior; [reference verification](docs/physics-reference.md) documents the optional Python setup and exclusions. Never replace independent reference outputs with RCForge-derived results.
+- **Dynamics:** also `npm run physics:validate`; add meaningful invariant, sign, convergence or measured-data regression coverage. Run `npm run physics:envelope` for new/modified aircraft and inspect unsuccessful trim and data coverage; it is a survey, not calibrated flight evidence. Read [the realism plan](docs/realism-plan.md) before expanding model fidelity. Run `npm run physics:reference` for changes to covered mass, force or integration behavior; [reference verification](docs/physics-reference.md) documents the optional Python setup and exclusions. Never replace independent reference outputs with the simulator-derived results.
 - **Input:** exercise missing devices, mapping, calibration, signal loss and explicit recovery. Keep disconnection from silently selecting another controller or resuming flight.
 - **Browser/UI:** check launch/pause/reset, design apply, Bronco and Tiny Trainer, experiment results, empty-controller behavior and desktop/narrow layouts. Validate changes with the rendered application, not DOM structure alone.
 - **Firmware:** with Arduino CLI and `arduino:avr`, run `bash scripts/check-arduino.sh`. It compiles both modes for classic Uno, Nano and Nano Old Bootloader; it never uploads.

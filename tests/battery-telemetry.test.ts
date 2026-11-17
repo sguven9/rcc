@@ -15,7 +15,7 @@ import {
   responseChart,
 } from "../src/view/response-chart";
 
-it("keeps a complete 50-second VTOL trace inside the plot and labels its actual duration", () => {
+it("keeps a complete 50-second trace inside the plot and labels its actual duration", () => {
   const sample: Sample = {
     time: 0,
     altitudeM: 15,
@@ -24,14 +24,14 @@ it("keeps a complete 50-second VTOL trace inside the plot and labels its actual 
     rollDeg: 0,
     pitchDeg: 0,
     throttle: 0.5,
-    vtolRearMotor: 0.8,
+    batterySoc: 0.8,
   };
   const samples = [
     sample,
-    { ...sample, time: 25, vtolRearMotor: 0 },
+    { ...sample, time: 25, batterySoc: 0.4 },
     { ...sample, time: 50 },
   ];
-  const svg = responseChart(samples.slice(0, 2), samples, "vtolRearMotor", 760);
+  const svg = responseChart(samples.slice(0, 2), samples, "batterySoc", 760);
   const xValues = [...svg.matchAll(/[ML]([\d.]+),/g)].map((match) =>
     Number(match[1]),
   );
@@ -39,7 +39,7 @@ it("keeps a complete 50-second VTOL trace inside the plot and labels its actual 
   expect(Math.max(...xValues)).toBe(742);
   expect(svg).toContain(">50s</text>");
   expect(svg).toContain(">25s</text>");
-  expect(metricValue(sample, "vtolRearMotor")).toBe(80);
+  expect(metricValue(sample, "batterySoc")).toBe(80);
 });
 
 it("exports battery charge and electrical load at the experiment's actual endpoint", () => {

@@ -1,76 +1,91 @@
-# Set up your controls
+# Set up your transmitter
 
-Start with a keyboard, or connect a gamepad, flight stick or RC transmitter. Open **Controllers** and select the input type you want to use.
-
-| Your input               | Start here                                                        |
-| ------------------------ | ----------------------------------------------------------------- |
-| Keyboard                 | [Learn the keys](#keyboard) — no connection or calibration needed |
-| Gamepad or joystick      | [Connect and calibrate](#gamepad-or-joystick)                     |
-| FlySky or other RC radio | [Choose a connection](radio-setup.md) before mapping channels     |
+The simulator is flown with an **RC transmitter** connected by USB (the radio's
+own USB joystick mode, a USB simulator dongle, or the Arduino bridge described in
+[choose a radio connection](radio-setup.md)). Keyboard, gamepad and flight-stick
+flying were removed.
 
 If a device is missing or input stops, use [troubleshooting](troubleshooting.md).
 
-## Keyboard
+## Setup wizard
 
-![Keyboard with flight, power, session and view keys highlighted](images/diagram-keyboard.svg)
+On the first visit, or whenever no calibration is saved, a full-screen wizard
+opens. Run it again at any time from **Controllers → Run setup wizard** or
+**Fly → Flight setup → Input → Run transmitter setup wizard**.
 
-Click the field before flying, or click the keyboard drawing on Controllers to test the keys.
+```text
+1 Connect ──► 2 Stick mode ──► 3 Centre ──► 4 Endpoints ──► 5 Channels
+   (move a      (Mode 1–4)      (rest,         (sweep every     (throttle up/down,
+    stick)                       1.5 s)          corner)          aileron, elevator,
+                                                                  rudder left/right)
+                                                                        │
+8 Save ◄── 7 Test (live bars, expo preview, ◄── 6 Switches (optional:
+              throttle must be at idle)            arm, flight mode)
+```
 
-| Keys           | Action                                                   |
-| -------------- | -------------------------------------------------------- |
-| W / S or ↑ / ↓ | Nose down / nose up                                      |
-| A / D or ← / → | Roll left / right; rudder steering on the Simple Trainer |
-| Q / E          | Yaw left / right                                         |
-| Space / Shift  | Raise / lower throttle; release to hold it               |
-| X              | Cut throttle                                             |
-| Enter / P / R  | Start or resume / pause / reset                          |
-| V / F          | Change camera / locate aircraft                          |
-| C              | Cycle control response                                   |
+1. **Connect.** Plug in the transmitter, switch on its USB joystick or
+   simulator mode, then move a stick or press a button: browsers only reveal a
+   controller after interaction. The wizard shows the device name, or waits
+   with connection hints. With several devices, choose one.
+2. **Stick mode.** Mode 1–4 says which stick carries throttle and elevator
+   (Mode 2: throttle and rudder left, elevator and aileron right). The mode is
+   used for the instructions and the test view; the axes themselves are
+   detected in step 5.
+3. **Centre.** Let the self-centring sticks rest. The wizard averages each
+   axis for 1.5 s, records its centre and its peak-to-peak noise, and
+   suggests a deadzone of three times that noise (2–15 % of half travel).
+4. **Endpoints.** Move both sticks around the full circle. Each axis records
+   its minimum and maximum; continue when four axes have reached their ends.
+5. **Channels.** Follow eight prompts: throttle up then down, aileron left then
+   right, elevator up then down, rudder left then right. Each prompt waits for
+   the sticks to settle, then takes the axis that moves most (by at least a
+   quarter of its travel) and held for a quarter of a second. The direction
+   sets the reversal automatically: throttle up reads 100 %; aileron right,
+   elevator pulled back (nose up) and rudder right read positive. Moving an
+   axis already assigned to another channel, a different axis than in the
+   first move, or the same direction twice shows a warning instead.
+6. **Switches (optional).** Assign an **arm** switch (when disarmed the motor
+   stays at zero and the OSD shows DISARMED) and a **flight-mode** switch
+   (ACRO / MANUAL). Skip if your radio has none.
+7. **Test.** Live bars show every channel before and after your expo setting,
+   with both sticks drawn for your mode. Continue only with the throttle fully
+   down.
+8. **Save.** The summary lists the mapping. **Save and start flying** stores it
+   and returns to the field.
 
-You can also use +/− or keypad +/− for power: tap for 5% steps or hold for a continuous change. Walking mode gives WASD to the pilot; arrows remain available for flight. The on-screen key diagram follows the selected aircraft.
+**Skip setup** keeps the default mapping; a warning then appears when a flight
+starts. When a different transmitter is connected later, the app offers to
+calibrate it.
 
-VTOL shortcuts appear only for a VTOL aircraft. **H** sets VTOL throttle to 50%; it does not enable a fixed-wing autopilot. Switching aircraft hides unavailable actions without deleting saved bindings.
+### Calibration object and normalization
 
-Buttons, menus and text fields keep normal keyboard behavior. If the input bar says **Editing controls**, click the field or press **Esc** to close flight setup. Losing window focus pauses flight and clears held keys.
+The result is one versioned object (controller profile version 2), stored in
+browser storage under the device ID: for each channel the axis, `min`,
+`center`, `max`, `reversed`, `deadzone` and `expo`; the stick mode; optional
+switches; and the measured rest noise. Version-1 profiles still load.
 
-## Flight setup
+Stick channels are normalized piecewise about the centre, so a rest point that
+is not midway between the endpoints still reads 0:
+`x = (raw − center)/(max − center)` above the centre and
+`(raw − center)/(center − min)` below, clamped to ±1, then reversed if needed,
+then deadzone, then expo. Throttle uses the full span,
+`t = (raw − min)/(max − min)`.
 
-Choose the active source under **Fly → Flight setup → Input**. Mapping and calibration appear once hardware is available; a missing device shows connection steps and **Use keyboard for now**. Selecting the same device type keeps the current assignments and calibration in progress.
+### Throttle safety
 
-For launch position, cameras and pilot movement, use [views and flight setup](flight-guide.md).
+A flight does not start while the throttle reads above 5 %; lower the stick
+fully first, as an ESC would require before arming.
 
-## Gamepad or joystick
+### Manual mapping
 
-![PlayStation and Xbox layouts with named default flight shortcuts](images/diagram-gamepads.svg)
-
-### Connect
-
-1. Connect through USB or Bluetooth and confirm the operating system sees the device.
-2. Focus RCForge and move a stick or press a button. Some browsers wait for interaction before exposing a controller.
-3. Select the device on Controllers. Refresh devices if needed.
-
-### Map the four flight controls
-
-For roll, pitch, yaw and throttle, choose an axis or click **Detect**, then move only that axis within ten seconds. Use **Reverse** if the direction is wrong.
-
-Selecting an occupied axis swaps the complete bindings, including their physical calibration. Quick-swap buttons exchange roll/yaw or pitch/throttle. Check the live monitor after a swap.
-
-### Calibrate
-
-1. Center roll, pitch and yaw. Capture neutral; throttle does not need to center.
-2. Start range capture. Sweep every control through its full travel, including throttle low and high.
-3. Check the captured endpoints, then save. **Cancel & restore** returns to the profile from before calibration. Flight stays blocked while calibration is active.
-4. Verify that the centered axes return near zero and throttle reaches 0–100%.
-
-### Tune the feel
-
-Open **Response** on a channel to adjust dead zone and expo. Dead zone removes small center noise; expo softens the center response. Throttle uses endpoints only. Avoid applying expo twice if your transmitter already supplies it.
-
-Check throttle before launch. Reset applies calculated elevator trim; set the visible aircraft trim to zero if you want all trim supplied by the transmitter.
+**Controllers** still offers manual mapping, per-axis **Detect**, reverse,
+centre/range capture and response settings for fine adjustments after the
+wizard.
 
 ![Assign, center, sweep and verify analog controls](images/diagram-calibration.svg)
 
-Profiles are stored in browser storage keyed by device ID. Recalibrate when device IDs, adapter mode, transmitter mixes or endpoint settings change. Browser storage failures leave the active profile usable but unsaved.
+Saved bindings for actions that no longer exist (such as the former VTOL
+switches) are ignored without an error. Losing window focus pauses flight.
 
 ## FlySky FS-i6
 
@@ -80,7 +95,7 @@ Start with the [visual radio connection guide](radio-setup.md), including a copy
 
 See the [FS-i6 wiring and Arduino guide](flysky-fs-i6.md) for the original transmitter's trainer output, receiver PPM, or six receiver PWM channels. It includes the Uno/Nano sketch, upload steps, receiver failsafe setup and troubleshooting.
 
-A compatible PPM-to-USB **joystick** adapter uses **Find devices**. A classic Nano/Uno running the RCForge bridge uses **Connect Arduino** in the RC transmitter tab, with a Web Serial-capable browser. A programming cable alone does not provide simulator input. Serial disconnects do not silently switch to another controller or resume flight.
+A compatible PPM-to-USB **joystick** adapter uses **Find devices**. A classic Nano/Uno running the bridge uses **Connect Arduino** in the RC transmitter tab, with a Web Serial-capable browser. A programming cable alone does not provide simulator input. Serial disconnects do not silently switch to another controller or resume flight.
 
 ## Physical acceptance checklist
 
@@ -96,7 +111,7 @@ Trainer-to-Nano reception has user-supplied diagnostic evidence, but receiver co
 - [ ] Device swap does not silently reuse incompatible calibration.
 - [ ] A complete launch, turn, glide and reset is usable at normal frame rate.
 
-The Arduino bridge shares the same mapping and calibration path as HID controllers. It accepts the documented RCForge serial protocol only; arbitrary USB serial or iBUS devices cannot be plugged in as if they were joystick adapters.
+The Arduino bridge shares the same mapping and calibration path as HID controllers. It accepts the documented simulator serial protocol only; arbitrary USB serial or iBUS devices cannot be plugged in as if they were joystick adapters.
 
 ## Save or transfer a setup
 

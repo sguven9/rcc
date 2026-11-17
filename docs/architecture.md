@@ -1,6 +1,6 @@
 # Architecture
 
-RCForge uses TypeScript, Vite, Three.js and Zod. It is a local static browser application plus a Node CLI. There is no server-side application state, AI integration or external service. Fonts ship in the bundle.
+The simulator uses TypeScript, Vite, Three.js and Zod. It is a local static browser application plus a Node CLI. There is no server-side application state, AI integration or external service. Fonts ship in the bundle.
 
 ```text
 aircraft JSON → schema → physical model → Simulation.step(controls, dt)
@@ -76,9 +76,18 @@ The interface uses a monochrome palette defined by `--ui-*` tokens in `src/workb
 
 `view/workbench.ts` defines four hash-routed pages. `app/editor.ts`, `controllers.ts`, and `experiments.ts` own page behavior; `main.ts` coordinates state and recordings. A single Three.js renderer moves between the flight stage and studio. `view/model.ts` builds shaped airframes and animated controls; optional JSON panel outlines, hinges and body lofts support new plan-shaped airframes without another model-specific renderer; `view/field.ts` builds scenery. The pilot stands at eye height and can walk or move through Position & view; view direction can track the aircraft. `app/editor.ts` retains one in-memory draft per aircraft, including raw invalid fields. Apply validates pending values before updating the active model and browser storage; switching models does not discard a draft. Reloading discards unapplied drafts. `app/aircraft-storage.ts` recovers the last available selection, applied definitions and the bounded local catalog of applied imports. Source definitions stay separate for restoration; startup still uses Ground/Pilot beside the aircraft. Storage failures retain a usable session and prompt JSON export. `core/editor.ts` provides pure mass and CG edits. Total mass scales component weights; requested longitudinal CG moves the battery and recomputes inertia.
 
-## Multirotor branch
+## Identity, theme, loading and transmitter setup
 
-`vehicleType` defaults to fixed-wing. The Quad X branch applies body-up rotor thrust and signed reaction torque, using `core/multirotor.ts` for angle/rate control and geometry-based mixing. Fixed-wing motor force and control paths retain their prior formulas. Rotor commands use the same actuator state and fixed-step rigid-body integrator. Quad prop diameter controls the visible rotor envelope; changing diameter alone does not derive thrust or current. Author the paired performance curve, response and torque independently. Skid contacts share the impulse solver with increased tangential friction. `findTrim` returns hover equilibrium for quads and longitudinal equilibrium for airplanes.
+`src/config/brand.ts` names the product (`BRAND`) and the storage prefix;
+`src/theme/theme.css` holds the colour, type, radius and shadow tokens and
+`src/theme/components.css` the shared component rules. `index.html` shows the
+loading screen before the bundle runs; `app/boot.ts` reports start-up stages
+and removes it after the first drawn frame. `input/calibration.ts` holds the
+pure transmitter-calibration logic (centre/noise, endpoints, channel
+detection, stick modes, switches, first-run state, throttle check) and
+`app/setup-wizard.ts` the full-screen wizard that drives it from the Gamepad
+API. The saved calibration is the version-2 controller profile in
+`input/controls.ts`.
 
 ## Rendering budgets
 
@@ -134,12 +143,6 @@ production artifact. Only the local development docs serve verified manifest
 entries. Public pages retain creator links and source identities. Snapshot files
 include permitted aircraft/component JSON and guides, never upstream plan PDFs.
 See [documentation maintenance](documentation.md) and [plans](plans.md).
-
-## Tricopter VTOL path
-
-`core/vtol-config.ts` owns validated aircraft settings and replay state. `core/vtol.ts` computes tilted rotor loads and commands the motors/servos through an independent ideal-state controller. `core/vtol-trim.ts` solves a six-axis physical hover equilibrium; forward trim uses the fixed-wing solver with the rear motor off. These run at the same 120 Hz as the existing integrator. Rendering consumes actual actuator angles and never changes dynamics.
-
-`app/vtol-flight.ts` handles mode/profile UI and `app/vtol-editor.ts` edits the aircraft settings. `view/component-placement.ts` provides a temporary placement preview using the shared mass calculation; the app commits it only on Use placement. `site/hardware-illustrations.ts` and the shared component icons keep documentation and workbench imagery consistent.
 
 ## Impact aftermath and visual focus
 

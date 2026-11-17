@@ -1,6 +1,6 @@
 # How we check the flight simulation
 
-RCForge has repeatable checks for gravity, rotation, control inputs and flight
+The simulator has repeatable checks for gravity, rotation, control inputs and flight
 calculations. We also compare parts of the engine with JSBSim and published NASA
 reference results. Those checks help us find mistakes in the software.
 
@@ -13,7 +13,7 @@ page explains the evidence we have, the problems it exposed, and what remains op
 This is a **September 8, 2026** snapshot for simulation **0.8.1**, covering nine
 aircraft definitions. It is a dated result, not a live status badge. You can
 [download the numbers, limits and source hashes](benchmarks/2026-09-08.json) or
-inspect the [tested source revision](https://github.com/adithya-s-k/RCForge/tree/2ce1fa5800b6b34dfc74d67abefa9a698c05e8d1).
+inspect the tested source revision `2ce1fa5800b6b34dfc74d67abefa9a698c05e8d1`.
 
 | Question                                                        | What we checked                                                                     | Result                                                | What that tells us                                                                |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -50,7 +50,7 @@ underlying assumption.
 
 Imagine dropping an object with its motors off and all aerodynamic forces removed.
 Starting from rest, gravity alone should move it **19.6133 metres in two seconds**,
-using 9.80665 m/s². RCForge's difference from that answer was about
+using 9.80665 m/s². The simulator's difference from that answer was about
 **0.0000000000000284 metres**—effectively floating-point rounding for this test.
 
 That tells us the gravity/integration calculation works in this idealized case.
@@ -66,7 +66,7 @@ its own units and acceptance limit in the downloadable snapshot.
 
 [JSBSim](https://github.com/JSBSim-Team/jsbsim) is a separate flight-dynamics
 implementation. We run version **1.3.1** offline as a development tool. It is not
-downloaded by the browser and does not replace RCForge's engine.
+downloaded by the browser and does not replace the simulator's engine.
 
 Both engines receive matching component definitions, initial conditions and test
 inputs. An independently written adapter assembles JSBSim's mass distribution,
@@ -91,7 +91,7 @@ assumptions. This is useful for finding coordinate, unit, force and integration
 errors. If both engines receive an inaccurate lift slope, they can agree closely
 and still be wrong about the real airplane.
 
-RCForge runs these cases at its normal 120 Hz and again at 240 Hz. JSBSim runs at
+The simulator runs these cases at its normal 120 Hz and again at 240 Hz. JSBSim runs at
 3840 and 7680 Hz to check that the reference itself has settled. These high rates
 are for offline checks; the browser still integrates at 120 Hz. Earlier reference
 runs at lower rates exceeded our convergence limit. Increasing the reference
@@ -111,13 +111,13 @@ The plotted quantity is the largest three-axis angular-rate difference during
 30 seconds, not an average that could hide a large error. Lower is closer to the
 reference. The engineering limit is 0.01 degrees/second for this case.
 
-Halving RCForge's timestep reduces the median maximum error to roughly one
+Halving the simulator's timestep reduces the median maximum error to roughly one
 quarter. Two reference outputs do not get closer at the smaller step; the
 published outputs themselves differ slightly. Those results remain visible.
 We do not select only the closest dataset or shift its output to improve the score.
 
 **This checks torque-free rotation only.** NASA's full case uses a rotating Earth
-and a gravity model that RCForge's flat local world does not implement. We compare
+and a gravity model that the simulator's flat local world does not implement. We compare
 inertial body angular rates, not that case's translation or local Euler angles.
 It is not a full NASA check-case pass or a test of RC airplane aerodynamics.
 [Coordinate matching and data checks](physics-validation.md#published-nasa-rotation-reference).
@@ -146,21 +146,15 @@ the forces and pitching moment for a requested steady flight state. Finding that
 balance does not prove the aircraft is stable after a disturbance.
 
 We surveyed three field densities, 80/100/120% of the defined mass, and
-100/50/15% battery charge. Fixed-wing speeds were 6, 9, 12, 16 and 22 m/s;
-quads were checked in hover. VTOL uses hover and cruise at 9, 12, 14, 16 and 22 m/s;
-this survey does not validate the transition between those modes.
+100/50/15% battery charge at 6, 9, 12, 16 and 22 m/s.
 Mass scaling changes the whole mass ledger; it is a sensitivity test, not a battery swap.
 
 | Aircraft                     | Conditions | Trim solved | Not solved |
 | ---------------------------- | ---------: | ----------: | ---------: |
-| Bronco tricopter VTOL        |        162 |         107 |         55 |
 | FT-22 Raptor                 |        135 |          57 |         78 |
 | FT Bronco, conventional tail |        135 |          72 |         63 |
 | FT Bronco, V-tail            |        135 |          81 |         54 |
 | FT Tiny Trainer Sport        |        135 |          81 |         54 |
-| Quad X, 450 mm               |         27 |          27 |          0 |
-| Quad X, 5 inch               |         27 |          27 |          0 |
-| Quad X, 6S                   |         27 |          27 |          0 |
 | Vortex RC Simple Trainer     |        135 |          81 |         54 |
 
 Low airspeed, low available power or an unsuitable balance can prevent a solution.
@@ -174,8 +168,7 @@ produced undefined or infinite loads. That check is separate from the 918 trim
 conditions and does not establish accurate deep-stall behavior.
 
 The FT-22's high modeled elevon trim and full-power pitch response remain known
-limitations. Its 57 solved points are not a 42% realism score, and the quads'
-27/27 hover solutions do not make them calibrated digital twins.
+limitations. Its 57 solved points are not a 42% realism score.
 [FT-22 handling review](flite-test-reconstruction.md#ft-22-trim-and-power-response-review).
 
 ## Check the path from your controls to the airplane
@@ -220,8 +213,8 @@ npm run physics:envelope
 
 The generated HTML/JSON reports are under `results/validation/`. NASA downloads
 are checksum-checked; missing dependencies, changed data and failed comparisons
-fail their commands instead of silently skipping. GitHub's
-[verification workflow](https://github.com/adithya-s-k/RCForge/actions/workflows/ci.yml)
+fail their commands instead of silently skipping. The CI
+verification workflow (`.github/workflows/ci.yml`)
 runs the checks and retains reports for 14 days. Check the commit and run status;
 the dated snapshot on this page does not assert that every future build passes.
 
@@ -242,9 +235,9 @@ npm run benchmarks:snapshot
 That tool refuses stale core/aircraft/reference hashes or failed reports. Preserve
 older dated snapshots when adding new evidence, and update the text and figure
 together. The optional [figure script](../scripts/plot-benchmarks.py) uses
-Matplotlib 3.10.7; plotting dependencies are not needed to build or fly RCForge.
+Matplotlib 3.10.7; plotting dependencies are not needed to build or fly the simulator.
 
 Found a mismatch? Share the aircraft definition, starting conditions, inputs,
 reference source and reproduction steps in an
-[issue](https://github.com/adithya-s-k/RCForge/issues). A specific counterexample
+issue. A specific counterexample
 is more useful than a larger test count.

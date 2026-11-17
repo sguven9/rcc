@@ -65,7 +65,6 @@ describe("1. no shaft speed, no propeller moments", () => {
     const m = motor();
     const at = propellerMoments(m, {
       thrustAxis: [1, 0, 0],
-      rotor: false,
       omegaBody: [0.7, -1.3, 0.4],
       rpmRatio: 0,
       thrustN: 0,
@@ -112,7 +111,6 @@ describe("2. gyroscopic moment", () => {
       motor({ propInertiaKgM2: I, maxRpm: rpm, spin: "cw" }),
       {
         thrustAxis: e,
-        rotor: false,
         omegaBody: omega,
         rpmRatio: ratio,
         thrustN: 0,
@@ -146,7 +144,6 @@ describe("3. gyroscopic precession sign", () => {
       motor({ spin, propInertiaKgM2: 1e-4, maxRpm: 9000, pFactor: 0 }),
       {
         thrustAxis: [1, 0, 0],
-        rotor: false,
         omegaBody: omega,
         rpmRatio: 1,
         thrustN: 5,
@@ -161,10 +158,10 @@ describe("3. gyroscopic precession sign", () => {
     // Rolling about the shaft produces no precession.
     expect(isZero(gyro("cw", [1, 0, 0]).map(Math.abs) as Vec3)).toBe(true);
   });
-  it("uses the rotor convention (CW seen from above) for multirotors", () => {
-    expect(propellerSpinAxis([0, 0, -1], "cw", true)).toEqual([-0, -0, 1]);
-    expect(propellerSpinAxis([1, 0, 0], "cw", false)).toEqual([1, 0, 0]);
-    expect(propellerSpinAxis([1, 0, 0], undefined, false)).toBeNull();
+  it("points the spin axis along the thrust axis for CW, against it for CCW", () => {
+    expect(propellerSpinAxis([1, 0, 0], "cw")).toEqual([1, 0, 0]);
+    expect(propellerSpinAxis([1, 0, 0], "ccw")).toEqual([-1, -0, -0]);
+    expect(propellerSpinAxis([1, 0, 0], undefined)).toBeNull();
   });
 });
 
@@ -175,7 +172,6 @@ describe("4. P-factor", () => {
       motor({ spin: "cw", pFactor: 0.3, propInertiaKgM2: 0, maxRpm: 8400 }),
       {
         thrustAxis: [1, 0, 0],
-        rotor: false,
         omegaBody: [0, 0, 0],
         rpmRatio: 1,
         thrustN: thrust,
@@ -420,8 +416,14 @@ describe("8. aircraft without propeller parameters are unchanged", () => {
     expect(run(strip(load(id), false))).toEqual(run(strip(load(id), true)));
   });
   it("opens 0.10.0 recordings unchanged and rejects newer features in them", () => {
-    const a = load("quad-x-450"),
-      sim = new Simulation(a, calmEnvironment(), initialState(a, 0, 20, 0));
+    // A glider: propeller recordings from before 0.14.0 are rejected.
+    const a = load("ft-tiny-trainer");
+    a.motors = [];
+    const sim = new Simulation(
+      a,
+      calmEnvironment(),
+      initialState(a, 12, 20, 0),
+    );
     const recording = createRecording(sim);
     for (let i = 0; i < 240; i++) {
       const c = { ...neutralControls(), throttle: 0.55, roll: 0.1 };
@@ -447,23 +449,5 @@ describe("8. aircraft without propeller parameters are unchanged", () => {
     expect(() =>
       parseRecording({ ...old, frames: [{ ...old.frames[0], gust: true }] }),
     ).toThrow(/features added/);
-  });
-});
-
-describe("rotor gyroscopic coupling", () => {
-  it("cancels for counter-rotating rotors at equal speed", () => {
-    const cw = gyroscopicMoment(
-      [0.5, 0.2, 0],
-      1e-4,
-      800,
-      propellerSpinAxis([0, 0, -1], "cw", true)!,
-    );
-    const ccw = gyroscopicMoment(
-      [0.5, 0.2, 0],
-      1e-4,
-      800,
-      propellerSpinAxis([0, 0, -1], "ccw", true)!,
-    );
-    cw.forEach((v, i) => expect(v + ccw[i]).toBeCloseTo(0, 15));
   });
 });

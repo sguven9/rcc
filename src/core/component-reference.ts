@@ -23,7 +23,7 @@ export function componentDifferences(
   reference: Component,
 ): string[] {
   const changes: string[] = [];
-  const product = catalogMassParts(reference, a.vehicleType);
+  const product = catalogMassParts(reference);
   const compare = (label: string, value: unknown, baseline: unknown) => {
     if (!equivalent(value, baseline)) changes.push(label);
   };

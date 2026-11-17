@@ -11,7 +11,7 @@ import tempfile
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = Path(tempfile.gettempdir()) / "rcforge-elevation"
+CACHE = Path(tempfile.gettempdir()) / "sim-elevation"
 CACHE.mkdir(exist_ok=True)
 GRID, EXTENT, ZOOM = 129, 12000, 12
 RADIUS = 6378137

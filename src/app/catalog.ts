@@ -61,24 +61,13 @@ export function setupCatalog(
     const query = $<HTMLInputElement>("catalog-search")
       .value.toLowerCase()
       .trim();
-    const kind = $<HTMLSelectElement>("catalog-kind").value;
-    const matches = models.filter(
-      (a) =>
-        a.name.toLowerCase().includes(query) &&
-        (kind === "all" ||
-          (a.vtol
-            ? "vtol"
-            : a.vehicleType === "multirotor"
-              ? "quad"
-              : "wing") === kind),
-    );
-    $("catalog-clear").hidden = !query && kind === "all";
+    const matches = models.filter((a) => a.name.toLowerCase().includes(query));
+    $("catalog-clear").hidden = !query;
     $("catalog-count").textContent = `${matches.length} aircraft`;
     $("catalog-grid").innerHTML =
       matches
         .map((a) => {
-          const quad = a.vehicleType === "multirotor";
-          return `<button class="catalog-card" data-catalog-id="${escape(a.id)}" aria-label="Select ${escape(a.name)}" aria-pressed="${a.id === current()}"><div class="catalog-preview">${cache.has(a.id) ? `<img src="${cache.get(a.id)}" alt="${escape(a.name)} 3D model"/>` : "<span>Preview unavailable</span>"}<span class="catalog-type">${a.vtol ? "TILTROTOR VTOL" : quad ? "MULTIROTOR" : "FIXED WING"}</span>${a.id === current() ? '<span class="catalog-current">Selected</span>' : ""}</div><div class="catalog-info"><h3>${escape(a.name)}</h3><div class="catalog-specs"><span><b>${(a.reference.spanM * 1000).toFixed(0)} mm</b>${quad ? "Motor diagonal" : "Wingspan"}</span><span><b>${(massProperties(a).mass * 1000).toFixed(0)} g</b>Model mass</span><span><b>${a.motors.length}</b>Motors</span></div><div class="catalog-choose">${!hostAllows({ kind: "aircraft", id: a.id }) ? "Sign in to fly" : target === "editor" ? "Open in editor" : "Use for flight"}<span>→</span></div></div></button>`;
+          return `<button class="catalog-card" data-catalog-id="${escape(a.id)}" aria-label="Select ${escape(a.name)}" aria-pressed="${a.id === current()}"><div class="catalog-preview">${cache.has(a.id) ? `<img src="${cache.get(a.id)}" alt="${escape(a.name)} 3D model"/>` : "<span>Preview unavailable</span>"}<span class="catalog-type">FIXED WING</span>${a.id === current() ? '<span class="catalog-current">Selected</span>' : ""}</div><div class="catalog-info"><h3>${escape(a.name)}</h3><div class="catalog-specs"><span><b>${(a.reference.spanM * 1000).toFixed(0)} mm</b>Wingspan</span><span><b>${(massProperties(a).mass * 1000).toFixed(0)} g</b>Model mass</span><span><b>${a.motors.length}</b>Motors</span></div><div class="catalog-choose">${!hostAllows({ kind: "aircraft", id: a.id }) ? "Sign in to fly" : target === "editor" ? "Open in editor" : "Use for flight"}<span>→</span></div></div></button>`;
         })
         .join("") ||
       '<div class="catalog-empty"><h3>No matching aircraft</h3><p>Try a different search or clear the filters above.</p></div>';
@@ -105,7 +94,6 @@ export function setupCatalog(
             ? "Choose an aircraft to edit"
             : "Choose an aircraft to fly";
         $<HTMLInputElement>("catalog-search").value = "";
-        $<HTMLSelectElement>("catalog-kind").value = "all";
         const models = getModels();
         const next = JSON.stringify(models);
         if (next !== signature) {
@@ -123,10 +111,8 @@ export function setupCatalog(
       }),
   );
   $("catalog-search").oninput = render;
-  $("catalog-kind").onchange = render;
   $("catalog-clear").onclick = () => {
     $<HTMLInputElement>("catalog-search").value = "";
-    $<HTMLSelectElement>("catalog-kind").value = "all";
     render();
     $("catalog-search").focus();
   };

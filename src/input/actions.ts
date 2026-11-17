@@ -3,10 +3,6 @@ export const actionNames = {
   reset: "Restart flight",
   camera: "Pilot / chase / FPV",
   response: "Cycle control response",
-  vtolMode: "VTOL · switch Hover / Cruise",
-  vtolAssistance: "VTOL · cycle assistance",
-  vtolHover: "VTOL · request Hover",
-  vtolCruise: "VTOL · request Cruise",
   settings: "Open / close settings",
   next: "Next setting",
   previous: "Previous setting",
@@ -15,11 +11,15 @@ export const actionNames = {
   increase: "Increase value",
 } as const;
 export type Action = keyof typeof actionNames;
-/** VTOL switch bindings are retained, but neither shown nor dispatched on other aircraft. */
-export function actionAvailable(action: string, vtol: boolean) {
-  return vtol || !action.startsWith("vtol");
-}
 export type ActionBindings = Partial<Record<Action, string>>;
+/** Bindings for removed actions (the former VTOL switches) are dropped silently. */
+export function knownActions(value: unknown): unknown {
+  return value && typeof value === "object"
+    ? Object.fromEntries(
+        Object.entries(value).filter(([key]) => !key.startsWith("vtol")),
+      )
+    : value;
+}
 export function validActions(value: unknown): value is ActionBindings {
   return (
     !!value &&

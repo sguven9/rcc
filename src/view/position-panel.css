@@ -12,7 +12,7 @@
   background: var(--ui-panel);
   border: 1px solid var(--ui-border);
   border-radius: 6px;
-  box-shadow: 0 12px 36px #0005;
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--p-black) 33%, transparent);
   font-size: 12px;
 }
 .position-panel[hidden],
@@ -72,9 +72,9 @@
   height: 17px;
 }
 .position-targets button[data-position-target="aircraft"].active {
-  background: #e9b56716;
-  color: #efc480;
-  border-color: #b58c4c66;
+  background: color-mix(in srgb, var(--p-accent-400) 9%, transparent);
+  color: var(--p-accent-300);
+  border-color: color-mix(in srgb, var(--p-accent-600) 40%, transparent);
 }
 .position-targets button[data-position-target="pilot"].active {
   background: color-mix(in srgb, var(--ui-muted) 9%, transparent);
@@ -85,7 +85,7 @@
   height: 5px;
   width: 5px;
   border-radius: 50%;
-  background: #efc480;
+  background: var(--p-accent-300);
 }
 .position-map-wrap {
   position: relative;
@@ -121,7 +121,7 @@
   stroke-width: 1;
 }
 #position-aircraft {
-  color: #e9b567;
+  color: var(--p-accent-400);
 }
 #position-pilot {
   color: var(--ui-muted);
@@ -193,7 +193,7 @@
   font:
     11px ui-monospace,
     monospace;
-  color: #efc480;
+  color: var(--p-accent-300);
 }
 .position-panel input[type="range"] {
   padding: 0;
@@ -203,7 +203,7 @@
   accent-color: var(--ui-muted);
 }
 .position-bearing input[type="range"] {
-  accent-color: #dfb874;
+  accent-color: var(--p-amber-500);
 }
 .position-panel .position-height {
   display: flex;
@@ -310,7 +310,7 @@
   font-size: 9px;
 }
 .position-panel .position-error {
-  color: #f2ae98;
+  color: var(--p-red-300);
   font-size: 11px;
   margin: 0 0 10px;
 }

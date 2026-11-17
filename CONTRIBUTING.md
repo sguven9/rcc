@@ -1,4 +1,4 @@
-# Contributing to RCForge
+# Contributing to the simulator
 
 Contributions from builders, pilots, developers, artists and coding-agent users are welcome. Start with something you can demonstrate: an aircraft, measured component data, a reproducible bug, a controller setup, a clearer workflow or an improvement to the simulation.
 
@@ -10,19 +10,19 @@ Contributions from builders, pilots, developers, artists and coding-agent users 
 - **Improve usability:** keyboard access, clear control names, smaller-screen layout and fewer steps to complete a task.
 - **Improve physics:** begin with a specific behavior and a testable physical expectation or measured dataset.
 
-Use the [issue templates](https://github.com/adithya-s-k/RCForge/issues/new/choose). Open an issue before a large feature or compatibility change so the design and scope can be discussed. Small fixes and documentation improvements can go directly to a pull request. There is no requirement to use a coding agent.
+Use the issue templates in this repository. Open an issue before a large feature or compatibility change so the design and scope can be discussed. Small fixes and documentation improvements can go directly to a pull request. There is no requirement to use a coding agent.
 
 ## From fork to running simulator
 
-You need Git, a GitHub account to submit a pull request, and a supported Node version from `package.json` (Node 24 is a convenient default). Trying RCForge locally does not need an account.
+You need Git, a GitHub account to submit a pull request, and a supported Node version from `package.json` (Node 24 is a convenient default). Trying the simulator locally does not need an account.
 
-1. Open [RCForge on GitHub](https://github.com/adithya-s-k/RCForge) and select **Fork**. Keep the default repository name.
-2. Replace `YOUR_GITHUB_USERNAME` below, then run:
+1. Fork this repository on your code host.
+2. Replace `YOUR_FORK_URL` and `UPSTREAM_URL` below, then run:
 
 ```sh
-git clone https://github.com/YOUR_GITHUB_USERNAME/RCForge.git
-cd RCForge
-git remote add upstream https://github.com/adithya-s-k/RCForge.git
+git clone YOUR_FORK_URL simulator
+cd simulator
+git remote add upstream UPSTREAM_URL
 git switch -c feat/my-change
 npm ci
 npm run dev
@@ -31,14 +31,14 @@ npm run dev
 3. Open the URL Vite prints. Change a source file and the workbench updates locally. No API keys, AI services or backend setup are required.
 4. Read [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), then the task's guide in the [docs index](docs/README.md). A coding agent can use the same instructions; it is optional.
 
-`origin` is your fork; `upstream` is the shared RCForge repository. Give your branch a descriptive name such as `fix/controller-labels` or `feat/my-trainer`. Work on that branch so your main branch stays easy to update.
+`origin` is your fork; `upstream` is the shared upstream repository. Give your branch a descriptive name such as `fix/controller-labels` or `feat/my-trainer`. Work on that branch so your main branch stays easy to update.
 
 ## An aircraft contribution, end to end
 
 1. Start from a bundled aircraft or import a definition in **Aircraft → Import JSON**. Use **History → Save version** to keep a checkpoint before experimenting.
 2. Adjust the airframe, components and controls. Inspect the 3D model and use **Control test** to verify surface direction and travel. Use **Apply & fly**, and compare scenarios in **Experiments**. History can restore an earlier setup into your draft without applying it.
 3. **Export** the final aircraft JSON from the editor. Browser edits and checkpoints do not rewrite repository files. A `.history.json` archive is a personal backup; do not commit it as an aircraft definition.
-4. For a new aircraft, give it a unique `id`, descriptive name and source/assumption metadata. Save the ordinary definition as `aircraft/your-aircraft-id.json`. Follow [aircraft authoring](docs/aircraft-authoring.md) and [component models](docs/component-models.md); read [multirotors](docs/multirotors.md) for a quad.
+4. For a new aircraft, give it a unique `id`, descriptive name and source/assumption metadata. Save the ordinary definition as `aircraft/your-aircraft-id.json`. Follow [aircraft authoring](docs/aircraft-authoring.md) and [component models](docs/component-models.md).
 5. Validate and simulate it. Replace the example path with your file:
 
 ```sh
@@ -93,7 +93,7 @@ git push -u origin feat/my-change
 
 Replace the paths and branch name with yours. Use several focused commits when they help separate behavior, tests and documentation. Do not commit `dist/`, `results/`, dependencies, local history backups or credentials.
 
-2. Open your fork on GitHub and choose **Compare & pull request**. Set the base to **adithya-s-k/RCForge · main** and compare to your branch.
+2. Open your fork on GitHub and choose **Compare & pull request**. Set the base to the upstream **main** branch and compare to your branch.
 3. Fill in the PR template: what changed and why, exact checks run, source/license information, and what remains unverified. Link the issue if there is one. Screenshots help reviewers with UI or model changes.
 4. Address review comments on the **same branch**, commit, and `git push`. The PR updates automatically. Explain checks that could not run; do not report them as passing.
 5. After merge, update your local main branch:

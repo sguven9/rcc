@@ -48,14 +48,8 @@ it.each(aircraft.filter((a) => aircraftChannels(a).includes("yaw")))(
             { ...mapped, throttle: trim.controls.throttle },
             DEFAULT_EXPO,
           ),
-          a.vtol ? 0 : trim.controls.pitch,
+          trim.controls.pitch,
         );
-        if (a.vtol)
-          command = {
-            ...command,
-            throttle: 0.5,
-            vtol: { mode: "hover", assistance: "intermediate" },
-          };
         sim.step(command);
       }
       expect(sim.state.status).toBe("flying");
@@ -75,7 +69,6 @@ it.each(aircraft)(
     const diagram = keyboardDiagram({
       turnAxis: axis,
       yaw: channels.includes("yaw"),
-      vtol: !!a.vtol,
     });
     expect(diagram.includes("<title>→: Yaw R</title>")).toBe(
       !channels.includes("roll") && channels.includes("yaw"),
@@ -83,7 +76,6 @@ it.each(aircraft)(
     expect(diagram.includes("<title>E: Yaw R</title>")).toBe(
       channels.includes("yaw"),
     );
-    expect(diagram.includes("VTOL mode")).toBe(!!a.vtol);
-    expect(diagram.includes("Hover 50%")).toBe(!!a.vtol);
+    expect(diagram.includes("VTOL mode")).toBe(false);
   },
 );

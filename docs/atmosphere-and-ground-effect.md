@@ -15,8 +15,7 @@ particular field or airframe.
 4. Start the flight. Recordings keep both options and the seed, so an exported
    flight replays exactly.
 
-Ground effect needs no setting. Expect a longer float in a flare and a quad that
-needs a little less throttle in the last few centimetres of a landing.
+Ground effect needs no setting. Expect a longer float in a flare.
 
 ## Wind gradient
 
@@ -66,7 +65,7 @@ be combined with turbulence.
 
 ## Wing in ground effect
 
-![Wing induced-drag factor and lift-slope ratio against height over span, and multirotor thrust ratio against rotor height over radius](images/chart-ground-effect.svg)
+![Wing induced-drag factor and lift-slope ratio against height over span](images/chart-ground-effect.svg)
 
 For each roughly horizontal surface (vertical tails and panels rolled more than
 45° are excluded), with span `b` and quarter-chord height `h`:
@@ -87,20 +86,6 @@ At `h/b = 0.1` an AR 6 wing has `φ ≈ 0.72`, about 28% less induced drag and
 about 8% more lift slope. The effect grows quickly in the last few centimetres
 of a flare.
 
-## Rotor in ground effect
-
-Multirotor thrust uses the Cheeseman–Bennett hover relation at equal power:
-
-```text
-T_IGE / T_OGE = 1 / (1 − (R / 4z)²)
-```
-
-`z` is the distance from each rotor to the ground along its thrust axis. It is
-limited to `z ≥ 0.5R` (ratio 4/3), and the effect fades to zero between `2R` and
-`4R`. Battery current is unchanged because the extra thrust comes at the same
-power. A tilt beyond about 84° from vertical, or inverted flight, disables it.
-The VTOL rotor model does not use it yet.
-
 ## What this does not model
 
 - Measured site turbulence, thermals, terrain-induced or obstacle wake wind, and
@@ -113,8 +98,6 @@ The VTOL rotor model does not use it yet.
   (the α̇ term) is not modeled.
 - Partial ground effect over slopes, mountain terrain or obstacles; the solver's
   ground is still a flat plane at zero height.
-- Forward-flight rotor ground effect, recirculation and multirotor interaction
-  between neighbouring disks.
 
 Tests in `tests/atmosphere.test.ts` check the published formulas, the turbulence
 variance and correlation length, the ground-effect direction, and exact replay.

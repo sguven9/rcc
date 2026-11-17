@@ -9,6 +9,7 @@ import {
   expo,
   type ExpoSettings,
 } from "../core/pilot-response";
+import { storageKey } from "../config/brand";
 
 const LABELS = {
   roll: "Roll (aileron)",
@@ -16,7 +17,7 @@ const LABELS = {
   yaw: "Yaw (rudder)",
   throttle: "Throttle",
 } as const;
-const STORAGE_KEY = "rcforge.expo";
+const STORAGE_KEY = storageKey("expo");
 
 export function exposMarkup() {
   return `<div class="page-heading"><div><span class="eyebrow">TRANSMITTER</span><h1>Expos</h1><p>Softer stick centre without losing full deflection: out = (1 − e)·x + e·x³.</p></div><div class="heading-actions"><button id="expo-reset">Reset to defaults</button></div></div>

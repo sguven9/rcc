@@ -100,7 +100,7 @@ export class ControllerPage {
         return;
       }
       download(
-        "rcforge-controller.json",
+        "controller-profile.json",
         JSON.stringify(input.profile, null, 2),
       );
     };
@@ -262,7 +262,7 @@ export class ControllerPage {
         transmitter: "RC transmitter",
       }[type] + " ↗";
     $("hardware-note").textContent = true
-      ? "Connect a compatible PPM-to-USB joystick adapter, or use Arduino USB above. Send unmixed channels; RCForge handles aircraft surface mixing."
+      ? "Connect a compatible PPM-to-USB joystick adapter, or use Arduino USB above. Send unmixed channels; the simulator handles aircraft surface mixing."
       : false
         ? "Space / Shift adjust power. X cuts it. P pauses, Enter starts, R resets. WASD also fly unless walking mode is enabled."
         : "Axis numbers vary by controller. Detect finds the axis you move; Reverse changes its direction.";

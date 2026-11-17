@@ -3,7 +3,7 @@ import { ControllerActions } from "../src/app/controller-actions";
 import { defaultProfile, type InputManager } from "../src/input/controls";
 
 afterEach(() => vi.unstubAllGlobals());
-it("hides and disables VTOL shortcuts on other aircraft without losing saved bindings", () => {
+it("drops saved bindings of removed VTOL actions silently and keeps edge-triggered shortcuts", () => {
   const elements = new Map<string, any>();
   const el = (id: string) => {
     if (!elements.has(id))
@@ -27,7 +27,7 @@ it("hides and disables VTOL shortcuts on other aircraft without losing saved bin
   vi.stubGlobal("window", { addEventListener: () => {} });
   vi.stubGlobal("localStorage", {
     getItem: (key: string) =>
-      key.startsWith("rcforge.actions.")
+      key.startsWith("rcsim.actions.")
         ? JSON.stringify({
             reset: "b0",
             vtolMode: "b1",
@@ -50,36 +50,24 @@ it("hides and disables VTOL shortcuts on other aircraft without losing saved bin
   } as unknown as InputManager;
   const perform = vi.fn();
   const actions = new ControllerActions(input, perform);
-  actions.update(true, { vtol: true });
-  const saved = structuredClone(actions.bindings);
-  device.buttons[1].value = 1;
-  actions.update(true, { vtol: true });
-  expect(perform).toHaveBeenLastCalledWith("vtolMode");
-  expect(el("vtol-radio-shortcuts").hidden).toBe(false);
-  expect(el("controller-actions").innerHTML).toContain(
-    'data-action="vtolMode"',
-  );
-  actions.update(true, { vtol: false });
-  expect(el("vtol-radio-shortcuts").hidden).toBe(true);
+  actions.update(true, {});
+  // The stored VTOL switch bindings are ignored; the valid reset binding stays.
+  expect(actions.bindings).toEqual({ reset: "b0" });
+  expect(el("controller-actions").innerHTML).not.toContain("vtol");
   expect(el("flight-shortcut-legend").innerHTML).not.toContain("VTOL");
-  expect(el("controller-actions").innerHTML).not.toContain(
-    'data-action="vtolMode"',
-  );
-  device.buttons[1].value = 0;
-  actions.update(true, { vtol: false });
+  // Button 1 was the old VTOL switch: it now triggers nothing.
   device.buttons[1].value = 1;
-  actions.update(true, { vtol: false });
-  expect(perform).toHaveBeenCalledTimes(1);
+  actions.update(true, {});
+  expect(perform).not.toHaveBeenCalled();
   device.buttons[0].value = 1;
-  actions.update(true, { vtol: false });
+  actions.update(true, {});
   expect(perform).toHaveBeenLastCalledWith("reset");
-  // Switching back while the mode button is held must not trigger a transition.
-  actions.update(true, { vtol: true });
+  // Held buttons never repeat.
+  actions.update(true, {});
+  expect(perform).toHaveBeenCalledTimes(1);
+  device.buttons[0].value = 0;
+  actions.update(true, {});
+  device.buttons[0].value = 1;
+  actions.update(true, {});
   expect(perform).toHaveBeenCalledTimes(2);
-  device.buttons[1].value = 0;
-  actions.update(true, { vtol: true });
-  device.buttons[1].value = 1;
-  actions.update(true, { vtol: true });
-  expect(perform).toHaveBeenCalledTimes(3);
-  expect(actions.bindings).toEqual(saved);
 });

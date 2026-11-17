@@ -9,7 +9,7 @@ export interface RcPacket {
   pulses: number[];
 }
 
-/** CRC-16/CCITT-FALSE, shared with hardware/rcforge_bridge. */
+/** CRC-16/CCITT-FALSE, shared with hardware/rc_bridge. */
 export function rcChecksum(text: string): number {
   let crc = 0xffff;
   for (let i = 0; i < text.length; i++) {
@@ -192,7 +192,7 @@ export class ArduinoInput {
     const packet = this.stream.packet!;
     return [
       {
-        id: `RCForge Arduino ${packet.mode} (${this.label})`,
+        id: `Arduino bridge ${packet.mode} (${this.label})`,
         index: SERIAL_DEVICE_INDEX,
         connected: true,
         mapping: "Arduino USB",

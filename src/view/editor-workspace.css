@@ -152,7 +152,7 @@
   gap: 4px;
   margin: 14px 0 10px;
   padding-left: 10px;
-  border-left: 2px solid #62666a;
+  border-left: 2px solid var(--p-n500);
   font-size: 11px;
   color: var(--ui-muted);
 }
@@ -161,10 +161,10 @@
   font-size: 12px;
 }
 .component-reference.modified {
-  border-color: #d5ab68;
+  border-color: var(--p-accent-400);
 }
 .component-reference.modified strong {
-  color: #d5ab68;
+  color: var(--p-accent-400);
 }
 
 .component-position .component-axis-fields {

@@ -1,4 +1,4 @@
-/* RCForge USB serial input bridge — classic ATmega328P Uno / Nano.
+/* the simulator USB serial input bridge — classic ATmega328P Uno / Nano.
  * Read docs/flysky-fs-i6.md before wiring. No receiver, servo or motor outputs.
  * Mode 1: trainer PPM OUT or receiver PPM -> D2.
  * Mode 2: receiver PWM CH1..CH6 -> D2..D7.

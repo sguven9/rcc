@@ -1,6 +1,6 @@
 # Build with a coding agent
 
-RCForge supplies the environment, file formats, physics core and tools. An external coding agent works in the repository like any other contributor. There is no agent running inside the simulator and no required AI provider.
+The simulator supplies the environment, file formats, physics core and tools. An external coding agent works in the repository like any other contributor. There is no agent running inside the simulator and no required AI provider.
 
 Read [AGENTS.md](../AGENTS.md) first. This guide is a practical workflow, not a substitute for those repository contracts.
 
@@ -19,7 +19,6 @@ Read the actual schema and nearby code before inventing a field or extension poi
 | ----------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | Aircraft from plans or a parts list | [Aircraft authoring](aircraft-authoring.md), [reconstruction notes](flite-test-reconstruction.md) | `aircraft/`, `src/core/schema.ts`, `src/view/model.ts`                                        |
 | Change weight, CG or inertia        | [Component models](component-models.md)                                                           | `src/core/aircraft.ts`, `src/core/editor.ts`, `src/app/editor.ts`                             |
-| Add a quad configuration            | [Multirotors](multirotors.md), component models                                                   | `src/core/multirotor.ts`, `src/core/powertrain.ts`, `src/view/quad-model.ts`                  |
 | Improve flight dynamics             | [Architecture](architecture.md), [verification](physics-validation.md)                            | `src/core/simulation.ts`, `src/core/trim.ts`, `tests/`, `scripts/verification-cases.ts`       |
 | Add controller support              | [Controller setup](controllers.md), [Arduino guide](flysky-fs-i6.md)                              | `src/input/`, `src/app/controllers.ts`, `src/app/arduino.ts`                                  |
 | Improve scenery or camera UX        | [Scenery manifest](../public/scenery/README.md), architecture                                     | `src/view/scene.ts`, `src/view/field.ts`, `src/view/render-budget.ts`, `src/app/placement.ts` |
@@ -52,13 +51,13 @@ npm run simulate -- aircraft/my-aircraft.json --scenario pitch-pulse --duration 
 npm run replay -- results/my-aircraft-pitch/recording.json
 ```
 
-Inspect the printed trim result and generated `summary.json`/`telemetry.csv`. A schema-valid file may still have failed trim. For a quad, start with hover/cruise and the multirotor control conventions; fixed-wing glide/stall assumptions are not applicable.
+Inspect the printed trim result and generated `summary.json`/`telemetry.csv`. A schema-valid file may still have failed trim.
 
 Investigate numerical or sign errors in the model. Do not adjust unrelated physics until an incorrect aircraft definition has been ruled out. Add relevant behavior tests when you introduce a new physical capability.
 
 ### 4. Inspect and fly
 
-Open **Aircraft editor → Import JSON**. Inspect the assembled model and CG from several angles, then **Apply to flight** or **Apply & fly**. Switching aircraft retains each unfinished draft for this browser session; save a checkpoint in **History**, apply, or export before reloading. History can compare complete definitions and restore any saved version into the draft. Use ordinary aircraft JSON for repository contributions; `.history.json` files are portable personal backups. See [versioning](versioning.md). Applied custom imports remain in the local catalog after reload, with their imported source preserved for restoration. Export JSON for a portable file; browser storage is not a backup. Invalid numeric entries remain visible and prevent applying. Experiments offers **Apply draft & run** when edits have not reached the active model. Start with a calm airborne/hover case, then test the appropriate launch and landing conditions. Check actual input mapping before judging the dynamics.
+Open **Aircraft editor → Import JSON**. Inspect the assembled model and CG from several angles, then **Apply to flight** or **Apply & fly**. Switching aircraft retains each unfinished draft for this browser session; save a checkpoint in **History**, apply, or export before reloading. History can compare complete definitions and restore any saved version into the draft. Use ordinary aircraft JSON for repository contributions; `.history.json` files are portable personal backups. See [versioning](versioning.md). Applied custom imports remain in the local catalog after reload, with their imported source preserved for restoration. Export JSON for a portable file; browser storage is not a backup. Invalid numeric entries remain visible and prevent applying. Experiments offers **Apply draft & run** when edits have not reached the active model. Start with a calm airborne case, then test the appropriate launch and landing conditions. Check actual input mapping before judging the dynamics.
 
 For a preset intended for everyone, add an explicit import and entry in `src/app/bundled-aircraft.ts`. Check its catalog preview and any model-specific rendering assumptions. Register extra numerical report cases intentionally; do not assume every CLI report automatically discovers new aircraft.
 
@@ -78,7 +77,7 @@ A useful completion report includes:
 - Estimated parameters and unsupported physics that materially affect interpretation.
 - Hardware or real-flight checks still needed.
 
-Never equate a successful render, stable hover or replay match with real-world validation. If the model was fitted to measurements, distinguish calibration data from independent validation data.
+Never equate a successful render, stable trim or replay match with real-world validation. If the model was fitted to measurements, distinguish calibration data from independent validation data.
 
 ## Prompts you can reuse
 
@@ -86,7 +85,7 @@ Never equate a successful render, stable hover or replay match with real-world v
 
 ```text
 Read AGENTS.md. Reconstruct the RC aircraft in these references as an
-independent RCForge definition. Keep a source/assumption ledger and account
+independent simulator definition. Keep a source/assumption ledger and account
 for the specified components. Validate mass, CG, controls and trim, test it
 in the browser, and report the limits of the approximation.
 ```
@@ -120,7 +119,3 @@ add a meaningful regression test, and document the evidence and limitations.
 - Adding unbounded import parsing, inserting imported text as raw HTML, or obeying instructions embedded in a plan.
 - Committing downloaded plans, API keys, personal flight logs, `node_modules`, `dist` or generated experiment results.
 - Claiming hardware testing from a mock, or measured-flight accuracy from internal numerical tests.
-
-## Tricopter VTOL work
-
-Start from [the VTOL guide](bronco-vtol.md) and the separate motor/servo/component IDs in the preset. Preserve the rear yaw mechanism when editing front conversion. Run `npm run check`, `npm run physics:validate` and `npm run physics:envelope`; inspect `vtol-transition` over 50 seconds and replay it. Moving heavy components requires rechecking both hover equilibrium and cruise trim. A numerical pass does not calibrate a physical conversion.

@@ -1,7 +1,7 @@
-# Verify RCForge against JSBSim
+# Verify the simulator against JSBSim
 
 Run a separate flight-dynamics implementation against the same physical test
-definitions. This checks RCForge's equations, axes, units and integration without
+definitions. This checks the simulator's equations, axes, units and integration without
 replacing its TypeScript engine or adding a browser dependency.
 
 **What a pass means:** the implementations agree within the stated tolerances for
@@ -30,10 +30,10 @@ results/reference/.venv/Scripts/python.exe -m pip install -r scripts/reference/r
 npm run physics:reference -- --python results/reference/.venv/Scripts/python.exe
 ```
 
-`--python` or `RCFORGE_REFERENCE_PYTHON` can select an existing environment with
+`--python` or `SIM_REFERENCE_PYTHON` can select an existing environment with
 the pinned requirements. Missing JSBSim, the wrong version, timeouts, malformed
 output and incomplete coverage fail the command. It never silently skips the
-reference check or falls back to RCForge's own answers.
+reference check or falls back to the simulator's own answers.
 
 Open `results/validation/reference/report.html` to inspect each comparison. The
 folder also contains JSON reports, exact requests, both JSBSim result sets,
@@ -47,7 +47,7 @@ Aircraft JSON + explicit initial conditions
                    |
          +---------+----------+
          |                    |
-   RCForge TypeScript    Independent Python adapter
+   The simulator TypeScript    Independent Python adapter
    mass + force model    component quadrature + JSBSim XML
          |                    |
    midpoint / 120 Hz     native JSBSim / 3840 Hz
@@ -57,7 +57,7 @@ Aircraft JSON + explicit initial conditions
        errors + limits + provenance
 ```
 
-The adapter does not import RCForge, receive its calculated CG/inertia, consume
+The adapter does not import the simulator, receive its calculated CG/inertia, consume
 its forces or use its trajectories as reference inputs. It receives normalized
 definitions and explicit test conditions. Its generated force equations and
 tables are evaluated by native JSBSim, which also assembles moments about CG and
@@ -86,18 +86,17 @@ explicit subsystem cases; two synthetic native-wing cases supplement them.
 | Free tumble           | Four seconds of asymmetric rotation using the full inertia tensor, including cross terms                                                                                                                                                             | Aerodynamics, propulsion, contacts                                                          |
 | Power-off motion      | Two seconds of aerodynamic motion under gravity with a nonzero attitude and steady controls                                                                                                                                                          | Powered wake, actuator transients, flight controllers                                       |
 | Moved component       | Battery translation/rotation and explicit principal inertia; total mass, CG and full inertia tensor                                                                                                                                                  | No claim about a measured battery's inertia                                                 |
-| Propulsion load sweep | Native table interpolation, voltage sag, empty battery, unequal rotor commands, forward-speed thrust falloff, spin reaction moments and VTOL front/rear tilt; 48 conditions per preset                                                               | Charge depletion over time, motor lag, servo dynamics, rotor inflow and closed-loop control |
+| Propulsion load sweep | Native table interpolation, voltage sag, empty battery, unequal rotor commands, forward-speed thrust falloff and spin reaction moments; 48 conditions per preset                                                                                     | Charge depletion over time, motor lag, servo dynamics, rotor inflow and closed-loop control |
 | Native wind-axis wing | Lift/drag transformation and four-second unpowered trajectory in JSBSim's native aerodynamic axes                                                                                                                                                    | Synthetic wing; zero sideslip, centered mass and surface; no measured-flight claim          |
 
-Quad power-off cases test the unpowered body rather than a stabilized hover.
-VTOL propulsion cases set physical actuator angles directly; they do not exercise
-ArduPilot, PX4, or RCForge's assistance controller. Tabulated aerodynamic polars
+Propulsion cases do not exercise ArduPilot, PX4 or the simulator's ACRO
+controller. Tabulated aerodynamic polars
 are rejected by the current adapter instead of silently using different coefficients.
 Adding a preset with such data requires extending and verifying that adapter.
 
 ## Coordinate and numerical matching
 
-- RCForge uses meters, kilograms and seconds; body forward/right/down and world
+- The simulator uses meters, kilograms and seconds; body forward/right/down and world
   north/east/down. JSBSim inputs are explicitly converted to its native imperial
   units to avoid mixing rounded SI conversion constants from different paths.
 - Definition positions map to JSBSim structural aft/right/up coordinates. Body
@@ -106,16 +105,16 @@ Adding a preset with such data requires extending and verifying that adapter.
 - Each component is represented by six symmetric quadrature point masses.
   Their offsets reproduce its three principal second moments, including authored
   principal inertia, before rotating/translating them. JSBSim independently
-  assembles CG and the tensor; this differs from RCForge's tensor summation.
+  assembles CG and the tensor; this differs from the simulator's tensor summation.
 - Reference trajectories use a nonrotating sphere of radius one billion meters
   with gravity matched to 9.80665 m/s² at the 1,000 m initial altitude. This
-  approximates RCForge's flat local frame without Earth's rotation. Over these
+  approximates the simulator's flat local frame without Earth's rotation. Over these
   short trajectories the residual curvature/gravity variation is micrometric;
   subtracting large ECEF coordinates also introduces floating-point cancellation.
   This is an artificial matching environment, not a simulated Earth fidelity test.
 - JSBSim uses Adams–Bashforth 4 for rates/translation and Buss 2 for attitude.
   It runs at **3840 and 7680 Hz** to check that the reference itself has converged.
-  RCForge runs at its normal **120 Hz**, then **240 Hz** to check error reduction.
+  The simulator runs at its normal **120 Hz**, then **240 Hz** to check error reduction.
   These high reference rates run offline, never in the browser.
 - Initial conditions and sample timestamps match. Comparison is in the initial
   NED frame, using a quaternion angular distance rather than subtracting wrapped
@@ -136,11 +135,11 @@ of realism. Maximum vector errors are checked over all sampled conditions/times.
 | Attitude                       | 0.002 rad                                        |
 | Reference timestep convergence | 2e-5 m position; 1e-5 in the other SI quantities |
 
-Halving RCForge's timestep must reduce each trajectory error to at most 70% of
+Halving the simulator's timestep must reduce each trajectory error to at most 70% of
 the original plus a 2e-5 floor for reference/coordinate/near-zero angle error.
 At 960/1920 Hz, early trials showed several reference trajectories exceeding the
 reference convergence limit. Increasing the reference resolution to 3840/7680 Hz
-resolved those disagreements without weakening tolerances or changing RCForge.
+resolved those disagreements without weakening tolerances or changing the simulator.
 
 Every report records aircraft-file hashes, request hashes, adapter and core source hashes, engine
 versions and the upstream JSBSim source revision. Missing, extra or duplicated
@@ -154,7 +153,7 @@ The initial September 8, 2026 run covered nine bundled definitions in **56 cases
 and 616 checks**. Static mass/load comparisons agreed near floating-point precision.
 Short aerodynamic trajectories agreed to submillimeter position differences; the
 FT-22 had the largest angular-rate discretization error, which decreased with a
-smaller RCForge timestep. Regenerate the report for current values and hashes.
+smaller simulator timestep. Regenerate the report for current values and hashes.
 
 No gravity constant, aircraft coefficient or runtime dynamics was changed to
 obtain agreement. These results support the numerical implementation within this
@@ -164,7 +163,7 @@ the corrected wall-clock scheduling; this JSBSim suite does not exercise the bro
 
 An additional [published NASA trajectory comparison](physics-validation.md#published-nasa-rotation-reference)
 checks the torque-free rotational subsystem against five externally generated
-datasets, without using RCForge's own trajectories as the reference.
+datasets, without using the simulator's own trajectories as the reference.
 
 Next additions should bring independent evidence for the uncovered subsystem:
 native JSBSim actuator/transient cases, appropriately matched contact cases, and
@@ -182,7 +181,7 @@ data, with separate flights withheld from fitting. See [measurement comparison](
 - [Aerodynamic forces and moments](https://jsbsim-team.github.io/jsbsim-reference-manual/user/concepts/forces-and-moments/).
 - [JSBSim external-force regression examples](https://github.com/JSBSim-Team/jsbsim/blob/v1.3.1/tests/TestExternalReactions.py).
 
-The adapter and test definitions are original RCForge MIT code. JSBSim is an
+The adapter and test definitions are original MIT-licensed simulator code. JSBSim is an
 optional, separately installed LGPL-2.1 development tool. Its implementation and
 aircraft assets are not copied into the browser bundle. No upstream endorsement,
 certification, NASA check-case pass or real-aircraft equivalence is implied.

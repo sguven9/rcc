@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d1630"/><stop offset=".45" stop-color="#5a2d3a"/><stop offset=".75" stop-color="#c4603a"/><stop offset="1" stop-color="#f2a65a"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <circle cx="900" cy="360" r="80" fill="#ffd9a0" opacity=".7"/>
+  <path d="M0 380 C140 330 230 280 360 306 C470 328 520 270 640 262 C760 254 840 320 960 310 C1060 302 1130 330 1200 320 V630 H0Z" fill="#3b2230"/>
+  <path d="M0 440 C160 400 300 415 430 390 C560 365 690 420 820 406 C950 392 1060 420 1200 406 V630 H0Z" fill="#24161d"/>
+  <path d="M0 510 C220 490 420 500 600 496 C780 492 980 502 1200 490 V630 H0Z" fill="#14110f"/>
+  <g transform="translate(96 120) scale(1.75)"><rect width="64" height="64" rx="16" fill="#e0703a"/><g transform="rotate(-18 32 30)" fill="#fffaf3"><path d="M30.6 10.5c0-1.1.6-1.9 1.4-1.9s1.4.8 1.4 1.9l.5 9.6 17.6 4.1c.9.2 1.5 1 1.5 1.9v1.6l-19.2-1.8-.6 11.7 5.6 2.4v2.2l-6.8-.9-6.8.9V40l5.6-2.4-.6-11.7-19.2 1.8v-1.6c0-.9.6-1.7 1.5-1.9l17.6-4.1z"/></g></g>
+  <text x="96" y="300" font-family="Sora, Figtree, sans-serif" font-size="72" font-weight="700" fill="#fffaf3">SkyManisa</text>
+  <text x="98" y="352" font-family="Figtree, sans-serif" font-size="30" fill="#f6dcc4">Fixed-wing RC flight simulator</text>
+</svg>

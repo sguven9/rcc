@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { VtolConfigSchema } from "./vtol-config";
 import { PilotResponseSchema } from "./pilot-response";
 import { AIRCRAFT_FORMAT_VERSION } from "./versions";
 export { AIRCRAFT_FORMAT_VERSION } from "./versions";
@@ -55,20 +54,8 @@ const provenance = z
 export const AircraftSchema = z
   .object({
     schemaVersion: z.literal(AIRCRAFT_FORMAT_VERSION),
-    vehicleType: z
-      .enum(["fixed-wing", "multirotor", "vtol"])
-      .default("fixed-wing"),
-    vtol: VtolConfigSchema.optional(),
-    multirotor: z
-      .object({
-        mode: z.enum(["angle", "rate"]),
-        maxTiltDeg: positive.max(70),
-        maxRateDegS: positive.max(1000),
-        rateGain: positive.max(1),
-        attitudeGain: positive.max(20),
-      })
-      .strict()
-      .optional(),
+    /** Fixed-wing only; the field is kept so existing files stay valid. */
+    vehicleType: z.literal("fixed-wing").default("fixed-wing"),
     id: z.string().regex(/^[a-z0-9-]+$/),
     name: z.string().min(1),
     description: z.string(),
@@ -530,18 +517,8 @@ export const AircraftSchema = z
           ["motors", i, "motorPowerW"],
           "Dynamic shaft speed needs motorPowerW, spin, propInertiaKgM2 and maxRpm",
         );
-      if (dynamicFields && a.vtol)
-        issue(
-          ["motors", i, "motorPowerW"],
-          "Dynamic shaft speed is not available for tiltrotor VTOL motors",
-        );
       if (m.redlineRpm !== undefined && m.maxRpm && m.redlineRpm <= m.maxRpm)
         issue(["motors", i, "redlineRpm"], "Redline must be above maxRpm");
-      if (m.propGovernor && (a.vehicleType === "multirotor" || a.multirotor))
-        issue(
-          ["motors", i, "propGovernor"],
-          "A constant-speed governor is only modeled for fixed-wing propellers",
-        );
       if (
         m.propPartId &&
         (!a.parts.some(
@@ -673,101 +650,11 @@ export const AircraftSchema = z
           "Polar angles must be strictly increasing",
         );
     });
-    if (a.vehicleType === "vtol") {
-      const v = a.vtol;
-      if (!v || a.motors.length !== 3 || !a.surfaces.length || a.multirotor)
-        issue(
-          ["vtol"],
-          "VTOL needs three rotors, aerodynamic surfaces and tiltrotor settings",
-        );
-      if (v) {
-        const ids = [v.frontLeftMotorId, v.frontRightMotorId, v.rearMotorId];
-        const motors = ids.map((id) => a.motors.find((m) => m.id === id));
-        if (new Set(ids).size !== 3 || motors.some((m) => !m?.spin))
-          issue(
-            ["vtol"],
-            "Reference three distinct installed motors with spin directions",
-          );
-        const [left, right, rear] = motors;
-        if (
-          left &&
-          right &&
-          rear &&
-          (left.positionM[1] >= 0 ||
-            right.positionM[1] <= 0 ||
-            rear.positionM[0] >=
-              Math.min(left.positionM[0], right.positionM[0]) ||
-            left.spin === right.spin)
-        )
-          issue(
-            ["vtol"],
-            "Front motors must straddle the datum, counter-rotate, and sit ahead of the rear lift motor",
-          );
-        const servoIds = [
-          v.leftServoPartId,
-          v.rightServoPartId,
-          v.rearServoPartId,
-        ];
-        if (new Set(servoIds).size !== 3)
-          issue(
-            ["vtol"],
-            "Tricopter needs two front tilt servos and a separate rear yaw servo",
-          );
-        for (const id of servoIds) {
-          const servo = a.parts.find((p) => p.id === id)?.servo;
-          if (
-            !servo ||
-            servo.travelDeg < (id === v.rearServoPartId ? v.yawTiltDeg * 2 : 90)
-          )
-            issue(
-              ["vtol"],
-              "Front servos need 90 degrees; the rear servo must cover both yaw endpoints",
-            );
-          if (a.surfaces.some((s) => s.control?.linkage?.servoPartId === id))
-            issue(
-              ["vtol"],
-              "A tilt servo cannot also drive an aerodynamic surface",
-            );
-        }
-      }
-    } else if (a.vtol)
-      issue(["vtol"], "Tiltrotor settings require vehicleType vtol");
-    if (a.vehicleType === "fixed-wing" && !a.surfaces.length)
+    if (!a.surfaces.length)
       ctx.addIssue({
         code: "custom",
         message: "Fixed-wing aircraft need aerodynamic surfaces",
         path: ["surfaces"],
-      });
-    if (
-      a.vehicleType === "multirotor" &&
-      (!a.multirotor ||
-        a.motors.length !== 4 ||
-        a.motors.filter((m) => m.spin === "cw").length !== 2 ||
-        a.motors.filter((m) => m.spin === "ccw").length !== 2 ||
-        a.motors.some(
-          (m) =>
-            Math.abs(m.positionM[0]) < 0.001 ||
-            Math.abs(m.positionM[1]) < 0.001,
-        ) ||
-        a.motors.some((m) =>
-          a.motors.some((n) =>
-            Math.sign(m.positionM[0] * m.positionM[1]) ===
-            Math.sign(n.positionM[0] * n.positionM[1])
-              ? m.spin !== n.spin
-              : m.spin === n.spin,
-          ),
-        ) ||
-        new Set(
-          a.motors.map(
-            (m) => `${Math.sign(m.positionM[0])},${Math.sign(m.positionM[1])}`,
-          ),
-        ).size !== 4)
-    )
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Quad X requires controller settings and four quadrant-separated rotors with two CW and two CCW directions",
-        path: ["motors"],
       });
     for (const key of [
       "parts",

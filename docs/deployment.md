@@ -1,6 +1,26 @@
-# Deploying RCForge
+# Deploying the simulator
 
-The intended production URL is **https://rcforge.adithyask.com**. The application includes that canonical URL and a project link; DNS and hosting must still be configured by the site owner. No deployment is performed by building locally.
+Set the production origin in `BRAND.siteUrl` (`src/config/brand.ts`). When it is set, the build adds canonical URLs, `sitemap.xml` and `robots.txt`; when it is empty they are omitted. DNS and hosting must still be configured by the site owner. No deployment is performed by building locally.
+
+## Name, theme and license
+
+- **Name.** The product name, tagline, description, theme colour and deployed
+  origin live in `src/config/brand.ts` (`BRAND`). The app, the loading screen
+  (`index.html` placeholders filled at build time), page metadata and the
+  documentation site read them from there. After a change, run
+  `npm run brand:assets` to regenerate the share image
+  (`public/brand/social.svg`, and `social.png` when a Playwright Chromium is
+  installed). Saved settings use `BRAND.storagePrefix`, which is independent of
+  the name, so renaming does not reset anyone's calibration.
+- **Theme.** Colours, fonts, radii and shadows are tokens in
+  `src/theme/theme.css`; shared component rules are in
+  `src/theme/components.css`. The loading screen in `index.html` repeats a few
+  of the palette colours inline because it paints before any stylesheet loads.
+- **License.** This code is derived from an MIT-licensed project. `LICENSE`
+  keeps the original copyright and permission notice, which the MIT license
+  requires in all copies or substantial portions of the software; the build
+  also ships it as `licenses/LICENSE.txt` (and `public/licenses/LICENSE-MIT.txt`).
+  The notice is not shown in the app. Do not delete or edit it.
 
 ## Build a static site
 
@@ -25,7 +45,7 @@ A clean static deployment contains no `references/local/` and no original plan P
 
 ## Connect the domain
 
-1. Add `rcforge.adithyask.com` as a custom domain in your chosen host.
+1. Add your domain as a custom domain in your chosen host.
 2. At your DNS provider, add the CNAME or A/AAAA record **provided by that host**. The repository does not prescribe an IP address.
 3. Enable HTTPS and redirect HTTP to HTTPS. HTTPS is needed for browser APIs such as the optional Web Serial bridge; support still varies by browser.
 4. Deploy atomically if the host supports it. Avoid mixing an old HTML entry point with missing new assets.
@@ -69,9 +89,9 @@ community builds must not contact those services or require their credentials.
 
 ## Search and link previews
 
-The build emits a root `sitemap.xml`, `robots.txt`, canonical URLs, page-specific descriptions, Open Graph/Twitter cards and JSON-LD for the simulator and documentation. The preview artwork lives in `public/brand/rcforge-social.svg` with its 1200 × 630 PNG counterpart. Keep both in sync when changing it.
+The build emits a root `sitemap.xml`, `robots.txt`, canonical URLs, page-specific descriptions, Open Graph/Twitter cards and JSON-LD for the simulator and documentation. The preview artwork lives in `public/brand/sim-social.svg` with its 1200 × 630 PNG counterpart. Keep both in sync when changing it.
 
-`site/seo.ts` owns the metadata and describes RCForge as free, open source and customizable. Do not add unmeasured fidelity claims, invented reviews or ratings. Aircraft plans are references for authoring definitions, not automatic imports of complete flight models.
+`site/seo.ts` owns the metadata and describes the simulator as free, open source and customizable. Do not add unmeasured fidelity claims, invented reviews or ratings. Aircraft plans are references for authoring definitions, not automatic imports of complete flight models.
 
 The canonical domain is set in `site/config.ts`. Canonical documentation URLs omit the trailing slash to match the hosted site's redirects. Self-hosters who want their own indexed site should change that domain and the root fallback links/artwork as appropriate. Keep deployment previews out of search using your host's `X-Robots-Tag: noindex` headers; OAuth callbacks must also be noindex. Do not block JavaScript or stylesheets in robots.txt.
 
@@ -79,9 +99,9 @@ After deploying, check the canonical URL, social PNG and sitemap over HTTPS. Sub
 
 ### Verify indexing after launch
 
-1. Open [Google Search Console](https://search.google.com/search-console). Use an existing verified domain property that covers your hostname, or add a URL-prefix property for the exact HTTPS origin. For the official site, that is `https://rcforge.adithyask.com/`.
+1. Open [Google Search Console](https://search.google.com/search-console). Use an existing verified domain property that covers your hostname, or add a URL-prefix property for the exact HTTPS origin.
 2. Complete Google's ownership verification. A domain property uses a DNS TXT record at the authoritative DNS provider; for the official site, DNS is managed at Hostinger. Use the actual verification value Google supplies. Do not invent a token or change the site's A/CNAME records for this step.
-3. In **Sitemaps**, submit `https://rcforge.adithyask.com/sitemap.xml` (replace the hostname for your own deployment). Check that the submission succeeds and that discovered URLs appear. Keep authentication callbacks, previews and nonexistent pages out of the sitemap.
+3. In **Sitemaps**, submit `https://YOUR-DOMAIN/sitemap.xml`. Check that the submission succeeds and that discovered URLs appear. Keep authentication callbacks, previews and nonexistent pages out of the sitemap.
 4. Use **URL inspection** on the homepage, `/docs/next`, `/docs/next/aircraft-editor` and `/docs/next/radio-setup`. Inspect the live URL and rendered HTML. If a page is eligible but not indexed, request indexing once. Repeated requests do not speed up the queue.
 5. Check **Page indexing** for exclusions and **Performance → Search results** for impressions, queries, clicks and pages. Track terms such as `free RC flight simulator`, `open source RC flight simulator`, `browser RC simulator` and `RC transmitter simulator`. Vercel visitor analytics does not establish whether Google has indexed a page.
 

@@ -1,0 +1,117 @@
+/*
+ * Theme: the one place for colour, type, radius and shadow values.
+ * Every hex colour of the interface lives here as a palette token (--p-*);
+ * the rest of the CSS uses the semantic tokens (--ui-*, --accent-*, ...)
+ * or, for one-off tints, the palette tokens.
+ *
+ * Palette: warm charcoal neutrals with a Manisa/Aegean sunset terracotta
+ * accent and a sea-teal secondary. Fonts are bundled locally (Fontsource,
+ * SIL OFL): Sora for headings, Figtree for body text.
+ */
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+@import "@fontsource/figtree/400.css";
+@import "@fontsource/figtree/500.css";
+@import "@fontsource/figtree/600.css";
+
+:root {
+  /* Raw palette ------------------------------------------------------- */
+  --p-black: #000000;
+  --p-white: #ffffff;
+  --p-n950: #0f0d0b;
+  --p-n900: #14110f;
+  --p-n850: #1b1714;
+  --p-n800: #221d19;
+  --p-n750: #2b2520;
+  --p-n700: #362e28;
+  --p-n600: #4d433b;
+  --p-n500: #6f6358;
+  --p-n400: #94867a;
+  --p-n300: #b9ab9c;
+  --p-n200: #d8cdc1;
+  --p-n150: #e8dfd5;
+  --p-n100: #f1ebe4;
+  --p-n50: #f8f4ef;
+  --p-accent-300: #f2a983;
+  --p-accent-400: #ea8a5a;
+  --p-accent-500: #e0703a;
+  --p-accent-600: #c4582a;
+  --p-accent-700: #9a4420;
+  --p-amber-300: #f5d08a;
+  --p-amber-500: #e8b04a;
+  --p-amber-700: #a8761f;
+  --p-teal-300: #8fd3cf;
+  --p-teal-500: #3fa7a3;
+  --p-teal-700: #2a726f;
+  --p-blue-300: #9cc3ea;
+  --p-blue-500: #4a8fd1;
+  --p-blue-700: #2c5f94;
+  --p-green-300: #a8d9a0;
+  --p-green-500: #6dbb6a;
+  --p-green-700: #3f7c3c;
+  --p-red-300: #f2aaa3;
+  --p-red-500: #e5534b;
+  --p-red-700: #a3332d;
+  --p-violet-300: #c9b8ef;
+  --p-violet-500: #9b7fd6;
+  --p-violet-700: #61479e;
+
+  /* Typography -------------------------------------------------------- */
+  --font-heading: "Sora", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Shape and depth --------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px #0000004d, 0 2px 8px #00000033;
+  --shadow-2: 0 8px 28px #00000059, 0 2px 6px #00000040;
+
+  /* Semantic tokens: dark theme (default) ------------------------------ */
+  --ui-bg: var(--p-n900);
+  --ui-panel: var(--p-n850);
+  --ui-raised: var(--p-n800);
+  --ui-hover: var(--p-n750);
+  --ui-border: var(--p-n700);
+  --ui-border-strong: var(--p-n600);
+  --ui-text: var(--p-n100);
+  --ui-muted: var(--p-n300);
+  --ui-faint: var(--p-n400);
+  --ui-accent: var(--p-accent-500);
+  --ui-accent-hover: var(--p-accent-400);
+  --ui-on-accent: var(--p-n950);
+  --ui-secondary: var(--p-teal-500);
+  --ui-selection: var(--p-n750);
+  --ui-inverse: var(--p-n950);
+  --ui-success: var(--p-green-500);
+  --ui-warning: var(--p-amber-500);
+  --ui-danger: var(--p-red-500);
+  --ui-focus: var(--p-amber-300);
+  --ui-header-height: 56px;
+}
+
+:root[data-theme="light"] {
+  --ui-bg: var(--p-n50);
+  --ui-panel: var(--p-white);
+  --ui-raised: var(--p-n100);
+  --ui-hover: var(--p-n150);
+  --ui-border: var(--p-n200);
+  --ui-border-strong: var(--p-n400);
+  --ui-text: var(--p-n900);
+  --ui-muted: var(--p-n600);
+  --ui-faint: var(--p-n500);
+  --ui-accent: var(--p-accent-600);
+  --ui-accent-hover: var(--p-accent-700);
+  --ui-on-accent: var(--p-white);
+  --ui-secondary: var(--p-teal-700);
+  --ui-selection: var(--p-n150);
+  --ui-inverse: var(--p-white);
+  --ui-success: var(--p-green-700);
+  --ui-warning: var(--p-amber-700);
+  --ui-danger: var(--p-red-700);
+  --ui-focus: var(--p-accent-700);
+  --shadow-1: 0 1px 2px #2a1a0d1f, 0 2px 8px #2a1a0d14;
+  --shadow-2: 0 8px 28px #2a1a0d29, 0 2px 6px #2a1a0d1a;
+}

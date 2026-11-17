@@ -6,7 +6,7 @@ behaviour, resting contacts, units and penetration. It lists each defect with
 its cause, the fix and the test that covers it. All constants live in
 `src/core/physics-config.ts`.
 
-RCForge simulates one rigid aircraft (6 degrees of freedom) with wheel, skid
+The simulator simulates one rigid aircraft (6 degrees of freedom) with wheel, skid
 and airframe contacts on a flat field, plus scenery obstacles. Checklist items
 written for many interacting bodies are adapted: stacking, sleeping piles and
 "1000 bodies" become resting-contact and 1000-flight stress tests. See
@@ -135,8 +135,7 @@ summed. `Forces.propellerGyro` and `Forces.pFactor` report the totals.
 
 **Spin convention.** This is unchanged from the reaction torque. A fixed-wing
 `"cw"` propeller turns clockwise seen from the cockpit, so its angular velocity
-direction ŝ is along the thrust axis ê. A multirotor or VTOL `"cw"` rotor turns
-clockwise seen from above, so ŝ = −ê. The tilted thrust line from
+direction ŝ is along the thrust axis ê. The tilted thrust line from
 `downThrustDeg`/`rightThrustDeg` is used for ê.
 
 | Effect            | Formula                                                                           | Inputs (motor fields, units)                                                       |
@@ -175,8 +174,8 @@ ft-tiny-trainer and vt-simple-trainer now declare `spin: "cw"`, k_p = 0.3 and:
 - `maxRpm` from the zero-thrust speed and propeller pitch, cross-checked against
   KV × 11.1 V × 0.75.
 
-These are engineering estimates, not measurements. Twins, quads and the
-tiltrotor keep no propeller parameters.
+These are engineering estimates, not measurements. Twins keep no propeller
+parameters.
 
 **Trim.** A real model needs aileron or rudder trim against propeller torque.
 `findTrim` now solves those offsets so that roll and yaw moments are zero in
@@ -504,7 +503,6 @@ and reads "gust" while one blows.
   - torsional vibration;
   - motor electrical dynamics: battery current still follows the command
     curve, and P(c) scales with the voltage ratio through Ω_c;
-  - tiltrotor VTOL shaft dynamics (rejected by the schema);
   - gust gradients along the airframe.
 
   `responseSeconds` now acts as the ESC command smoothing in front of the

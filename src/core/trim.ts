@@ -1,5 +1,3 @@
-import { findVtolHoverTrim } from "./vtol-trim";
-import { vtolMotorIndices } from "./vtol";
 import type { Aircraft } from "./schema";
 import { surfaceCommand } from "./surface-control";
 import {
@@ -34,51 +32,11 @@ export function findTrim(
   speed = a.reference.trimSpeedMps ?? 12,
   environment = calmEnvironment(),
   flightPathDeg = 0,
-  vtolMode: "hover" | "cruise" = "hover",
 ) {
   // Trim the mean flow: a random turbulence sample is not an operating point.
   if (environment.turbulence)
     environment = { ...environment, turbulence: undefined };
-  if (a.vtol && vtolMode === "hover") return findVtolHoverTrim(a, environment);
   const sim = new Simulation(a, environment);
-  const prepareCruise = (s: ReturnType<typeof initialState>) => {
-    if (s.vtol) {
-      s.vtol.phase = "cruise";
-      s.vtol.requestedMode = "cruise";
-      s.vtol.commonTiltDeg = 90;
-      s.vtol.tiltDeg = [90, 90];
-      s.motors[vtolMotorIndices(a)[2]] = 0;
-    }
-  };
-  if (a.vehicleType === "multirotor") {
-    let lo = 0,
-      hi = 1;
-    const trial = initialState(a, 0, 3, 0);
-    for (let n = 0; n < 45; n++) {
-      const mid = (lo + hi) / 2;
-      trial.motors.fill(mid);
-      const f = sim.forces(trial, { roll: 0, pitch: 0, yaw: 0, throttle: mid });
-      if (-f.force[2] < sim.properties.mass * GRAVITY) lo = mid;
-      else hi = mid;
-    }
-    const throttle = (lo + hi) / 2,
-      controls = { roll: 0, pitch: 0, yaw: 0, throttle: clamp(throttle, 0, 1) },
-      state = initialState(a, 0, 3, 0);
-    state.motors.fill(controls.throttle);
-    const f = sim.forces(state, controls),
-      residual: [number, number, number] = [
-        f.force[2] + sim.properties.mass * GRAVITY,
-        f.torque[0],
-        f.torque[1],
-      ];
-    return {
-      controls,
-      state,
-      converged: throttle < 1 && Math.hypot(...residual) < 0.01,
-      residual,
-      pitchDeg: 0,
-    };
-  }
   const flightPath = radians(flightPathDeg);
   // Steady flight moves with the air mass: the requested speed is airspeed
   // along local +X, and the ground velocity adds the mean wind at trim height.
@@ -104,7 +62,6 @@ export function findTrim(
     const s = withSideslip(initialState(a, speed, TRIM_HEIGHT_M, x[0]), lat[2]);
     s.velocity = [...velocity];
     s.motors.fill(x[2]);
-    prepareCruise(s);
     return {
       s,
       f: sim.forces(s, {
@@ -156,7 +113,7 @@ export function findTrim(
   // aircraft skip this and keep exactly zero lateral trim.
   // A rudder-only (or aileron-only) model balances the roll and yaw moments
   // with a small sideslip instead; that sideslip is then the third unknown.
-  if (!a.vtol) {
+  {
     const lateralResidual = (lat: Vec3) => {
       const { f } = loads(x, lat);
       return [f.torque[0], f.torque[2]] as [number, number];
@@ -223,9 +180,6 @@ export function findTrim(
   );
   state.velocity = [...velocity];
   state.motors.fill(x[2]);
-  prepareCruise(state);
-  if (a.vtol)
-    controls.vtol = { mode: "cruise", assistance: a.vtol.defaultAssistance };
   state.surfaceCommands = a.surfaces.map((s) =>
     s.control ? surfaceCommand(s.control, controls) : 0,
   );

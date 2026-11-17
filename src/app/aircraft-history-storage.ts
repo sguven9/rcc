@@ -12,8 +12,9 @@ import {
   type AircraftHistory,
   type AircraftRevision,
 } from "../core/aircraft-history";
+import { storageKey } from "../config/brand";
 
-const prefix = "rcforge.aircraft-history.v1.";
+const prefix = storageKey("aircraft-history.v1.");
 type HistoryStorage = Pick<Storage, "getItem" | "setItem">;
 const storageOrDefault = (storage?: HistoryStorage) =>
   storage ?? globalThis.localStorage;
@@ -24,7 +25,7 @@ export function readAircraftHistory(
   const text = storageOrDefault(storage).getItem(prefix + id);
   if (text === null)
     return {
-      format: "rcforge-aircraft-history",
+      format: "aircraft-history",
       formatVersion: HISTORY_FORMAT_VERSION,
       aircraftId: id,
       nextRevision: 1,

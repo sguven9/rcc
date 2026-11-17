@@ -25,7 +25,7 @@ const memory = () => {
     setItem: (key: string, value: string) => void values.set(key, value),
   };
 };
-const key = `rcforge.aircraft-history.v1.${bronco.id}`;
+const key = `rcsim.aircraft-history.v1.${bronco.id}`;
 describe("aircraft revision persistence", () => {
   it("saves the starting setup before the first change and keeps independent immutable snapshots", () => {
     const storage = memory(),
@@ -134,7 +134,7 @@ describe("aircraft revision persistence", () => {
     }
     storage.values.clear();
     saveAircraftRevision({ ...base(), id: "other-plane" }, {}, storage);
-    const other = storage.getItem("rcforge.aircraft-history.v1.other-plane")!;
+    const other = storage.getItem("rcsim.aircraft-history.v1.other-plane")!;
     storage.setItem(key, other);
     expect(() => saveAircraftRevision(base(), {}, storage)).toThrow(
       "another aircraft",

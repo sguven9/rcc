@@ -1,4 +1,4 @@
-# Component fidelity in RCForge 0.7
+# Component fidelity in the simulator 0.7
 
 The schema remains aircraft format 1 with optional extensions. Simulation version 0.7.1 rejects recordings from earlier physics versions. These features support measured inputs; their existence does not make an aircraft flight-test calibrated.
 
@@ -6,7 +6,7 @@ The schema remains aircraft format 1 with optional extensions. Simulation versio
 
 `parts` is the single mass ledger. Battery/electronics definitions must reference existing components, never add their mass a second time. `massKg` remains authoritative. `material: { name, densityKgM3?, finish? }`, `manufacturer` and `model` describe the build. A coding agent can calculate mass from measured material density and actual material volume, but density is not multiplied by the bounding-box volume automatically: foamboard shells, composite laminates and electronics are not solid boxes. `finish` is descriptive metadata; it does not create stiffness or strength.
 
-By default, local component inertia is a uniform cuboid derived from `sizeM`. Supply `inertiaDiagonalKgM2: [Ixx,Iyy,Izz]` for measured/CAD principal moments and `orientationDeg: [roll,pitch,yaw]` for the principal frame relative to the body (Rz Ry Rx). RCForge rotates the tensor then applies the parallel-axis theorem about the total CG. Position is the component CG, not a CAD mesh origin. Principal moments must be positive and satisfy the triangle inequalities. Total-mass edits scale supplied inertia; span edits discard affected structural-component inertia overrides and recalculate a box estimate. Material names alone never alter flight physics.
+By default, local component inertia is a uniform cuboid derived from `sizeM`. Supply `inertiaDiagonalKgM2: [Ixx,Iyy,Izz]` for measured/CAD principal moments and `orientationDeg: [roll,pitch,yaw]` for the principal frame relative to the body (Rz Ry Rx). The simulator rotates the tensor then applies the parallel-axis theorem about the total CG. Position is the component CG, not a CAD mesh origin. Principal moments must be positive and satisfy the triangle inequalities. Total-mass edits scale supplied inertia; span edits discard affected structural-component inertia overrides and recalculate a box estimate. Material names alone never alter flight physics.
 
 Component positions affect CG and torque arms in all three axes. The editor's Components workspace exposes component masses, material descriptions and the calculated CG beside the assembled model. Its selected installation envelope uses `positionM`, `sizeM` and component orientation; it is a mass envelope, not collision geometry. The editor's longitudinal CG control moves the battery. The model is rigid; it does not simulate foam flex, carbon laminate failure, fastener failure or crush damage.
 
@@ -14,8 +14,7 @@ The installation panel exposes battery and servo roll/pitch/yaw. These rotate th
 component envelope and its visible assembly about its own mass center using the
 same Rz Ry Rx convention as inertia. Battery labels/straps follow the pack;
 servo horns remain children of the rotated housing. Fixed-wing body/boom lofts
-also honor their authored component orientation. Quad battery, arm and ESC
-construction retains these transforms through static batching.
+also honor their authored component orientation.
 
 Aerodynamic surfaces have separately authored angles, and the current motor
 thrust directions remain fixed to the vehicle convention. A component mass-frame
@@ -24,7 +23,7 @@ and housing detail are approximations, not a mechanical installation solver.
 
 ## Battery + motor/prop combination
 
-See `aircraft/quad-x-6s.json` for a complete, deliberately **estimated** 650 g example. Its frame, ESC, flight controller, camera, video transmitter, receiver, wiring, hardware, battery and motors are distinct mass components.
+See `aircraft/ft-tiny-trainer.json` for a complete, deliberately **estimated** example. Its airframe, ESC, receiver, servos, wiring, battery, motor and propeller are distinct mass components.
 
 A `battery` provides:
 
@@ -42,7 +41,7 @@ Sources for the physical approach: [MathWorks equivalent-circuit model](https://
 
 ## Aerodynamics and servos
 
-Optional surface `polar` samples are `{alphaDeg,cl,cd,cm}` in increasing angle order. Alpha is the geometric angle including incidence and equivalent control deflection, **not** shifted by `zeroLiftDeg`. Samples must describe total finite-wing coefficients at the intended Reynolds number (including induced drag). RCForge does not add its analytical induced drag on top of table drag. Outside the table, coefficients blend over 12 degrees into the existing approximate high-angle model. Reynolds-dependent tables are described below; Mach interpolation and unsteady stall are not implemented. Unprovided polars retain the estimated analytic model. Lift and drag follow [NASA's aerodynamic force formulation](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/lift-equation/).
+Optional surface `polar` samples are `{alphaDeg,cl,cd,cm}` in increasing angle order. Alpha is the geometric angle including incidence and equivalent control deflection, **not** shifted by `zeroLiftDeg`. Samples must describe total finite-wing coefficients at the intended Reynolds number (including induced drag). The simulator does not add its analytical induced drag on top of table drag. Outside the table, coefficients blend over 12 degrees into the existing approximate high-angle model. Reynolds-dependent tables are described below; Mach interpolation and unsteady stall are not implemented. Unprovided polars retain the estimated analytic model. Lift and drag follow [NASA's aerodynamic force formulation](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/lift-equation/).
 
 Optional control `responseSeconds` and `rateLimitDegS` model first-order servo response capped at physical travel speed. Actual deflections feed forces and animated surfaces; transient deflections survive replay. The Bronco and Tiny Trainer use explicitly estimated micro-servo parameters.
 
@@ -85,8 +84,7 @@ The shaft-speed ratio comes from the bench curve: static thrust ∝ n², so
 `n/n_max = √(T_bench/T_max)`, scaled by terminal voltage. Above the zero-thrust
 speed the factor turns negative and the propeller brakes. That drag,
 `T0·r·(V/V0 − r)`, is bounded and vanishes at idle, so closing the throttle
-slows the aircraft and lowers the nose as on a real model. The VTOL rotor model
-keeps its earlier full-speed falloff.
+slows the aircraft and lowers the nose as on a real model.
 
 With this change, raising the throttle 15 % above cruise trim gives a steady
 4–25° climb at roughly constant airspeed on every fixed-wing preset, which is
@@ -283,7 +281,7 @@ external catalog IDs remain readable even without their catalog installed.
 All bundled aircraft now include battery discharge. The FT-22 uses the Robu-listed
 85 g Orange 3S 1000 mAh pack dimensions; this is a selectable reference setup, not
 proof of the battery used in the original Flite Test build. Other original pack
-capacities and resistances remain assumptions. Plane/basic-quad current tables
+capacities and resistances remain assumptions. Current tables
 are deliberately estimated using ideal static induced power:
 
 `Pideal = T × sqrt(T / (2 × rho × diskArea))`
@@ -291,14 +289,14 @@ are deliberately estimated using ideal static induced power:
 `Iestimate = Pideal / (0.45 × nominalVoltage) + 0.2 × command`
 
 The momentum-theory basis is described by [NASA](https://www.grc.nasa.gov/WWW/K-12/BGP/propth.html).
-The 0.45 overall factor and no-load term are RCForge assumptions, not NASA data or
+The 0.45 overall factor and no-load term are the simulator assumptions, not NASA data or
 measured motor efficiencies. Thrust tables retain the previous linear estimated
 command mapping. Replace both thrust and current with matching bench samples.
 Forward-flight current, dynamic prop loading and servo electrical loads remain
 unresolved. More series cells uses approximate voltage scaling, not evidence that
 an actual motor/ESC can use that pack.
 
-Fixed throttle does not maintain exact hover/level trim as pack voltage falls.
+Fixed throttle does not maintain exact level trim as pack voltage falls.
 Constant-voltage tests isolate force equilibrium; discharge tests separately check
 charge conservation, mass independence, falling available thrust and replay.
 Changing mAh does not change weight automatically, and charge depletion does not
@@ -319,15 +317,15 @@ The flat-ground solver now accumulates each contact's normal and friction impuls
 within the existing eight iterations. It projects the accumulated totals onto
 the unilateral/friction limits and applies the difference, allowing a later
 iteration to undo excess impulse. Previously only positive increments were
-allowed for support, and each friction budget used that increment. A motors-off
-Quad 450 could rotate approximately 11.65° in 20 seconds. The corrected same-case
-run drifts about 0.00082° with micrometre-scale horizontal travel.
+allowed for support, and each friction budget used that increment, so a
+motors-off aircraft could slowly rotate on its contacts. The corrected solver
+holds it within hundredths of a degree.
 
 This follows the accumulated-impulse principle described in
 [Erin Catto's Solver2D](https://box2d.org/posts/2024/02/solver2d/). It retains the
 same step, contact geometry, eight iterations, friction coefficients and position
 correction. There is no between-step warm starting or new collision backend.
-Stationary tests include three quads, rotated headings and reversed contact order;
+Stationary tests use the Simple Trainer with rotated headings and reversed contact order;
 wheel takeoff, gentle touchdown and surface friction regressions remain required.
 
 Ground-contact trajectories change, so simulation/recording version is **0.7.1**.
@@ -339,9 +337,3 @@ format 1 and local aircraft/controller preferences remain compatible.
 ## Camera mounts and pilot controls
 
 See [FPV and control setup](fpv-and-control-setup.md) for optional `fpv` and `pilotResponse` fields, the camera mass/pose contract, configurable surface mixers, and live servo/linkage testing in the editor.
-
-## Tricopter components and placement
-
-The [Bronco VTOL](bronco-vtol.md) references three installed servo IDs. The two front servos have 0–90° conversion travel; the rear servo sets sideways yaw lean. Each servo, motor, propeller, ESC, bracket and support contributes to the mass ledger once. Manufacturer/retailer speed is a no-load reference, not a simulated torque-versus-speed curve.
-
-In Components, recognizable part icons identify the equipment. **Move on model** opens a cancelable placement view with body-axis handles, precise coordinates and live CG feedback. **Use placement** changes the draft; **Apply to flight** adopts it and saves history. Motor/prop pairs move with their force station; structural surfaces remain separately authored. Hover headroom can be recalculated for VTOL after placement.

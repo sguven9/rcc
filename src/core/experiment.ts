@@ -1,5 +1,4 @@
 import { ObstaclesSchema } from "./obstacles";
-import { VtolCommandSchema, VtolStateSchema } from "./vtol-config";
 import { z } from "zod";
 import { AircraftSchema, type Aircraft } from "./schema";
 import {
@@ -16,19 +15,13 @@ import { powertrain } from "./powertrain";
 import { batteryUsage } from "./components";
 import { REPLAY_COMPATIBLE_SIM_VERSIONS } from "./versions";
 export type Scenario =
-  | "cruise"
-  | "glide"
-  | "pitch-pulse"
-  | "roll-pulse"
-  | "stall"
-  | "vtol-transition";
+  "cruise" | "glide" | "pitch-pulse" | "roll-pulse" | "stall";
 export const scenarios: Scenario[] = [
   "cruise",
   "glide",
   "pitch-pulse",
   "roll-pulse",
   "stall",
-  "vtol-transition",
 ];
 export interface Sample {
   time: number;
@@ -38,9 +31,6 @@ export interface Sample {
   rollDeg: number;
   pitchDeg: number;
   throttle: number;
-  vtolTiltDeg?: number;
-  vtolRearMotor?: number;
-  vtolRearTiltDeg?: number;
   batterySoc?: number;
   batteryVoltageV?: number;
   batteryCurrentA?: number;
@@ -75,18 +65,6 @@ export function sample(sim: Simulation, c: Controls): Sample {
     rollDeg: degrees(angles[0]),
     pitchDeg: degrees(angles[1]),
     throttle: c.throttle,
-    ...(s.vtol
-      ? {
-          vtolTiltDeg: (s.vtol.tiltDeg[0] + s.vtol.tiltDeg[1]) / 2,
-          vtolRearTiltDeg: s.vtol.rearTiltDeg,
-          vtolRearMotor:
-            s.motors[
-              sim.aircraft.motors.findIndex(
-                (m) => m.id === sim.aircraft.vtol!.rearMotorId,
-              )
-            ],
-        }
-      : {}),
     ...(electrical
       ? {
           batterySoc: s.batterySoc!,
@@ -128,29 +106,11 @@ export function runExperiment(
     throw new Error(
       "Choose a known scenario and a duration in (0, 300] seconds",
     );
-  if (
-    aircraft.vehicleType === "multirotor" &&
-    ["stall", "glide"].includes(scenario)
-  )
-    throw new Error(
-      "Use cruise (hover), pitch-pulse or roll-pulse for multirotors",
-    );
-  if (scenario === "vtol-transition" && !aircraft.vtol)
-    throw new Error("Transition requires a VTOL aircraft");
-  if (aircraft.vtol && ["stall", "glide"].includes(scenario))
-    throw new Error(
-      "Use VTOL hover or transition scenarios; fixed-wing open-loop stall/glide does not describe assisted VTOL",
-    );
   const trim = findTrim(
     aircraft,
     aircraft.reference.trimSpeedMps ?? 12,
     environment,
   );
-  if (scenario === "vtol-transition") {
-    trim.state.position[2] = -15;
-    trim.state.vtol!.altitudeTargetM = 15;
-    trim.state.vtol!.positionTarget = [...trim.state.position];
-  }
   const sim = new Simulation(aircraft, environment, trim.state);
   const recording = createRecording(sim);
   for (
@@ -160,11 +120,6 @@ export function runExperiment(
   ) {
     const t = sim.state.time;
     const c: Controls = { ...trim.controls };
-    if (scenario === "vtol-transition")
-      c.vtol = {
-        mode: t >= 3 && t < 24 ? "cruise" : "hover",
-        assistance: aircraft.vtol!.defaultAssistance,
-      };
     if (scenario === "glide") c.throttle = 0;
     if (scenario === "pitch-pulse" && t >= 2 && t < 3)
       c.pitch = Math.min(1, c.pitch + 0.25);
@@ -199,7 +154,6 @@ const finite = z.number().finite(),
   vec = z.tuple([finite, finite, finite]);
 const control = z
   .object({
-    vtol: VtolCommandSchema.optional(),
     roll: finite.min(-1).max(1),
     pitch: finite.min(-1).max(1),
     yaw: finite.min(-1).max(1),
@@ -209,6 +163,12 @@ const control = z
   })
   .strict();
 export function parseRecording(raw: unknown): Recording {
+  const type = (raw as { aircraft?: { vehicleType?: unknown } } | null)
+    ?.aircraft?.vehicleType;
+  if (type !== undefined && type !== "fixed-wing")
+    throw new Error(
+      "Multirotor and VTOL recordings are not supported: this simulator flies fixed-wing aircraft only",
+    );
   const r = z
     .object({
       formatVersion: z.literal(1),
@@ -267,7 +227,6 @@ export function parseRecording(raw: unknown): Recording {
           motors: z.array(finite.min(0).max(1)),
           batterySoc: finite.min(0).max(1).optional(),
           surfaceCommands: z.array(finite.min(-1).max(1)).optional(),
-          vtol: VtolStateSchema.optional(),
           rotorRadS: z.array(finite.min(0)).optional(),
           rotorPitch: z.array(finite).optional(),
           fcIntegral: z.tuple([finite, finite, finite]).optional(),
@@ -286,9 +245,6 @@ export function parseRecording(raw: unknown): Recording {
             rollDeg: finite,
             pitchDeg: finite,
             throttle: finite,
-            vtolTiltDeg: finite.min(0).max(90).optional(),
-            vtolRearMotor: finite.min(0).max(1).optional(),
-            vtolRearTiltDeg: finite.min(-30).max(30).optional(),
             batterySoc: finite.min(0).max(1).optional(),
             batteryVoltageV: finite.min(0).max(120).optional(),
             batteryCurrentA: finite.min(0).optional(),
@@ -306,8 +262,6 @@ export function parseRecording(raw: unknown): Recording {
     r.initialState.surfaceCommands.length !== r.aircraft.surfaces.length
   )
     throw new Error("Recording servo count does not match aircraft");
-  if (!!r.aircraft.vtol !== !!r.initialState.vtol)
-    throw new Error("Recording VTOL state does not match aircraft");
   return upgradeRecording(r);
 }
 /**
@@ -370,14 +324,9 @@ function upgradeRecording<R extends { simulationVersion: string }>(
     return false;
   };
   // 0.14.0 changed the slipstream over wings and tails (fuselage blockage,
-  // finite jet height): older propeller-driven fixed-wing flights would replay
-  // differently, so they are rejected. Multirotors, VTOL and gliders replay.
-  if (
-    before(r.simulationVersion, "0.14.0") &&
-    r.aircraft.motors.length > 0 &&
-    !r.aircraft.vtol &&
-    r.aircraft.vehicleType !== "multirotor"
-  )
+  // finite jet height): older propeller-driven flights would replay
+  // differently, so they are rejected. Gliders replay.
+  if (before(r.simulationVersion, "0.14.0") && r.aircraft.motors.length > 0)
     throw new Error(
       `Recording ${r.simulationVersion}: the propeller slipstream model changed in 0.14.0`,
     );
@@ -404,9 +353,6 @@ export function samplesToCsv(samples: Sample[]): string {
     "throttle",
   ];
   for (const key of [
-    "vtolTiltDeg",
-    "vtolRearMotor",
-    "vtolRearTiltDeg",
     "batterySoc",
     "batteryVoltageV",
     "batteryCurrentA",

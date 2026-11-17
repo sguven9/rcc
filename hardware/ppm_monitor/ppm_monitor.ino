@@ -1,8 +1,8 @@
-/* RCForge trainer PPM diagnostic — classic ATmega328P Nano / Uno.
+/* the simulator trainer PPM diagnostic — classic ATmega328P Nano / Uno.
  * Verified PPM OUT -> 1k resistor -> D2; 47k D2 -> GND; common GND.
  * USB powers Nano; transmitter uses its batteries. NO transmitter VCC wire.
  * See docs/trainer-nano.md before connecting. Never probe unknown pins with D2.
- * Serial Monitor: 115200 baud. Diagnostic text only, NOT the RCForge protocol.
+ * Serial Monitor: 115200 baud. Diagnostic text only, NOT the protocol.
  */
 #include <Arduino.h>
 #include <util/atomic.h>
@@ -56,7 +56,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
   attachInterrupt(digitalPinToInterrupt(2), onPpmEdge, RISING);
-  Serial.println(F("RCForge PPM monitor | D2 | 115200 baud | diagnostic only"));
+  Serial.println(F("The simulator PPM monitor | D2 | 115200 baud | diagnostic only"));
 }
 
 void loop() {

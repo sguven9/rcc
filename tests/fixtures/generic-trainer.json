@@ -6,7 +6,7 @@
   "provenance": {
     "design": {
       "status": "estimated",
-      "note": "Original RCForge example. All geometry, mass allocation and flight coefficients are estimates. Not a validated real aircraft."
+      "note": "Original simulator example. All geometry, mass allocation and flight coefficients are estimates. Not a validated real aircraft."
     },
     "servoAssembly": {
       "status": "estimated",

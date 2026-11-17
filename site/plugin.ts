@@ -1,4 +1,5 @@
 import { indexMetadata } from "./seo.ts";
+import { BRAND } from "../src/config/brand.ts";
 import type { Plugin } from "vite";
 import { buildDocs, type SiteFile } from "./build.ts";
 import { cachedPlan, readReferences } from "../references/library.ts";
@@ -11,10 +12,15 @@ export function documentationPlugin(): Plugin {
   let cached: Map<string, SiteFile> | undefined;
   const content = () => (cached ??= buildDocs(root, true));
   return {
-    name: "rcforge-documentation",
+    name: "app-documentation",
     transformIndexHtml: {
       order: "pre",
-      handler: (html) => html.replace("<!-- rcforge:seo -->", indexMetadata()),
+      handler: (html) =>
+        html
+          .replace("<!-- app:seo -->", indexMetadata())
+          .replaceAll("%APP_NAME%", BRAND.name)
+          .replaceAll("%APP_TAGLINE%", BRAND.tagline)
+          .replaceAll("%APP_THEME_COLOR%", BRAND.themeColor),
     },
     configResolved(config) {
       root = config.root;
@@ -132,11 +138,10 @@ export function documentationPlugin(): Plugin {
               : new Uint8Array(file.data),
         });
       for (const [name, path] of Object.entries({
-        "RCForge-MIT.txt": "LICENSE",
+        "LICENSE.txt": "LICENSE",
         "THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
-        "DM-Sans-OFL.txt": "node_modules/@fontsource/dm-sans/LICENSE",
-        "Space-Grotesk-OFL.txt":
-          "node_modules/@fontsource/space-grotesk/LICENSE",
+        "Sora-OFL.txt": "node_modules/@fontsource/sora/LICENSE",
+        "Figtree-OFL.txt": "node_modules/@fontsource/figtree/LICENSE",
         "Three-MIT.txt": "node_modules/three/LICENSE",
         "Zod-MIT.txt": "node_modules/zod/LICENSE",
       }))

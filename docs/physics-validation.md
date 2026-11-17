@@ -3,7 +3,7 @@
 Looking for the results first? [Benchmarks & evidence](benchmarks.md) explains
 the current numbers in plain language. This guide covers the commands and methods.
 
-These are separate questions: **does the implementation solve the intended model consistently?** and **does that model reproduce a real vehicle?** RCForge currently has evidence for the first. A separate JSBSim suite now checks independent implementation agreement for matched subsystem cases. Real-flight calibration and complete hardware/controller verification remain pending.
+These are separate questions: **does the implementation solve the intended model consistently?** and **does that model reproduce a real vehicle?** the simulator currently has evidence for the first. A separate JSBSim suite now checks independent implementation agreement for matched subsystem cases. Real-flight calibration and complete hardware/controller verification remain pending.
 
 ## 1. Repeatable numerical verification
 
@@ -15,20 +15,20 @@ npm run physics:validate
 npm run physics:envelope
 ```
 
-`physics:validate` discovers all `aircraft/*.json` files or accepts an aircraft ID/JSON path. It writes `results/validation/report.json` and `report.html`, including the simulator version and a SHA-256 digest of aircraft definitions. It checks equilibrium residuals, ten-second equilibrium drift at fixed battery SOC, recorded-input replay, timestep convergence against 480 Hz, an analytical free-fall case, analytical quadratic-drag descent, exact first-order actuator response, torque-free angular momentum/energy conservation, and yaw-coordinate invariance. A separately implemented 1 kHz RK4 integrator also compares airplane trajectories using the shared force model. Tests additionally cover force/control signs, mass/inertia, landing/takeoff, input normalization and multirotor control behavior.
+`physics:validate` discovers all `aircraft/*.json` files or accepts an aircraft ID/JSON path. It writes `results/validation/report.json` and `report.html`, including the simulator version and a SHA-256 digest of aircraft definitions. It checks equilibrium residuals, ten-second equilibrium drift at fixed battery SOC, recorded-input replay, timestep convergence against 480 Hz, an analytical free-fall case, analytical quadratic-drag descent, exact first-order actuator response, torque-free angular momentum/energy conservation, and yaw-coordinate invariance. A separately implemented 1 kHz RK4 integrator also compares airplane trajectories using the shared force model. Tests additionally cover force/control signs, mass/inertia, landing/takeoff and input normalization.
 
 The convergence reference and replay use the same implementation, so they detect integration/serialization problems, not shared errors in aerodynamic assumptions. The free-fall, quadratic drag and actuator cases compare against analytical solutions. RK4 agreement checks the integrator but does not independently validate aerodynamic coefficients. This report does not run the independent backend; that evidence lives in the separate reference report.
 
 ## 2. Independent model comparison
 
-Run `npm run physics:reference` after installing its optional Python requirements. It executes native JSBSim against all bundled aircraft in reduced mass, aerodynamic, gravity, rotation and propulsion cases, plus native wind-axis examples. Read [Compare with JSBSim](physics-reference.md) for setup, tolerances, source references and explicit exclusions. The browser continues to use RCForge. Agreement checks implementation consistency under shared model assumptions; it does not establish the accuracy of estimated aircraft coefficients.
+Run `npm run physics:reference` after installing its optional Python requirements. It executes native JSBSim against all bundled aircraft in reduced mass, aerodynamic, gravity, rotation and propulsion cases, plus native wind-axis examples. Read [Compare with JSBSim](physics-reference.md) for setup, tolerances, source references and explicit exclusions. The browser continues to use the simulator. Agreement checks implementation consistency under shared model assumptions; it does not establish the accuracy of estimated aircraft coefficients.
 
-For actual flight-controller software, PX4 supports software-in-the-loop and hardware-in-the-loop integration with sensor/actuator messages: https://docs.px4.io/main/en/simulation/ . RCForge does not currently implement that bridge. It would need sensor models, timestamps, actuator interfaces and an explicit controller/backend selection.
+For actual flight-controller software, PX4 supports software-in-the-loop and hardware-in-the-loop integration with sensor/actuator messages: https://docs.px4.io/main/en/simulation/ . The simulator does not currently implement that bridge. It would need sensor models, timestamps, actuator interfaces and an explicit controller/backend selection.
 
 ### Published NASA rotation reference
 
 This additional check uses externally published trajectories, rather than generating
-the reference from RCForge's equations. It needs Node and network access for the
+the reference from the simulator's equations. It needs Node and network access for the
 first download; subsequent runs use the verified local cache:
 
 ```sh
@@ -46,12 +46,12 @@ Downloads and the report stay in `results/validation/nasa/`, outside the app bun
 
 The benchmark starts with inertial body rates of 10, 20 and 30 degrees/s. Its
 slightly different published local roll rate includes Earth's rotation; comparing
-that local value to RCForge's inertial angular rate would mix reference frames.
-RCForge's flat world cannot reproduce the full rotating-Earth/J2 trajectory.
+that local value to the simulator's inertial angular rate would mix reference frames.
+The simulator's flat world cannot reproduce the full rotating-Earth/J2 trajectory.
 Translation and local Euler angles are deliberately outside this comparison.
 This is a rotational-subsystem check, **not a full NASA check-case pass**.
 
-On September 8, 2026, the maximum angular-rate vector error at RCForge's 120 Hz
+On September 8, 2026, the maximum angular-rate vector error at the simulator's 120 Hz
 step was 0.004668 degrees/s across all five datasets. The engineering limit is
 0.01 degrees/s over this interval. Repeating at 240 Hz reduced the median maximum
 error to about one quarter. Individual references disagree slightly: errors
@@ -106,7 +106,7 @@ unverified; receiver PPM/PWM still needs a successful hardware test.
 
 Expanded verification runs in CI through `npm run physics:validate`. Current reports remain reproducible snapshots tied to definition hashes; their passing status is not an aerodynamic calibration label. The assumed surface polars, stall blend, propwash, thrust/speed curves and contact properties remain the largest gaps.
 
-Version 0.5 also checks the resistive battery circuit against V = Voc − IR, one-step coulomb counting, and deterministic electrical-state replay for every electrical definition. A declining battery is deliberately not treated as a constant-throttle hover equilibrium. These checks validate the implemented approximation, not the bench curves.
+Version 0.5 also checks the resistive battery circuit against V = Voc − IR, one-step coulomb counting, and deterministic electrical-state replay for every electrical definition. A declining battery is deliberately not treated as a constant-throttle equilibrium. These checks validate the implemented approximation, not the bench curves.
 
 ## Operating-point survey
 

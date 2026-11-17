@@ -37,13 +37,15 @@ describe("documentation renderer", () => {
     expect(html).toContain('aria-label="Scrollable table"');
     expect(html).toContain("printf &quot;&lt;script&gt;&quot;");
   });
-  it("keeps article and download links within the selected release, and pins code links", () => {
+  it("keeps article and download links within the selected release; source files are named, not linked", () => {
     const { html } = render(
       "[components](component-models.md#mass) [aircraft](../aircraft/ft-bronco.json) [code](../src/main.ts) [start](../README.md#get-started)",
     );
     expect(html).toContain('href="/docs/0.8.0/component-models/#mass"');
     expect(html).toContain('href="/docs/0.8.0/files/aircraft/ft-bronco.json"');
-    expect(html).toContain(`/blob/${"a".repeat(40)}/src/main.ts`);
+    // No outbound code-hosting links: the label stays, without a link.
+    expect(html).not.toContain("/blob/");
+    expect(html).toContain(">aircraft</a> code ");
     expect(html).toContain('href="/docs/0.8.0/"');
   });
   it("blocks raw HTML, executable URLs, outside paths and remote images", () => {

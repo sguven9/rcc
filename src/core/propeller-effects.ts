@@ -4,9 +4,7 @@
  *
  * Spin convention (unchanged from the existing reaction torque): a fixed-wing
  * "cw" propeller turns clockwise seen from behind (from the cockpit), so its
- * angular velocity points along the thrust axis. A multirotor or VTOL "cw"
- * rotor turns clockwise seen from above, so its angular velocity points
- * against the (upward) thrust axis.
+ * angular velocity points along the thrust axis.
  *
  * - Gyroscopic moment: H = I_p·Ω·ŝ, M_gyro = −ω × H (rigid body carrying a
  *   spinning rotor at constant rpm; the spin-up term I_p·dΩ/dt is folded into
@@ -28,11 +26,9 @@ type Motor = Aircraft["motors"][number];
 export function propellerSpinAxis(
   thrustAxis: Vec3,
   spin: Motor["spin"],
-  rotor: boolean,
 ): Vec3 | null {
   if (!spin) return null;
-  const sign = (spin === "cw" ? 1 : -1) * (rotor ? -1 : 1);
-  return scale(thrustAxis, sign);
+  return scale(thrustAxis, spin === "cw" ? 1 : -1);
 }
 
 /** Shaft speed Ω (rad/s) from the motor's rpm ratio n/n_max; 0 without `maxRpm`. */
@@ -89,7 +85,6 @@ export function propellerMoments(
   motor: Motor,
   options: {
     thrustAxis: Vec3;
-    rotor: boolean;
     omegaBody: Vec3;
     rpmRatio: number;
     thrustN: number;
@@ -100,7 +95,7 @@ export function propellerMoments(
   },
 ) {
   const zero: Vec3 = [0, 0, 0];
-  const axis = propellerSpinAxis(options.thrustAxis, motor.spin, options.rotor);
+  const axis = propellerSpinAxis(options.thrustAxis, motor.spin);
   if (!axis) return { gyro: zero, pFactor: zero };
   const spin = options.spinRadS ?? propellerSpeedRadS(motor, options.rpmRatio);
   const inertia = options.inertiaKgM2 ?? motor.propInertiaKgM2;

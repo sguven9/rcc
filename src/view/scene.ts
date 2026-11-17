@@ -574,8 +574,6 @@ export class FlightScene {
     c: Controls,
     dt: number,
     previewDeflections?: readonly number[],
-    previewTilts?: readonly number[],
-    previewRearTilt = 0,
   ) {
     if (!this.visual) return;
     if (!this.studio && this.pilotDestination) {
@@ -622,47 +620,12 @@ export class FlightScene {
         v.pivot.quaternion.setFromAxisAngle(v.hingeAxis, deflection);
       else v.pivot.rotation.y = deflection;
     }
-    for (const mount of this.visual.tiltMounts ?? []) {
-      if (
-        sim.aircraft.motors[mount.motorIndex].id ===
-        sim.aircraft.vtol!.rearMotorId
-      ) {
-        mount.pivot.rotation.x =
-          ((this.studio ? previewRearTilt : (s.vtol?.rearTiltDeg ?? 0)) *
-            Math.PI) /
-          180;
-        continue;
-      }
-      const front =
-        sim.aircraft.motors[mount.motorIndex].id ===
-        sim.aircraft.vtol!.frontLeftMotorId
-          ? 0
-          : 1;
-      const angle = this.studio
-        ? (previewTilts?.[front] ?? 0)
-        : (s.vtol?.tiltDeg[front] ?? 0);
-      mount.pivot.rotation.y = Math.PI / 2 - (angle * Math.PI) / 180;
-    }
     const rotorPower = powertrain(
       sim.aircraft,
       s.motors,
       s.batterySoc,
       sim.environment.densityKgM3,
     );
-    for (const horn of this.visual.tiltServoHorns ?? []) {
-      const config = sim.aircraft.vtol!;
-      const rear = horn.partId === config.rearServoPartId;
-      const i = horn.partId === config.leftServoPartId ? 0 : 1;
-      const angle = rear
-        ? this.studio
-          ? previewRearTilt
-          : (s.vtol?.rearTiltDeg ?? 0)
-        : this.studio
-          ? (previewTilts?.[i] ?? 0)
-          : (s.vtol?.tiltDeg[i] ?? 0);
-      horn.pivot.rotation.z =
-        ((angle * Math.PI) / 180) * (rear || i === 0 ? 1 : -1);
-    }
     this.visual.propellers.forEach(
       (p, i) =>
         (p.rotation.x +=

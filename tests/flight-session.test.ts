@@ -7,7 +7,6 @@ import {
 
 it("distinguishes failed trim, limited pitch authority and quad control modes", () => {
   const normal = {
-    quad: false,
     handLaunch: true,
     converged: true,
     pitchTrim: 0.1,
@@ -24,22 +23,6 @@ it("distinguishes failed trim, limited pitch authority and quad control modes", 
   expect(
     flightModelNote({ ...normal, handLaunch: false, converged: false }).text,
   ).toContain("12 m/s");
-  expect(
-    flightModelNote({
-      ...normal,
-      quad: true,
-      controlMode: "angle",
-      pitchTrim: 1,
-    }).text,
-  ).toContain("Self-leveling angle");
-  expect(
-    flightModelNote({
-      ...normal,
-      quad: true,
-      controlMode: "rate",
-      converged: false,
-    }).text,
-  ).toContain("Hover trim failed");
 });
 const ready = {
   running: false,
@@ -59,7 +42,6 @@ it("keeps a start action before launch and distinguishes pause from resume", () 
 const flight = {
   ...ready,
   mode: "ground" as const,
-  quad: false,
   keyboard: true,
 };
 it("offers setup for missing input without blocking recorded playback", () => {

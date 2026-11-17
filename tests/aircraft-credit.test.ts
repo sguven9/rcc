@@ -19,7 +19,7 @@ it("credits every bundled design and keeps only the Vortex Simple Trainer", () =
   expect(all.some((a) => a.id === "simple-trainer")).toBe(false);
 });
 
-it("accepts older files without credit and rejects unsafe link protocols", () => {
+it("accepts older files without credit, rejects unsafe link protocols and shows plain-text credit", () => {
   const a = parseAircraft(bronco);
   delete a.credit;
   expect(aircraftCredit(parseAircraft(a))).toBe("");
@@ -39,8 +39,9 @@ it("accepts older files without credit and rejects unsafe link protocols", () =>
   const html = aircraftCredit(parseAircraft(a));
   expect(html).not.toContain("<img");
   expect(html).toContain("&lt;img");
-  expect(html).toContain("a=1&amp;b=2");
-  expect(html).toContain('rel="noopener noreferrer"');
+  // The app shows no outbound links; the URL stays in the definition.
+  expect(html).not.toContain("<a ");
+  expect(html).not.toContain("example.org");
 });
 
 it.each([

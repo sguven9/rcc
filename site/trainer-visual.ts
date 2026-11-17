@@ -1,15 +1,16 @@
 /** Original socket drawing with builder-reported FS-i6 contact reference.
  * Source: rootik/RCTransmitter-USBGamepad images/fs-i6.png (rear socket photo).
  * Confirm actual hardware/cable; this is not a manufacturer pinout.
- * Resistor placement agrees with hardware/ppm_monitor and rcforge_bridge.
+ * Resistor placement agrees with hardware/ppm_monitor and rc_bridge.
  */
+import { BRAND } from "../src/config/brand.ts";
 export function trainerNanoDiagram(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="970" viewBox="0 0 1200 970" role="img" aria-labelledby="title desc">
 <title id="title">FS-i6 trainer socket to Arduino Nano</title>
 <desc id="desc">An outside rear view locates the trainer socket below the antenna. A builder reference identifies upper-left PPM OUT and the metal shell as ground, with the key opening at the top. Confirm actual hardware before wiring. Use a documented breakout: PPM OUT through 1 kiloohm to D2, 47 kiloohms from D2 to ground, and shared ground. Transmitter and Nano have separate power. Read diagnostics before using the bridge.</desc>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#f1f2f5}.small{font-size:16px;fill:#a1a5b0}.label{font-size:13px;letter-spacing:2px;fill:#a1a5b0}.heading{font-size:22px;font-weight:700}.mono{font-family:monospace;font-size:18px}.signal{stroke:#eac275;fill:none;stroke-width:4;stroke-linejoin:round}.ground{stroke:#b2bccb;fill:none;stroke-width:4}.panel{fill:#191c22;stroke:#3b404b}.outline{stroke:#737c89;stroke-width:2;fill:none}</style>
 <rect width="1200" height="970" rx="20" fill="#111419"/>
-<text x="40" y="40" class="label">RCFORGE / BENCH CONNECTION GUIDE</text>
+<text x="40" y="40" class="label">${BRAND.name.toUpperCase()} / BENCH CONNECTION GUIDE</text>
 <text x="40" y="86" font-size="34" font-weight="700">Your transmitter. Two signal connections.</text>
 <text x="40" y="118" class="small">FS-i6 → verified trainer breakout → classic Nano → USB</text>
 
@@ -95,8 +96,8 @@ export function trainerNanoDiagram(): string {
 <text x="430" y="865" class="small">Upload ppm_monitor.ino.</text>
 <text x="430" y="890" class="small">Serial Monitor → 115200 baud.</text>
 <rect x="792" y="804" width="376" height="110" rx="10" class="panel"/>
-<text x="814" y="836" class="heading">3. Connect RCForge</text>
-<text x="814" y="865" class="small">Upload rcforge_bridge.ino instead.</text>
+<text x="814" y="836" class="heading">3. Connect ${BRAND.name}</text>
+<text x="814" y="865" class="small">Upload rc_bridge.ino instead.</text>
 <text x="814" y="890" class="small">Six channels + CH6 RUN → calibrate.</text>
 <text x="40" y="947" font-size="13" fill="#737c89">Contact reference: rootik/RCTransmitter-USBGamepad / verify your hardware / receiver route still unverified</text>
 </svg>\n`;

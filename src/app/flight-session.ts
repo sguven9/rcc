@@ -10,8 +10,6 @@ export interface FlightSessionState {
 
 /** A solved release is not evidence of realistic handling away from that point. */
 export function flightModelNote(state: {
-  quad: boolean;
-  controlMode?: "angle" | "rate";
   handLaunch: boolean;
   converged: boolean;
   pitchTrim: number;
@@ -20,14 +18,7 @@ export function flightModelNote(state: {
   if (!state.converged)
     return {
       limited: true,
-      text: state.quad
-        ? "Hover trim failed. Review mass, CG and rotor thrust."
-        : `Trim failed at ${state.trimSpeedMps ?? (state.handLaunch ? 8.5 : 12)} m/s. Review mass, CG and control authority.`,
-    };
-  if (state.quad)
-    return {
-      limited: false,
-      text: `${state.controlMode === "angle" ? "Self-leveling angle" : "Angular-rate"} control · manual throttle · estimated model`,
+      text: `Trim failed at ${state.trimSpeedMps ?? (state.handLaunch ? 8.5 : 12)} m/s. Review mass, CG and control authority.`,
     };
   if (Math.abs(state.pitchTrim) >= 0.65)
     return {
@@ -56,7 +47,6 @@ export function flightAction(state: FlightSessionState) {
 export function flightFeedback(
   state: FlightSessionState & {
     mode: "ground" | "hand" | "airborne";
-    quad: boolean;
     keyboard: boolean;
     pauseReason?: string;
   },
@@ -78,8 +68,8 @@ export function flightFeedback(
     };
   if (state.inputReady === false)
     return {
-      title: "Controller not connected",
-      detail: "Connect your device, or choose Keyboard below.",
+      title: "Transmitter not connected",
+      detail: "Connect your RC transmitter by USB, then move a stick.",
       tone: "input",
     };
   if (state.status === "crashed")
@@ -108,9 +98,7 @@ export function flightFeedback(
           ? "Ready on the ground"
           : state.mode === "hand"
             ? "Ready to hand launch"
-            : state.quad
-              ? "Ready in hover"
-              : "Ready in flight",
+            : "Ready in flight",
       detail:
         state.mode === "ground"
           ? `Start flight, then ${power}.`
@@ -120,11 +108,7 @@ export function flightFeedback(
   if (state.status === "grounded")
     return {
       title: "On the ground",
-      detail: state.quad
-        ? state.keyboard
-          ? "Hold Space to raise power gradually and lift off."
-          : "Raise throttle gradually to lift off."
-        : `Build airspeed, then gently pull back${state.keyboard ? " (↓)" : ""}.`,
+      detail: `Build airspeed, then gently pull back${state.keyboard ? " (↓)" : ""}.`,
       tone: "ground",
     };
   return { title: "In flight", detail: "", tone: "flying" };

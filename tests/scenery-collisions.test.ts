@@ -17,7 +17,7 @@ import { createRecording, parseRecording } from "../src/core/experiment";
 import { parseAircraft } from "../src/core/schema";
 import { massProperties } from "../src/core/aircraft";
 import bronco from "../aircraft/ft-bronco.json";
-import quad from "../aircraft/quad-x-5inch.json";
+import tiny from "../aircraft/ft-tiny-trainer.json";
 const box: Obstacle = {
   id: "test wall",
   shape: "box",
@@ -40,7 +40,7 @@ describe("scenery collision", () => {
     expect(obstacleHit([-5, 1.9, -6.1], [5, 1.9, -6.1], 0, tree)).toBeNull();
     expect(obstacleHit([-5, 0, -16], [5, 0, -16], 0, tree)).toBeNull();
   });
-  it.each([bronco, quad])(
+  it.each([bronco, tiny])(
     "$name crashes against field props and stops propulsion",
     (raw) => {
       const a = parseAircraft(raw),

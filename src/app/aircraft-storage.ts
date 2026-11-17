@@ -1,8 +1,9 @@
 import { parseAircraft, type Aircraft } from "../core/schema";
+import { storageKey } from "../config/brand";
 
-const selectionKey = "rcforge.selected-aircraft.v1";
-const aircraftPrefix = "rcforge.aircraft.v3.";
-const importedKey = "rcforge.imported-aircraft.v1";
+const selectionKey = storageKey("selected-aircraft.v1");
+const aircraftPrefix = storageKey("aircraft.v3.");
+const importedKey = storageKey("imported-aircraft.v1");
 const maxImported = 32;
 const maxCatalogCharacters = 2_000_000;
 type ReadStorage = Pick<Storage, "getItem">;

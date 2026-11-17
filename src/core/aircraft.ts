@@ -80,7 +80,7 @@ export function modifyAircraft(base: Aircraft, c: DesignChanges): Aircraft {
   // component's thickness/CG offset from its matching aerodynamic panel.
   const wingRoots = new Map<number, number>();
   const wingHeights = new Map<string, number>();
-  if (a.vehicleType !== "multirotor" && c.spanScale !== 1) {
+  if (c.spanScale !== 1) {
     const wings = a.surfaces
       .filter((s) => s.kind === "wing")
       .sort((s, t) => Math.abs(s.positionM[1]) - Math.abs(t.positionM[1]));
@@ -96,25 +96,6 @@ export function modifyAircraft(base: Aircraft, c: DesignChanges): Aircraft {
         s.id,
         (s.positionM[2] - wingRoots.get(side)!) * (c.spanScale - 1),
       );
-    }
-  }
-  if (a.vehicleType === "multirotor") {
-    for (const p of a.parts) {
-      p.positionM[0] *= c.spanScale;
-      p.positionM[1] *= c.spanScale;
-      if (p.kind === "body") {
-        if (c.spanScale !== 1) delete p.inertiaDiagonalKgM2;
-        p.sizeM[0] *= c.spanScale;
-        p.sizeM[1] *= c.spanScale;
-      }
-    }
-    for (const m of a.motors) {
-      m.positionM[0] *= c.spanScale;
-      m.positionM[1] *= c.spanScale;
-    }
-    for (const p of a.contactPoints) {
-      p.positionM[0] *= c.spanScale;
-      p.positionM[1] *= c.spanScale;
     }
   }
   for (const p of a.parts) {

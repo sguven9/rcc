@@ -4,6 +4,16 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- New identity and first-run setup:
+  - the product name, tagline and storage prefix live in `src/config/brand.ts`; the previous name, its links and its long introduction page are gone, replaced by a short loading screen with a progress bar;
+  - a new warm "Manisa sunset" palette, Sora/Figtree fonts (bundled locally), logo, favicon, share image, focus rings and component styles, all as tokens in `src/theme/`;
+  - a full-screen **RC transmitter setup wizard** on the first visit: connect, stick mode, centre and noise, endpoints, automatic channel and direction detection, optional arm/flight-mode switches, live test with an idle-throttle check, and save; it can be rerun from Controllers and is offered when another transmitter is connected;
+  - flights no longer start with the throttle up;
+  - multirotor and VTOL aircraft were removed (fixed-wing only); stored drone settings are ignored silently;
+  - the app shows no outbound links; the MIT license notice stays in `LICENSE`.
+
+  Saved settings move to a new storage prefix, so earlier browser preferences and calibrations are not carried over.
+
 - Full-throttle nose-up fixed at the root ([measurements](docs/physics-engine.md#full-throttle-nose-up-moment-breakdown-and-fix-0140)):
   - an **ACRO** gyro flight controller (default; MANUAL selectable in Flight setup) holds the attitude with centred sticks, never reads throttle and takes its gains from each aircraft's measured control power;
   - blown-wing lift no longer counts span inside the fuselage or nacelles and uses a finite-jet factor, so full-throttle ground lift-off happens near stall speed instead of at 3 m/s;
@@ -81,7 +91,7 @@ Application releases are separate from physics/replay and aircraft format versio
 - Add discreet original-creator links to the editor and flight setup. Existing local physical edits are preserved; Restore original aircraft adopts the revised geometry.
 
 - Add local aircraft history: named snapshots, automatic versions on apply, component-level comparison, safe restore into a draft, and portable history backups.
-- Enlarge navigation icons and add a GitHub link and application-version dialog. Configure the intended canonical address, `rcforge.adithyask.com`.
+- Enlarge navigation icons and add a GitHub link and application-version dialog. Configure the intended canonical address.
 - Document the first-contribution workflow, release process, static hosting and transfer of aircraft between browser origins.
 - Add FPV camera components with an interactive mount editor, surface picking and live lens preview.
 - Add configurable control response rates and surface mixers, with live control tests in the aircraft editor.

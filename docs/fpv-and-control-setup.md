@@ -8,7 +8,7 @@
 4. Watch the **live lens preview** for airframe obstructions. Adjust tilt, pan, roll and vertical FOV with sliders, or enter exact millimeter positions. **Undo**, **Reset placement**, **Face forward & level** and centerline placement are available. **Cancel** or Escape discards this placement session, preserving the aircraft draft you started with. Canceling does not remove a camera just added to that draft.
 5. **Use placement** commits the mount to your draft. Camera mass, housing dimensions and exact installation angles remain in Components. Choose **Apply & fly**, then **FPV**. **V**, or the assigned camera shortcut, cycles Pilot → Chase → FPV. Aircraft without a camera cycle only Pilot/Chase. **F** returns to the pilot and locates the aircraft. To return to interactive placement, choose **Adjust camera** or **Place camera in 3D**.
 
-The generic kit adds **25 g including its mount**, once, to the component ledger. It is an installation estimate, not a particular camera product. Existing equipment named `camera` or `fpv-camera` is reused when possible, retaining its weight. The bundled **Quad X · 6S powertrain** already has a camera and exposes its view without changing its 650 g total mass. Older saved copies need their camera enabled in Components or their original restored.
+The generic kit adds **25 g including its mount**, once, to the component ledger. It is an installation estimate, not a particular camera product. Existing equipment named `camera` or `fpv-camera` is reused when possible, retaining its weight. Older saved copies need their camera enabled in Components or their original restored.
 
 Moving the camera preserves its mass and changes three-axis CG and inertia; replacing it can also change total mass. Removing it removes that mass component. The camera housing follows the same mount orientation as its optical center. FPV is a rigid view: banking tilts the horizon, a steep camera angle points upward when parked, and badly placed airframe parts can obstruct the lens. Flight uses one render pass. The placement dialog adds a small scissored studio lens view (at most 300 × 169 logical pixels) through the existing renderer, with no additional WebGL context, animation loop or shadow-map update. It disappears on close. Dragging previews the existing housing without rebuilding the airframe or running trim on each movement; Use placement validates and recomputes the draft once. The preview shows a stationary aircraft in the studio, not a flying vehicle or simulated video link.
 
@@ -25,7 +25,7 @@ Use the response selector beside the input device on Fly, **Flight setup → Inp
 | Direct   | 100 / 100 / 100%         | 0%          | 0 ms                 |
 | Custom   | Individually adjustable  | 0–80%       | 0–200 ms             |
 
-These are RCForge input presets, not measured tuning for your build or Betaflight rate profiles. The FT-22 source definition selects Gentle; older saved aircraft may retain their previous setup. Other definitions without a response setting use Direct to preserve their earlier behavior.
+These are the simulator input presets, not measured tuning for your build or Betaflight rate profiles. The FT-22 source definition selects Gentle; older saved aircraft may retain their previous setup. Other definitions without a response setting use Direct to preserve their earlier behavior.
 
 Expand **Fine-tune response** to adjust each axis from 10–100%. Valid edits take effect immediately and persist per aircraft in this browser. Custom settings remain available after trying another preset. **Save response in aircraft draft** also puts the configuration into the editor draft; Apply saves it with the aircraft, and Export includes it in JSON. **Use aircraft default** restores the current applied definition's default.
 
@@ -35,13 +35,13 @@ The pipeline is:
 
 Throttle is untouched. Keyboard easing remains in the keyboard acquisition layer. The extra smoothing runs at the 120 Hz physics step, never the display rate. The cubic response is `rate × ((1 − expo) × stick + expo × stick³)`. Increasing expo softens the center without changing the selected endpoint; decreasing the rate also reduces maximum pilot authority. Device expo and transmitter expo compound with this setting, so use Direct when your radio already supplies the desired rates.
 
-Trim stays outside the rate reduction. Pitch maps each half of the stick into the available interval above/below trim; zero stick preserves the complete trim command. Gentle does **not** stabilize or self-level a fixed-wing aircraft. It does not fix the FT-22's estimated high-trim/power-change behavior. On quads it reduces the requested tilt in the existing Angle mode, or requested angular rate in Rate mode. It adds no altitude hold or new flight controller.
+Trim stays outside the rate reduction. Pitch maps each half of the stick into the available interval above/below trim; zero stick preserves the complete trim command. Gentle does **not** stabilize or self-level a fixed-wing aircraft. It does not fix the FT-22's estimated high-trim/power-change behavior.
 
 ## Test movement and mixing
 
 **Aircraft → Control test** enables **Test sticks**. Move the selected controller, or click the model and use arrows for pitch/roll and Q/E for yaw. The model remains stationary and its motors stay off. The displayed degrees and animated hinges/horns use the same surface commands, servo response, horn ratio and speed limits as flight. **Include calculated launch trim** adds the selected launch configuration's estimated trim; leave it off to inspect neutral travel.
 
-The test remains available while editing Components. Turn **Test sticks** off to park every surface at neutral. Missing input returns the test toward neutral; it never arms or resumes a flight. Quads show commanded tilt or angular rate instead of nonexistent control surfaces.
+The test remains available while editing Components. Turn **Test sticks** off to park every surface at neutral. Missing input returns the test toward neutral; it never arms or resumes a flight.
 
 Expand **Surface mixing** on any fixed-wing aircraft:
 

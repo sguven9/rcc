@@ -40,7 +40,6 @@ export function launchTrim(
 /** Optional removable gear is a modeled modification, not part of the published Bronco. */
 export function fitLandingGear(source: Aircraft): Aircraft {
   const a = structuredClone(source);
-  if (a.vehicleType === "multirotor" || a.vehicleType === "vtol") return a;
   if (a.contactPoints.some((p) => p.kind === "wheel")) return a;
   const span = a.reference.spanM;
   a.parts.push({
@@ -77,18 +76,6 @@ export function launchState(
   environment = calmEnvironment(),
 ): State {
   const trim = launchTrim(a, mode, environment);
-  if (a.vehicleType === "multirotor" || a.vehicleType === "vtol") {
-    if (mode !== "ground") return trim.state;
-    const s = initialState(a, 0, 0, 0),
-      cg = massProperties(a).cg;
-    s.position = [
-      0,
-      0,
-      -Math.max(...a.contactPoints.map((p) => p.positionM[2] - cg[2])),
-    ];
-    s.status = "grounded";
-    return s;
-  }
   if (mode === "airborne") {
     const s = trim.state;
     rehome(s, [18, 0, -22], environment);

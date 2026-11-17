@@ -12,7 +12,7 @@ for board in arduino:avr:uno arduino:avr:nano:cpu=atmega328 arduino:avr:nano:cpu
   for mode in 1 2; do
     "$RCF_CLI" "${RCF_ARGS[@]}" --fqbn "$board" \
       --build-property "compiler.cpp.extra_flags=-DRCF_INPUT_MODE=$mode" \
-      hardware/rcforge_bridge
+      hardware/rc_bridge
   done
   "$RCF_CLI" "${RCF_ARGS[@]}" --fqbn "$board" hardware/ppm_monitor
 done

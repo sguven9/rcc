@@ -22,7 +22,7 @@ To re-download a damaged file, remove that particular local copy first. Do not
 overwrite or strip the creator's attribution or copyright marks.
 
 The existing FT sources are publicly downloadable, but no redistribution grant
-has been established. They are not MIT-licensed RCForge assets. This local cache
+has been established. They are not MIT-licensed simulator assets. This local cache
 does not grant rights to republish, sell or derive manufacturing kits from them.
 Vortex RC's product and build photographs are linked in the docs; no public
 downloadable plan was established for that kit, and no substitute PDF is invented.

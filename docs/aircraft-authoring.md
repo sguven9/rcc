@@ -45,15 +45,15 @@ For plan-based work, extract the published scale and assembled dimensions; flat 
 - A run is stable numerically under timestep refinement.
 - A real-world fidelity claim includes actual flight or bench data and uncertainty.
 
-The source-of-truth schema is `src/core/schema.ts`. Unknown fields and invalid values are rejected with paths. The core supports rigid fixed-wing aircraft and multirotors. Surfaces and rotor geometry remain approximations; unusual configurations may require additional physical terms. See [multirotors](multirotors.md) for quad-specific authoring and controls.
+The source-of-truth schema is `src/core/schema.ts`. Unknown fields and invalid values are rejected with paths. The core supports rigid fixed-wing aircraft only. Surfaces remain approximations; unusual configurations may require additional physical terms.
 
 ## Mixed control surfaces
 
-A surface control can supply an optional `mix` object with additional `roll`, `pitch`, and `yaw` gains. The base `axis * gain` and additional channels are summed and clamped to [-1,1] before applying `maxDeg`. Physics and animation use the same command. The Bronco inverted-V panels use pitch gain -1 on both, yaw +1 on the left panel (roll -45 degrees), and yaw -1 on the right (roll +45 degrees). Avoid double-mixing in a transmitter: RCForge expects aircraft-axis inputs.
+A surface control can supply an optional `mix` object with additional `roll`, `pitch`, and `yaw` gains. The base `axis * gain` and additional channels are summed and clamped to [-1,1] before applying `maxDeg`. Physics and animation use the same command. The Bronco inverted-V panels use pitch gain -1 on both, yaw +1 on the left panel (roll -45 degrees), and yaw -1 on the right (roll +45 degrees). Avoid double-mixing in a transmitter: the simulator expects aircraft-axis inputs.
 
 ## Detailed component and powertrain inputs
 
-See [component-models.md](component-models.md) for material/BOM metadata, principal inertia, battery voltage and charge, motor/prop current-thrust tables, surface polars and servo dynamics. `aircraft/quad-x-6s.json` is the full electrical example; all its hardware/curve values are labeled estimates.
+See [component-models.md](component-models.md) for material/BOM metadata, principal inertia, battery voltage and charge, motor/prop current-thrust tables, surface polars and servo dynamics. `aircraft/ft-tiny-trainer.json` is a full electrical example; all its hardware/curve values are labeled estimates.
 
 ## Plan-shaped foamboard without a custom renderer
 
@@ -96,11 +96,10 @@ their own evidence. A detailed outline does not add vortex lift, flexibility or
 CAD-derived inertia. Span edits scale wing outlines with their physical span;
 mass/CG edits retain the authored shape. Existing definitions remain compatible.
 
-Optional motor `partId` references an existing motor component. Fixed-wing motor
-housings use its position and body X/Y/Z dimensions; quad housings use its envelope
-around the authored rotor assembly. It never adds mass. `propBlades` sets 2–6 rendered blades, with existing
+Optional motor `partId` references an existing motor component. Motor
+housings use its position and body X/Y/Z dimensions. It never adds mass. `propBlades` sets 2–6 rendered blades, with existing
 defaults preserved when omitted. These appearance fields do not generate new
-thrust/current or torque curves. See the [450 mm quad example](multirotors.md).
+thrust/current or torque curves.
 
 ## Camera mounts and pilot controls
 
@@ -126,7 +125,7 @@ anchor at the aircraft datum; `wheelColor` sets tire appearance. These visual
 fields add no mass or forces. Account for gear in `parts` and use the contact's
 `positionM` for its ground-touch point. Two aligned main wheels ahead of CG and
 a rear skid initialize at their common ground-support pitch. Existing tricycle
-and multirotor launch defaults remain unchanged. Optional fields retain aircraft
+launch defaults remain unchanged. Optional fields retain aircraft
 format 1 and need an updated app; older strict parsers reject them.
 
 ## Creator links and catalog identity
@@ -153,7 +152,3 @@ for reviewed PDFs. `npm run references:fetch` keeps original plans locally;
 `npm run references:check` verifies identity and preset attribution without a
 network call. Do not commit upstream plans or reference photos without reviewed
 redistribution rights. Document assembly choices and missing data beside the model.
-
-## Tricopter VTOL definitions
-
-Use `vehicleType: "vtol"` and the validated `vtol` block in [bronco-tri-vtol.json](../aircraft/bronco-tri-vtol.json). Three motors and three dedicated tilt servos are linked by ID; no array ordering or transmitter channel is implied. Keep component mass centers distinct from motor tilt-axis force stations. The [VTOL guide](bronco-vtol.md) describes schema settings, provenance, controls, validation commands and the fixed-inertia approximation.

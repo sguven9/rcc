@@ -1,11 +1,11 @@
 # Your first flight
 
-RCForge runs in your browser. You can fly, edit aircraft and save local versions
+The simulator runs in your browser. You can fly, edit aircraft and save local versions
 without signing in or connecting an AI service.
 
 ## Before you start
 
-You need a modern desktop browser and a keyboard. A controller is optional. For local development, install Node.js 24 first, then follow the commands below. If you already have RCForge open, skip to [Choose an aircraft](#choose-an-aircraft).
+You need a modern desktop browser and an RC transmitter that connects by USB. For local development, install Node.js 24 first, then follow the commands below. If you already have the simulator open, skip to [Choose an aircraft](#choose-an-aircraft).
 
 ## Run locally
 
@@ -13,8 +13,8 @@ Use Node.js 24 and the included npm lockfile. Supported versions are declared in
 `package.json`.
 
 ```sh
-git clone https://github.com/adithya-s-k/RCForge.git
-cd RCForge
+git clone YOUR_REPOSITORY_URL simulator
+cd simulator
 npm ci
 npm run dev
 ```
@@ -31,51 +31,40 @@ npm run dev -- --port 5180
 Open **Fly → Flight setup → Aircraft → Browse aircraft**. The hangar shows the
 actual simulator models. **FT Tiny Trainer · Sport** has roll, pitch and yaw
 controls. **Simple Trainer** is Vortex RC's polyhedral rudder/elevator trainer:
-use yaw to turn it. Keyboard left/right arrows also steer its rudder. Both **FT Bronco** tail configurations are available.
+use yaw to turn it. Both **FT Bronco** tail configurations are available.
 
 The published examples have estimated physics. See [model limits](validation.md)
 before treating simulator performance as a prediction of a physical build.
 
 ## Start flying
 
-New sessions begin on the ground with zero throttle, in Pilot view beside the
-aircraft. Select the launch that suits the exercise:
+On the first visit a setup wizard calibrates your transmitter (see
+[set up your transmitter](controllers.md#setup-wizard)). New sessions begin on
+the ground with zero throttle, in FPV. Select the launch that suits the exercise:
 
 | Start      | What happens                                                                                                                                     |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Ground     | Start stationary, increase power, then gently pull back as speed builds. Optional removable gear adds 45 g to aircraft without installed wheels. |
 | Hand throw | Release at 8.5 m/s with calculated pitch trim and power for an 8° climb.                                                                         |
-| In flight  | Begin at altitude at the aircraft's authored trim speed; quads begin in hover.                                                                   |
+| In flight  | Begin at altitude at the aircraft's authored trim speed.                                                                                         |
 
-Press **Start flight**. Click the field before using keyboard controls.
+Lower the throttle fully and press **Start flight**; a flight does not start
+with the throttle up. **Enter / P / R** start, pause and reset; **V** changes
+the view and **F** locates the aircraft.
 
-| Key            | Action                                                   |
-| -------------- | -------------------------------------------------------- |
-| ↑ / ↓ or W / S | Nose down / nose up                                      |
-| ← / → or A / D | Roll left / right; rudder on the Simple Trainer          |
-| Q / E          | Yaw left / right                                         |
-| Space / Shift  | Increase / decrease power; releasing the key holds power |
-| X              | Cut power                                                |
-| Enter / P / R  | Start or resume / pause / reset                          |
-| V / F          | Change view / locate the aircraft                        |
-| I J K L        | Walk the ground observer                                 |
-
-**Pilot** keeps you on the ground. **Chase** follows the aircraft. **FPV** uses an
-installed onboard camera. **Position & view** places the aircraft and observer on
+**FPV** flies from the onboard camera with an on-screen display. **Pilot** keeps
+you on the ground. **Position & view** places the aircraft and observer on
 one map. The lower-left instruments show orientation and a minimap.
 
 Focus loss pauses flight. Return to the field and deliberately resume. Reset
 returns to the selected launch state; it does not remove aircraft edits.
 
-## Use a controller
+## Your transmitter
 
-Choose **Controllers**, select your input type, then move a stick or press a
-button to reveal the connected device. Map, reverse and calibrate axes against
-the live monitor. Select **Gentle** in the flight control-response selector if the
-aircraft feels too sensitive; customize rates and expo in the editor.
-
-Follow [controller setup](controllers.md) for gamepads and flight sticks, or
-[choose a radio connection](radio-setup.md) for USB adapters and the Uno/Nano bridge.
+The [setup wizard](controllers.md#setup-wizard) detects the stick mode, centres,
+endpoints, channels and directions. Run it again from **Controllers → Run setup
+wizard**. To connect a FlySky radio or an Arduino bridge, see
+[choose a radio connection](radio-setup.md).
 
 ## Keep your changes
 
@@ -92,8 +81,7 @@ Learn [views, pilot movement and flight setup](flight-guide.md) when you are com
 
 The [troubleshooting guide](troubleshooting.md) covers connection errors, stopped input, sensitivity and lost edits.
 
-- **No controller listed:** focus Controllers and move a stick. Check that your adapter presents joystick input; a firmware-update cable is different.
-- **Keys scroll the page:** click the flight view first. Form fields keep normal keyboard behavior.
+- **No transmitter found:** click the page and move a stick. Check that your radio or adapter presents USB joystick input; a firmware-update cable is different.
 - **The aircraft moved after an update:** custom definitions stay local. Use Restore original aircraft to adopt the current preset, or restore a saved version.
 - **The aircraft will not trim:** check mass, CG, throws and power. A valid JSON definition can still describe an unflyable setup.
 - **Changes disappeared after switching address:** localhost ports and the hosted domain have separate browser storage. Import an exported backup.

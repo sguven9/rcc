@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs/benchmarks/2026-09-08.json"
 data = json.loads(SOURCE.read_text())["nasa"]
 plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["DejaVu Sans", "Arial", "sans-serif"], "font.size": 11,
-                     "svg.fonttype": "none", "svg.hashsalt": "rcforge-benchmarks-2026-09-08"})
+                     "svg.fonttype": "none", "svg.hashsalt": "sim-benchmarks-2026-09-08"})
 
 for mode, bg, ink, muted, grid, standard, finer in [
     ("", "#101317", "#e7eaed", "#a6afb9", "#343b44", "#efc878", "#7dbbb3"),
@@ -47,7 +47,7 @@ for mode, bg, ink, muted, grid, standard, finer in [
     fig.text(.04, .075, "This checks torque-free rotation. It does not measure RC aircraft handling.", color=ink, fontsize=11)
     fig.text(.04, .027, "NESC 2015 case 02 · all five available outputs retained · snapshot 8 Sep 2026", color=muted, fontsize=9)
     out = ROOT / f"docs/images/benchmark-nasa{mode}.svg"
-    fig.savefig(out, metadata={"Date": None, "Title": "RCForge versus published NASA angular rates",
+    fig.savefig(out, metadata={"Date": None, "Title": "The simulator versus published NASA angular rates",
                               "Description": "Maximum three-axis inertial body-rate differences over 30 seconds at 120 and 240 Hz; all five reference datasets are below the 0.01 degree per second engineering limit."})
     out.write_text("\n".join(line.rstrip() for line in out.read_text().splitlines()) + "\n")
     plt.close(fig)

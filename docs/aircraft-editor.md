@@ -50,7 +50,7 @@ what remains descriptive.
 
 Choose a part by its icon and name, then **Move on model**. Drag the body-axis handles or enter X/Y/Z in millimeters. **Top** and **Side** views help check clearance. The gold CG marker and live balance readout show the effect immediately. **Cancel** keeps the previous draft; **Use placement** writes the position into the draft. Apply when ready to save a local version.
 
-Moving a motor or propeller keeps the paired components and motor force station together. Other installed parts move independently. The editor does not enforce collisions or fabricate a new structural or aerodynamic shape. For the [tricopter VTOL](bronco-vtol.md), **Check motor headroom** reports calculated hover motor commands after a placement change.
+Moving a motor or propeller keeps the paired components and motor force station together. Other installed parts move independently. The editor does not enforce collisions or fabricate a new structural or aerodynamic shape.
 
 ## Check control movement
 
@@ -62,7 +62,7 @@ the preview and flight.
 The Bronco V-tail mixes pitch and yaw into two ruddervators; its conventional
 configuration has fixed fins, one elevator and differential motor yaw. The FT-22
 uses mixed elevons. The Simple Trainer has rudder/elevator control and no ailerons.
-Avoid applying the same mix in both your transmitter and RCForge.
+Avoid applying the same mix in both your transmitter and the simulator.
 
 ## Place an FPV camera
 

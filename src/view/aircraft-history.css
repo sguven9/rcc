@@ -9,7 +9,7 @@
 }
 .aircraft-history-dialog::backdrop,
 .release-dialog::backdrop {
-  background: #000a;
+  background: color-mix(in srgb, var(--p-black) 67%, transparent);
 }
 .aircraft-history-dialog button {
   white-space: nowrap;
@@ -202,7 +202,7 @@
   gap: 8px;
 }
 #history-status.history-error {
-  color: #f2ba92;
+  color: var(--p-accent-300);
 }
 @media (max-width: 650px) {
   .aircraft-history-dialog {

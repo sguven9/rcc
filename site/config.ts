@@ -67,18 +67,6 @@ export const pages = [
     file: "docs/fpv-and-control-setup.md",
   },
   {
-    slug: "bronco-vtol",
-    title: "Bronco tricopter VTOL",
-    group: "Customize aircraft",
-    file: "docs/bronco-vtol.md",
-  },
-  {
-    slug: "multirotors",
-    title: "Quadcopters",
-    group: "Customize aircraft",
-    file: "docs/multirotors.md",
-  },
-  {
     slug: "plans",
     title: "Aircraft plans & credits",
     group: "Customize aircraft",
@@ -259,5 +247,3 @@ export type DocPage = {
   group: string;
   file: string;
 };
-export const REPOSITORY = "https://github.com/adithya-s-k/RCForge";
-export const CANONICAL = "https://rcforge.adithyask.com";

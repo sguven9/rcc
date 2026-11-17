@@ -1,8 +1,6 @@
 import * as T from "three";
 import { afterEach, expect, it, vi } from "vitest";
 import raw from "../aircraft/ft-bronco.json";
-import quad from "../aircraft/quad-x-5inch.json";
-import vtol from "../aircraft/bronco-tri-vtol.json";
 import tiny from "../aircraft/ft-tiny-trainer.json";
 import { parseAircraft } from "../src/core/schema";
 import { buildAircraft, disposeAircraft } from "../src/view/model";
@@ -10,7 +8,7 @@ import { ImpactDebris } from "../src/view/impact-debris";
 import { focusedPilotFov } from "../src/view/pilot-focus";
 afterEach(() => vi.unstubAllGlobals());
 
-it.each([raw, quad, vtol, tiny])(
+it.each([raw, tiny])(
   "$name: breakup preserves visible triangles and leaves the original model intact",
   (data) => {
     vi.stubGlobal("document", {

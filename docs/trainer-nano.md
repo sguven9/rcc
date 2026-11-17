@@ -1,6 +1,6 @@
 # FS-i6 trainer socket → Nano
 
-Connect the transmitter directly to USB through your **classic ATmega328P Nano**. The receiver is not used. This guide pairs a socket illustration with a PPM diagnostic sketch and the existing RCForge bridge.
+Connect the transmitter directly to USB through your **classic ATmega328P Nano**. The receiver is not used. This guide pairs a socket illustration with a PPM diagnostic sketch and the existing simulator bridge.
 
 Using another Arduino? The same PPM-to-USB-serial approach can work with board-specific firmware. See [other Arduino boards](radio-setup.md#can-i-use-another-arduino) before copying this Nano wiring.
 
@@ -57,16 +57,16 @@ PPM | channels=6 | CH1=1500 | CH2=1500 | CH3=1000 | CH4=1500 | CH5=1500 | CH6=19
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `NO SIGNAL`                  | No recent rising edges. Check verified output, ground, cable and transmitter output mode.                                                 |
 | `EDGES, NOT VALID PPM`       | Edges exist but do not form a supported fresh PPM frame. Check the actual waveform/protocol.                                              |
-| `PPM`, 6 channels            | Candidate input for the RCForge bridge. Check every channel, direction and endpoint.                                                      |
+| `PPM`, 6 channels            | Candidate input for the bridge. Check every channel, direction and endpoint.                                                              |
 | `PPM`, another channel count | The monitor can inspect 4–12 channels; the existing bridge requires exactly six. Do not silently discard extras.                          |
 | `bridge guard: STOP`         | CH6 is at or below 1700 μs. Find the physical control sent as CH6 and set RUN above that value.                                           |
 | USB port disappears          | This is a USB/power/hardware problem, not an ordinary missing-PPM report. Disconnect the trainer wiring and resolve it before continuing. |
 
 Intervals are measured between rising edges, with a sync gap over 3000 μs and channel intervals of 800–2200 μs. Values commonly fall near 1000–2000 μs. The monitor prints four times a second. Its built-in LED indicates a fresh valid diagnostic frame, even if CH6 is STOP; this differs from the guarded bridge LED.
 
-## 4. Upload the RCForge bridge
+## 4. Upload the bridge
 
-The monitor prints readable diagnostics; **RCForge cannot use those lines as flight input**. Once six-channel PPM is verified, open [`rcforge_bridge.ino`](../hardware/rcforge_bridge/rcforge_bridge.ino) in its matching folder and upload it instead. No extra Arduino libraries are required.
+The monitor prints readable diagnostics; **The simulator cannot use those lines as flight input**. Once six-channel PPM is verified, open [`rc_bridge.ino`](../hardware/rc_bridge/rc_bridge.ino) in its matching folder and upload it instead. No extra Arduino libraries are required.
 
 Leave these settings enabled:
 
@@ -78,16 +78,16 @@ Leave these settings enabled:
 Set the physical CH6 control above 1700 μs for RUN, below it for STOP. If student mode provides no usable CH6 control, read the narrowly scoped [wired-trainer exception](flysky-fs-i6.md#using-your-uno-or-nano) before changing the guard. Do not apply that exception to a wireless receiver.
 
 1. Serial Monitor at 115200 should show `RCF1` packets. Status `1` means six fresh channels and guard RUN; `0` means STOP or invalid input.
-2. Close Serial Monitor. Open RCForge in desktop Chrome on localhost or HTTPS.
+2. Close Serial Monitor. Open the simulator in desktop Chrome on localhost or HTTPS.
 3. Choose **Controllers → RC transmitter → Connect Arduino**, select the Nano, then map and calibrate the four flight controls.
 4. With throttle low, test STOP and transmitter power-off. Input must become unavailable and flight must pause. Restoring the signal must not resume flight automatically.
 
-## If RCForge says “Input stopped”
+## If the simulator says “Input stopped”
 
 The USB port has opened, but the bridge is not reporting accepted live input. In `RCF1,502,0,PPM,6,...`, the third field is the validity flag. **When it is `0`, the six values that follow are substituted inactive values, not raw stick readings.** You cannot use the displayed CH6 fallback of 1000 to conclude the physical switch is low.
 
 1. Put the control that produced RUN in the diagnostic into that same position, with throttle low.
-2. Disconnect RCForge before opening Serial Monitor at 115200. Look for `RCF1,number,1,PPM,6,...`.
+2. Disconnect the simulator before opening Serial Monitor at 115200. Look for `RCF1,number,1,PPM,6,...`.
 3. If the status stays `0`, temporarily upload the diagnostic again to distinguish missing/malformed pulses from CH6 STOP. Do not change pins or disable the guard to hide an unknown signal problem.
 4. Upload the bridge again after diagnosis, close Serial Monitor, reconnect and calibrate. Reconnecting does not automatically resume a flight.
 

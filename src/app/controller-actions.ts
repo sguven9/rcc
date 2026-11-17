@@ -12,12 +12,13 @@ import { InputManager, channels } from "../input/controls";
 import { ownsKeyboard } from "../input/ui-focus";
 import {
   ActionEdges,
-  actionAvailable,
+  knownActions,
   actionNames,
   validActions,
   type ActionBindings,
   type Action,
 } from "../input/actions";
+import { storageKey } from "../config/brand";
 export class ControllerActions {
   private edges = new ActionEdges();
   private id = "";
@@ -46,36 +47,10 @@ export class ControllerActions {
         .value as PadStyle;
       try {
         localStorage.setItem(
-          "rcforge.controller-style." + this.id,
+          storageKey("controller-style.") + this.id,
           this.preference,
         );
       } catch {}
-      this.signature = "";
-    };
-    $("vtol-radio-shortcuts").onclick = () => {
-      const d = this.input.selected();
-      if (
-        !d ||
-        d.axes.length < 5 ||
-        channels.some((c) => this.input.profile.bindings[c].axis === 4)
-      )
-        return;
-      for (const action of Object.keys(this.bindings) as Action[])
-        if (["a4+", "a4-"].includes(this.bindings[action] ?? ""))
-          delete this.bindings[action];
-      this.bindings.vtolHover = "a4-";
-      this.bindings.vtolCruise = "a4+";
-      try {
-        localStorage.setItem(
-          "rcforge.actions." + d.id,
-          JSON.stringify(this.bindings),
-        );
-        $("action-status").textContent =
-          "CH5 mode switch saved. Cycle the switch once after connecting. Confirm raw channel order first.";
-      } catch {
-        $("action-status").textContent =
-          "Mode switch assigned for this session; storage unavailable.";
-      }
       this.signature = "";
     };
     $("standard-shortcuts").onclick = () => {
@@ -83,7 +58,7 @@ export class ControllerActions {
       this.bindings = { ...standardShortcuts };
       try {
         localStorage.setItem(
-          "rcforge.actions." + this.id,
+          storageKey("actions.") + this.id,
           JSON.stringify(this.bindings),
         );
       } catch {}
@@ -92,7 +67,6 @@ export class ControllerActions {
     };
   }
   update(enabled: boolean, keyboard: KeyboardLayout = {}) {
-    const vtol = !!keyboard.vtol;
     const d = this.input.selected(),
       id = d?.id ?? "";
     if (id !== this.id) {
@@ -100,7 +74,7 @@ export class ControllerActions {
       this.bindings = {};
       try {
         const preference = localStorage.getItem(
-          "rcforge.controller-style." + id,
+          storageKey("controller-style.") + id,
         );
         this.preference = ["auto", "playstation", "xbox", "generic"].includes(
           preference ?? "",
@@ -108,9 +82,13 @@ export class ControllerActions {
           ? (preference as PadStyle)
           : "auto";
         $<HTMLSelectElement>("controller-style").value = this.preference;
-        const p = JSON.parse(
-          localStorage.getItem("rcforge.actions." + id) ??
-            JSON.stringify(d?.mapping === "standard" ? standardShortcuts : {}),
+        const p = knownActions(
+          JSON.parse(
+            localStorage.getItem(storageKey("actions.") + id) ??
+              JSON.stringify(
+                d?.mapping === "standard" ? standardShortcuts : {},
+              ),
+          ),
         );
         if (validActions(p)) this.bindings = p;
       } catch {}
@@ -197,23 +175,10 @@ export class ControllerActions {
     });
     const legend = false
       ? "<span><kbd>Enter</kbd> Start</span><span><kbd>P</kbd> Pause</span><span><kbd>R</kbd> Restart</span>" +
-        (vtol
-          ? "<span><kbd>T</kbd> VTOL mode</span><span><kbd>H</kbd> Hover throttle 50%</span><span><kbd>B</kbd> VTOL assistance</span>"
-          : "<span><kbd>V</kbd> Camera</span><span><kbd>C</kbd> Control response</span>")
+        "<span><kbd>V</kbd> Camera</span><span><kbd>C</kbd> Control response</span>"
       : !d
         ? '<div class="shortcut-empty"><strong>Flight shortcuts</strong><p>Connect hardware to see your button bindings.</p></div>'
-        : (
-            [
-              "toggle",
-              "reset",
-              "camera",
-              "response",
-              "vtolMode",
-              "vtolAssistance",
-              "settings",
-            ] as Action[]
-          )
-            .filter((a) => actionAvailable(a, vtol))
+        : (["toggle", "reset", "camera", "response", "settings"] as Action[])
             .map(
               (a) =>
                 `<span data-shortcut-action="${a}"><b>${escape(this.hint(a) || "Unassigned")}</b> ${actionNames[a]}</span>`,
@@ -235,10 +200,6 @@ export class ControllerActions {
       });
     const occupied = channels.map((c) => this.input.profile.bindings[c].axis);
     if (d?.mapping === "Arduino USB") occupied.push(5); // CH6 is the firmware RUN guard.
-    const radio = vtol && kind === "transmitter" && !!d && d.axes.length >= 5;
-    $("vtol-radio-shortcuts").hidden = !radio;
-    $("vtol-radio-shortcuts-note").hidden = !radio;
-    $("vtol-radio-shortcuts").toggleAttribute("disabled", occupied.includes(4));
     const signature = JSON.stringify([
       id,
       d?.buttons.length,
@@ -247,12 +208,10 @@ export class ControllerActions {
       this.style,
       this.standard,
       this.input.source,
-      vtol,
     ]);
     if (signature !== this.signature) {
       this.signature = signature;
       $("controller-actions").innerHTML = Object.entries(actionNames)
-        .filter(([action]) => actionAvailable(action, vtol))
         .map(
           ([action, label]) =>
             `<label>${label}<select data-action="${action}" ${!d || false ? "disabled" : ""}><option value="none">Unassigned</option>${d?.buttons.map((_, i) => `<option value="b${i}">${escape(buttonName(i, this.style, this.standard))}</option>`).join("") ?? ""}${d?.axes.flatMap((_, i) => (occupied.includes(i) ? [] : [`<option value="a${i}+">Axis ${i + 1} high</option>`, `<option value="a${i}-">Axis ${i + 1} low</option>`])).join("") ?? ""}</select></label>`,
@@ -270,7 +229,7 @@ export class ControllerActions {
             this.bindings[a] = select.value;
             try {
               localStorage.setItem(
-                "rcforge.actions." + id,
+                storageKey("actions.") + id,
                 JSON.stringify(this.bindings),
               );
               $("action-status").textContent = "Shortcuts saved.";
@@ -294,9 +253,8 @@ export class ControllerActions {
       : "Connect a controller to assign shortcuts.";
     const safeBindings = Object.fromEntries(
       Object.entries(this.bindings).filter(
-        ([action, v]) =>
-          actionAvailable(action, vtol) &&
-          (!v.startsWith("a") || !occupied.includes(Number(v.slice(1, -1)))),
+        ([, v]) =>
+          !v.startsWith("a") || !occupied.includes(Number(v.slice(1, -1))),
       ),
     ) as ActionBindings;
     for (const action of this.edges.read(

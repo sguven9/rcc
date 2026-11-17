@@ -1,19 +1,18 @@
 # Third-party notices
 
-RCForge is an independent project. Names of aircraft, designers, manufacturers and
+The simulator is an independent project. Names of aircraft, designers, manufacturers and
 products identify references; they do not imply affiliation, endorsement or
-certification. RCForge's MIT license covers its original code and parameterizations,
+certification. The simulator's MIT license covers its original code and parameterizations,
 not ownership of upstream designs, artwork or trademarks.
 
 ## Aircraft designs and plans
 
-| RCForge preset                      | Original creator                                    | Design reference                                                                    |
+| The simulator preset                | Original creator                                    | Design reference                                                                    |
 | ----------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | FT Bronco · V-tail and conventional | Peter Sripol / Flite Test; drawings by Dan Sponholz | [FT Bronco build](https://www.flitetest.com/articles/ft-bronco-build)               |
 | FT Tiny Trainer · Sport             | Josh Bixler / Flite Test                            | [FT Tiny Trainer build](https://www.flitetest.com/articles/flite-test-tiny-trainer) |
 | FT-22 Raptor                        | Josh Bixler / Flite Test                            | [FT-22 build](https://www.flitetest.com/articles/ft-22-raptor-build)                |
 | Simple Trainer                      | Vortex RC                                           | [VT-Simple Trainer kit](https://www.vortex-rc.com/product/vt-simple-trainer/)       |
-| Quad X examples                     | Independent RCForge assemblies                      | [Multirotor models and sources](docs/multirotors.md)                                |
 
 The procedural aircraft are independent approximations, not official digital
 models or manufacturing templates. The definitions contain original-creator
@@ -38,8 +37,7 @@ with Vortex RC; no public downloadable kit plan has been established.
 
 ## Components and hardware
 
-The 450 mm utility quad references [DJI F450 frame specifications](https://www-v1.dji.com/it/flame-wheel-arf/spec.html)
-and [EMAX MT2213 data](https://emaxmodel.com/collections/mt-series/products/emax-mt2213-935kv-multicopter-brushless-motor).
+The component catalog references [EMAX MT2213 data](https://emaxmodel.com/collections/mt-series/products/emax-mt2213-935kv-multicopter-brushless-motor).
 Manufacturer dimensions and factual thrust/current samples are attributed in the
 aircraft JSON. Original product imagery is not redistributed.
 
@@ -55,17 +53,17 @@ board or aircraft hardware certification is implied.
 
 ## Scenery and visual assets
 
-RCForge bundles CC0 surface textures and a sky HDRI from Poly Haven and ambientCG.
+The simulator bundles CC0 surface textures and a sky HDRI from Poly Haven and ambientCG.
 The [scenery asset manifest](public/scenery/README.md) identifies every source,
 creator, license and modification. The foliage atlas was generated specifically
-for RCForge; its original alpha channel and generation prompt are retained.
+for the simulator; its original alpha channel and generation prompt are retained.
 
 Alpine and mesa terrain include derived Mapzen Terrain Tiles elevation data.
 Europe terrain data: produced using Copernicus data and information funded by the
 European Union — EU-DEM layers. United States 3DEP (formerly NED), global
 GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey. The asset
 manifest includes source URLs and data licensing. These credits are separate from
-the MIT license for RCForge code.
+the MIT license for the simulator code.
 
 ## Software and fonts
 
@@ -75,9 +73,9 @@ documentation at build time and is not shipped as a browser parser. Consult
 installed packages for exact license text and the npm lockfile for versions and
 transitive dependencies.
 
-DM Sans and Space Grotesk are bundled through Fontsource under the SIL Open Font
-License. Their font licenses are included with the installed Fontsource packages;
-the production build includes the font distribution notice and license files.
+Sora and Figtree are bundled through Fontsource under the SIL Open Font
+License 1.1. Their license texts are in `public/licenses/` and the production
+build includes them under `licenses/`.
 
 ## Adding a reference
 
@@ -93,7 +91,7 @@ licensed under [LGPL-2.1](https://github.com/JSBSim-Team/jsbsim/blob/v1.3.1/COPY
 as a separately installed development tool. The original MIT adapter in
 `scripts/reference/` uses its public interfaces and independently authored test
 definitions. JSBSim source, binaries and upstream aircraft assets are not bundled
-in RCForge or the browser application. See [comparison methodology](docs/physics-reference.md)
+in the simulator or the browser application. See [comparison methodology](docs/physics-reference.md)
 for the inspected source revision, matching assumptions and evidence limits.
 
 `npm run physics:nasa -- --fetch` downloads five published numerical trajectories

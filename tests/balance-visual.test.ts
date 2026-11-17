@@ -41,9 +41,6 @@ it("ships a static fallback and a bounded keyboard-accessible control using vers
   expect(staticBalanceDiagram()).not.toMatch(/\sdata-[\w-]+(?=\s|>)/);
   const files = buildDocs(process.cwd());
   expect(
-    files.get("/docs/next/bronco-vtol/index.html")!.data.toString(),
-  ).toContain("data-balance-lab");
-  expect(
     files.get("/docs/next/aircraft-editor/index.html")!.data.toString(),
   ).toContain("data-balance-lab");
 });

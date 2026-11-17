@@ -41,13 +41,8 @@ export function placedLaunch(
   if (mode !== "ground") s.position[2] = -p.altitudeM;
   s.orientation = mulQ(yaw, s.orientation);
   s.velocity =
-    s.status === "grounded" || a.vehicleType === "multirotor" || a.vtol
+    s.status === "grounded"
       ? rotate(yaw, s.velocity)
       : add(rotate(yaw, air), launchWind(environment, -s.position[2]));
-  if (s.vtol) {
-    s.vtol.positionTarget = [...s.position];
-    s.vtol.altitudeTargetM = -s.position[2];
-    s.vtol.headingTarget = radians(p.headingDeg);
-  }
   return s;
 }

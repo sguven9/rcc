@@ -88,13 +88,10 @@ export function componentType(p: Aircraft["parts"][number]) {
 /** Catalog dimensions may be recorded with a vertical or horizontal shaft.
  * Convert the envelope/principal-axis ordering to the vehicle's motor axis.
  * Omitted shaftAxis retains the original body-frame catalog convention. */
-export function catalogMassParts(
-  entry: Component,
-  vehicleType: Aircraft["vehicleType"],
-) {
+export function catalogMassParts(entry: Component) {
   const part = structuredClone(entry.part);
   const prop = entry.type === "motor" ? structuredClone(entry.prop) : undefined;
-  const targetAxis = vehicleType === "multirotor" ? "z" : "x";
+  const targetAxis = "x";
   if (
     entry.type === "motor" &&
     entry.shaftAxis &&
@@ -160,16 +157,7 @@ export function replaceComponent(
     throw new Error(
       "Replace this propeller through its motor/prop package so the performance curve stays paired.",
     );
-  const product = catalogMassParts(
-    entry,
-    out.vtol &&
-      (out.vtol.massConfiguration === "hover" ||
-        out.motors.some(
-          (m) => m.id === out.vtol!.rearMotorId && m.partId === partId,
-        ))
-      ? "multirotor"
-      : out.vehicleType,
-  );
+  const product = catalogMassParts(entry);
   out.parts[index] = {
     ...product.part,
     id: old.id,

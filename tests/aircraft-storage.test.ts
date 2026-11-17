@@ -25,7 +25,7 @@ it("restores the last available catalog selection and its applied definition", (
   rememberAircraft(models[1].id, storage);
   const applied = structuredClone(models[1]);
   applied.parts[0].massKg += 0.01;
-  storage.setItem("rcforge.aircraft.v3." + applied.id, JSON.stringify(applied));
+  storage.setItem("rcsim.aircraft.v3." + applied.id, JSON.stringify(applied));
   const base = preferredAircraft(models, storage);
   expect(base).toBe(models[1]);
   expect(savedAircraft(base, storage)).toEqual(applied);
@@ -58,12 +58,12 @@ it("isolates corrupt imports, reserves bundled IDs and reports storage failures"
   const storage = store();
   const source = { ...structuredClone(models[1]), id: "my-trainer" };
   storage.setItem(
-    "rcforge.imported-aircraft.v1",
+    "rcsim.imported-aircraft.v1",
     JSON.stringify([null, models[0], source, source, { id: "incomplete" }]),
   );
   expect(importedAircraft(models, storage)).toEqual([source]);
   for (const data of ["{", " ".repeat(2_000_001), JSON.stringify({ source })]) {
-    storage.setItem("rcforge.imported-aircraft.v1", data);
+    storage.setItem("rcsim.imported-aircraft.v1", data);
     expect(importedAircraft(models, storage)).toEqual([]);
   }
   expect(saveAppliedAircraft(source, models[0], storage)).toBe(false);
@@ -95,7 +95,7 @@ it("falls back for removed selections, incompatible overrides and unavailable st
     " ".repeat(1_000_001),
     JSON.stringify(models[1]),
   ]) {
-    storage.setItem("rcforge.aircraft.v3." + models[0].id, invalid);
+    storage.setItem("rcsim.aircraft.v3." + models[0].id, invalid);
     const recovered = savedAircraft(models[0], storage);
     expect(recovered).toEqual(models[0]);
     expect(recovered).not.toBe(models[0]);

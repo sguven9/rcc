@@ -1,7 +1,6 @@
 import { Marked } from "marked";
 import { posix } from "node:path";
 import type { DocPage } from "./config.ts";
-import { REPOSITORY } from "./config.ts";
 
 export const escapeHtml = (text: string) =>
   text.replace(
@@ -52,7 +51,9 @@ export function renderMarkdown(
     if (downloads.has(target))
       return `/docs/${version}/files/${target.split("/").map(encodeURIComponent).join("/")}${suffix}`;
     if (image) return "";
-    return `${REPOSITORY}/blob/${sourceRef}/${target.split("/").map(encodeURIComponent).join("/")}${suffix}`;
+    // Repository source files are named, not linked: the site has no
+    // outbound code-hosting links.
+    return "";
   };
   const marked = new Marked({
     gfm: true,

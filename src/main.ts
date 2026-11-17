@@ -6,8 +6,6 @@ import {
 } from "./app/host";
 import { ComponentPlacementDialog } from "./app/component-placement";
 import { FlightClock } from "./app/flight-clock";
-import "./view/vtol.css";
-import { VtolFlight } from "./app/vtol-flight";
 import { bundledAircraft } from "./app/bundled-aircraft";
 import { setupAircraftHistory } from "./app/aircraft-history";
 import {
@@ -56,6 +54,7 @@ import { rotate } from "./core/math";
 import { defaultWindProfile } from "./core/atmosphere";
 import { placedLaunch, type Placement } from "./core/placement";
 import { placementUI } from "./app/placement";
+import "./theme/theme.css";
 import "./style.css";
 import "./workbench.css";
 import "./view/editor-workspace.css";
@@ -81,6 +80,8 @@ import {
 import { PHYSICS } from "./core/physics-config";
 import { setPositionField } from "./view/position-panel";
 import "./view/flight-feedback.css";
+import "./view/setup-wizard.css";
+import "./theme/components.css";
 import { ZodError } from "zod";
 import { aircraftCredit } from "./app/aircraft-credit";
 import { workbenchMarkup } from "./view/workbench";
@@ -121,6 +122,19 @@ import {
   flightModelNote,
 } from "./app/flight-session";
 import { setupTabs } from "./app/tabs";
+import { storageKey } from "./config/brand";
+import { bootDone, bootProgress } from "./app/boot";
+import { SetupWizard } from "./app/setup-wizard";
+import {
+  needsRecalibration,
+  parseSetupState,
+  shouldOpenWizard,
+  switchOn,
+  throttleSafe,
+  type SetupState,
+} from "./input/calibration";
+import { mapGamepad, saveProfile } from "./input/controls";
+bootProgress(0.45, "Preparing the workbench…");
 $("app").innerHTML = workbenchMarkup();
 const flightOverlaySizes = new ResizeObserver((entries) => {
   for (const entry of entries) {
@@ -239,69 +253,127 @@ const input = new InputManager(
 );
 const controller = new ControllerPage(input, () => pause(), message);
 const arduino = setupArduino(input, controller, pause);
-const vtolFlight = new VtolFlight(
-  () => sim,
-  message,
-  () => {
-    if (false && !replay) input.throttle = 0.5;
+/**
+ * First-run transmitter setup wizard. Its state (completed / skipped, the
+ * calibrated device and a pending first-flight throttle check) is stored
+ * apart from the calibration itself, which is the saved controller profile.
+ */
+const SETUP_STATE_KEY = storageKey("setup.v1");
+let setupState: SetupState | null = null;
+try {
+  setupState = parseSetupState(localStorage.getItem(SETUP_STATE_KEY));
+} catch {
+  /* Preferences are optional. */
+}
+function saveSetupState(state: SetupState) {
+  setupState = state;
+  try {
+    localStorage.setItem(SETUP_STATE_KEY, JSON.stringify(state));
+  } catch {
+    /* The calibration still applies for this session. */
+  }
+}
+function hasSavedCalibration() {
+  try {
+    for (let i = 0; i < localStorage.length; i++)
+      if (localStorage.key(i)?.startsWith(storageKey("controller.")))
+        return true;
+  } catch {
+    /* No storage: treat as not calibrated. */
+  }
+  return false;
+}
+const wizard = new SetupWizard({
+  devices: () => input.devices(),
+  expo: () => expoSettings(),
+  onSave: (calibration, deviceIndex) => {
+    input.deviceIndex = deviceIndex;
+    input.profile = calibration;
+    saveProfile(calibration);
+    saveSetupState({
+      completed: true,
+      skipped: false,
+      deviceId: calibration.deviceId,
+      firstFlightPending: true,
+    });
+    controller.refresh();
+    message(
+      "Transmitter calibrated. Lower the throttle and start your flight.",
+    );
+    location.hash = "/fly";
   },
-);
+  onSkip: () => {
+    saveSetupState({ completed: false, skipped: true });
+    message(
+      "Setup skipped: the default channel mapping is in use. Run the setup wizard from Controllers at any time.",
+    );
+  },
+});
+for (const id of ["open-setup-wizard", "open-setup-wizard-flight"])
+  $(id).onclick = () => {
+    pause();
+    wizard.open();
+  };
+let recalibrationSuggested = "";
+/** A different transmitter than the calibrated one: offer the wizard. */
+function suggestRecalibration() {
+  const d = input.selected();
+  if (
+    !d ||
+    wizard.isOpen ||
+    recalibrationSuggested === d.id ||
+    !needsRecalibration(setupState, d.id)
+  )
+    return;
+  recalibrationSuggested = d.id;
+  const box = document.createElement("div");
+  box.className = "setup-suggestion";
+  box.setAttribute("role", "status");
+  box.innerHTML = `<span>A different transmitter is connected. Calibrate it?</span><button class="primary">Calibrate</button><button>Later</button>`;
+  const [calibrate, later] = box.querySelectorAll("button");
+  calibrate.onclick = () => {
+    box.remove();
+    pause();
+    wizard.open();
+  };
+  later.onclick = () => box.remove();
+  document.body.append(box);
+}
 function physicalAircraft() {
   return mode === "ground" ? fitLandingGear(aircraft) : aircraft;
 }
 function updateFlightInfo() {
   const a = physicalAircraft();
-  const quad = a.vehicleType === "multirotor";
   document.querySelectorAll<HTMLButtonElement>("[data-launch]").forEach((b) => {
-    b.disabled = (quad || !!a.vtol) && b.dataset.launch === "hand";
     b.classList.toggle("active", b.dataset.launch === mode);
     b.setAttribute("aria-pressed", String(b.dataset.launch === mode));
-    if (b.dataset.launch === "airborne")
-      b.textContent = quad || a.vtol ? "Hover" : "In flight";
   });
   const note = flightModelNote({
-    quad,
-    controlMode: a.multirotor?.mode,
     handLaunch: mode === "hand",
     trimSpeedMps: launchAirspeed(a, mode),
     converged: releaseTrimConverged,
     pitchTrim,
   });
-  $("flight-control-note").textContent = a.vtol
-    ? "Experimental tiltrotor · ideal-state assistance, estimated aerodynamics."
-    : note.text;
+  $("flight-control-note").textContent = note.text;
   $("flight-control-note").classList.toggle("trim-limited", note.limited);
-  if (quad)
-    $("launch-description").textContent =
-      mode === "ground"
-        ? "Start on landing feet. Increase power gradually; this quad has no altitude hold."
-        : `Start in stationary hover at ${placement?.altitudeM ?? 3} m with calculated hover power.`;
-  else
-    $("launch-description").textContent =
-      mode === "ground"
-        ? "Start stationary on the ground. Build airspeed, then rotate."
-        : mode === "hand"
-          ? `Release at ${placement?.altitudeM ?? 1.7} m and 8.5 m/s${releaseTrimConverged ? ", trimmed for a gentle climb" : ""}.`
-          : `Start at ${placement?.altitudeM ?? 22} m and ${launchAirspeed(a, mode)} m/s${releaseTrimConverged ? " with calculated trim" : ""}.`;
-  if (a.vtol)
-    $("launch-description").textContent =
-      mode === "ground"
-        ? "Start on the skids. Raise throttle above center to lift off, then center it to hold height."
-        : "Start in hover. Center throttle holds height.";
+  $("launch-description").textContent =
+    mode === "ground"
+      ? "Start stationary on the ground. Build airspeed, then rotate."
+      : mode === "hand"
+        ? `Release at ${placement?.altitudeM ?? 1.7} m and 8.5 m/s${releaseTrimConverged ? ", trimmed for a gentle climb" : ""}.`
+        : `Start at ${placement?.altitudeM ?? 22} m and ${launchAirspeed(a, mode)} m/s${releaseTrimConverged ? " with calculated trim" : ""}.`;
   $("flight-mass").textContent =
     (massProperties(a).mass * 1000).toFixed(0) + " g";
   $("flight-model-info").textContent =
-    `${a.name} · ${(a.reference.spanM * 1000).toFixed(0)} mm ${quad ? "motor diagonal" : "span"} · ${a.vtol ? "Three rotors · front conversion + rear yaw" : quad ? "Four rotors" : a.motors.length === 2 ? "Twin motor" : "Single motor"}`;
+    `${a.name} · ${(a.reference.spanM * 1000).toFixed(0)} mm span · ${a.motors.length === 2 ? "Twin motor" : "Single motor"}`;
   $("flight-aircraft-credit").innerHTML = aircraftCredit(a);
-  $("flight-gear").textContent = a.vtol
-    ? "Installed VTOL skids"
-    : quad
-      ? "Four landing feet"
-      : aircraft.contactPoints.some((p) => p.kind === "wheel")
-        ? `${aircraft.contactPoints.filter((p) => p.kind === "wheel").length} installed wheels${aircraft.contactPoints.some((p) => p.kind === "skid") ? " + tail skid" : ""}`
-        : mode === "ground"
-          ? "Removable tricycle (+45 g)"
-          : "Belly landing";
+  $("flight-gear").textContent = aircraft.contactPoints.some(
+    (p) => p.kind === "wheel",
+  )
+    ? `${aircraft.contactPoints.filter((p) => p.kind === "wheel").length} installed wheels${aircraft.contactPoints.some((p) => p.kind === "skid") ? " + tail skid" : ""}`
+    : mode === "ground"
+      ? "Removable tricycle (+45 g)"
+      : "Belly landing";
 }
 function showScenery(env: typeof environment) {
   const id = (
@@ -327,7 +399,7 @@ const osdUnits = (): { speed: SpeedUnit; altitude: AltitudeUnit } => ({
   altitude: $<HTMLSelectElement>("osd-alt-unit").value as AltitudeUnit,
 });
 /** v2: the first OSD build saved "off" for everyone at start-up; ignore it. */
-const OSD_STORAGE_KEY = "rcforge.osd.v2";
+const OSD_STORAGE_KEY = storageKey("osd.v2");
 function applyOsdSettings() {
   osd.enabled = $<HTMLInputElement>("osd-toggle").checked;
   try {
@@ -359,7 +431,7 @@ applyOsdSettings();
  * aircraft's iNav board) feeds stick rate commands to the gyro loop in
  * core/flight-controller.ts; MANUAL sends the sticks straight to the servos.
  */
-const FC_MODE_STORAGE_KEY = "rcforge.fc-mode";
+const FC_MODE_STORAGE_KEY = storageKey("fc-mode");
 let fcMode: "acro" | "manual" = "acro";
 try {
   if (localStorage.getItem(FC_MODE_STORAGE_KEY) === "manual") fcMode = "manual";
@@ -367,6 +439,30 @@ try {
   /* Preferences are optional. */
 }
 $<HTMLSelectElement>("fc-mode").value = fcMode;
+/** Arm state from the optional arm switch (always armed without one). */
+let armed = true;
+/**
+ * Optional transmitter switches from the setup wizard: a disarmed arm switch
+ * holds the motor at zero; the flight-mode switch selects ACRO or MANUAL.
+ */
+function applySwitches(raw: { throttle: number }) {
+  const d = input.selected(),
+    s = input.profile.switches;
+  if (!d || !s) {
+    armed = true;
+    return;
+  }
+  armed = s.arm ? switchOn(s.arm, d) : true;
+  if (!armed) raw.throttle = 0;
+  if (s.flightMode) {
+    const wanted = switchOn(s.flightMode, d) ? "acro" : "manual";
+    if (wanted !== fcMode) {
+      fcMode = wanted;
+      $<HTMLSelectElement>("fc-mode").value = fcMode;
+      seedFlightController();
+    }
+  }
+}
 /** ACRO applies only to aircraft whose surfaces the controller can drive. */
 const acroActive = () => fcMode === "acro" && !!sim.controlPower;
 /** Seed the ACRO integrators with the trim so the hand-off is bumpless. */
@@ -397,11 +493,7 @@ function updateOsd() {
     location: site.location,
   });
   osd.update(readings, formatOsd(readings, osdUnits()), {
-    mode: sim.aircraft.vtol
-      ? (sim.state.vtol?.phase ?? "vtol").toUpperCase()
-      : acroActive()
-        ? "ACRO"
-        : "MANUAL",
+    mode: (acroActive() ? "ACRO" : "MANUAL") + (armed ? "" : " · DISARMED"),
     verticalFovDeg: scene?.camera.fov ?? 50,
     odometerFactor: 1,
     odometerLabel: "km",
@@ -426,11 +518,6 @@ function reset() {
   showScenery(environment);
   environment = { ...environment, obstacles: scene?.fieldObstacles ?? [] };
   pause();
-  if (
-    (aircraft.vehicleType === "multirotor" || aircraft.vtol) &&
-    mode === "hand"
-  )
-    mode = "ground";
   started = false;
   replay = null;
   replayIndex = 0;
@@ -453,7 +540,6 @@ function reset() {
     yaw: lateralTrim.yaw,
     throttle: mode === "ground" ? 0 : trim.controls.throttle,
   };
-  vtolFlight.reset();
   input.throttle = controls.throttle;
   sim.lastForces = sim.forces(sim.state, controls);
   recording = createRecording(sim);
@@ -478,8 +564,25 @@ async function launch() {
     return;
   }
   if (!replay && !controller.ready()) {
-    location.hash = "/controllers";
+    if (!setupState?.completed && !setupState?.skipped) wizard.open();
+    else location.hash = "/controllers";
     return;
+  }
+  if (!replay) {
+    const d = input.selected();
+    // Like an ESC that will not arm: no flight starts with the throttle up.
+    if (d && !throttleSafe(mapGamepad(d.axes, input.profile).throttle)) {
+      message(
+        "The throttle stick is up. Lower it fully, then start the flight.",
+      );
+      return;
+    }
+    if (!setupState?.completed)
+      message(
+        "Transmitter not set up: the default channel mapping is in use. Run the setup wizard (Controllers) for checked directions.",
+      );
+    if (setupState?.firstFlightPending)
+      saveSetupState({ ...setupState, firstFlightPending: false });
   }
   if (!replay && recording.frames.length >= 36000) {
     message("Recording limit reached. Export and reset.");
@@ -895,7 +998,8 @@ $<HTMLInputElement>("import-aircraft").onchange = async (e) => {
       data &&
       typeof data === "object" &&
       "format" in data &&
-      data.format === "rcforge-aircraft-history"
+      typeof data.format === "string" &&
+      /(^|-)aircraft-history$/.test(data.format)
         ? parseAircraftHistory(text)
         : undefined;
     if (archive && !archive.entries.length)
@@ -1165,10 +1269,6 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     if (!running) void launch();
   }
-  if (e.code === "KeyB" && !e.repeat && !replay) vtolFlight.cycleAssistance();
-  if (e.code === "KeyT" && !e.repeat && !replay) vtolFlight.toggle();
-  if (e.code === "KeyH" && sim.aircraft.vtol && false && !replay)
-    input.throttle = 0.5;
   if (e.code === "KeyX" && false) input.throttle = 0;
   if (e.code === "KeyR" && !e.repeat) {
     positioning.close(false);
@@ -1193,7 +1293,6 @@ function applySite() {
   reset();
 }
 function stats() {
-  vtolFlight.update(false, replay ? controls.vtol : undefined, !!replay);
   const session = {
     running,
     started,
@@ -1207,12 +1306,8 @@ function stats() {
     ...session,
     mode,
     keyboard: false,
-    quad: sim.aircraft.vehicleType === "multirotor" || !!sim.aircraft.vtol,
     pauseReason,
   });
-  if (sim.aircraft.vtol && !started && !replay)
-    feedback.detail =
-      "Start flight; raise throttle above 55% to climb. Center it to hold height.";
   $("flight-feedback").dataset.tone = feedback.tone;
   for (const [id, value] of [
     ["flight-cue-title", feedback.title],
@@ -1238,7 +1333,7 @@ function stats() {
     ? "Ready · Space raises power, Shift lowers it."
     : input.selected()
       ? "Connected · Check mapping before launch."
-      : "No input detected. Connect your device or choose Keyboard.";
+      : "No transmitter detected. Connect it by USB and move a stick.";
   const power = powertrain(
     sim.aircraft,
     sim.state.motors,
@@ -1291,9 +1386,7 @@ function stats() {
           ? replay
             ? "REPLAY"
             : s.status === "grounded"
-              ? sim.aircraft.vehicleType === "multirotor" || !!sim.aircraft.vtol
-                ? "GROUNDED"
-                : "GROUND ROLL"
+              ? "GROUND ROLL"
               : "IN FLIGHT"
           : started
             ? "PAUSED"
@@ -1347,10 +1440,6 @@ const controllerActions = new ControllerActions(input, (action) => {
     return;
   }
   if (page !== "fly" || (positioning.isOpen() && action !== "camera")) return;
-  if (action === "vtolAssistance") vtolFlight.cycleAssistance();
-  if (action === "vtolMode") vtolFlight.toggle();
-  if (action === "vtolHover") vtolFlight.request("hover");
-  if (action === "vtolCruise") vtolFlight.request("cruise");
   if (action === "reset") reset();
   if (action === "toggle") {
     if (running) pause();
@@ -1373,7 +1462,6 @@ function frame(now: number) {
     controllerActions.update(document.hasFocus(), {
       turnAxis,
       yaw: aircraftChannels(inputAircraft).includes("yaw"),
-      vtol: !!inputAircraft.vtol,
       walking: input.walking,
     });
     if (!running && page === "fly" && false && !replay) input.read(dt);
@@ -1396,6 +1484,7 @@ function frame(now: number) {
         } else {
           const raw = input.read(FIXED_DT);
           if (!running) break;
+          applySwitches(raw);
           // ACRO: centred sticks mean "hold this attitude"; the controller
           // finds the surface trim itself, so the stick trim is not added.
           controls = acroActive()
@@ -1406,7 +1495,7 @@ function frame(now: number) {
             : cleanControls(
                 withTrim(applyExpo(raw, expoSettings()), {
                   roll: lateralTrim.roll,
-                  pitch: sim.aircraft.vtol ? 0 : pitchTrim,
+                  pitch: pitchTrim,
                   yaw: lateralTrim.yaw,
                 }),
               );
@@ -1414,7 +1503,6 @@ function frame(now: number) {
             controls.gust = true;
             gustRequested = false;
           }
-          if (sim.aircraft.vtol) controls.vtol = { ...vtolFlight.command };
         }
         scene?.captureImpactVelocity(sim.state.velocity);
         sim.step(controls);
@@ -1490,8 +1578,6 @@ function frame(now: number) {
           controlPreview.controls,
           viewDt,
           controlPreview.deflections,
-          controlPreview.tiltDeg,
-          controlPreview.rearTiltDeg,
         );
       drawAccumulator =
         Math.max(0, drawAccumulator - renderInterval) % renderInterval;
@@ -1537,7 +1623,7 @@ function frame(now: number) {
         ? '<span class="power-hint">Editing controls · <kbd>Esc</kbd> back to flight</span>'
         : hardware
           ? !input.selected()
-            ? "<span>Connect your controller or choose Keyboard.</span>"
+            ? "<span>Connect your transmitter by USB and move a stick.</span>"
             : aircraftChannels(aircraft)
                 .map(
                   (ch) =>
@@ -1567,20 +1653,24 @@ function frame(now: number) {
         $("reset").innerHTML = resetLabel;
       $("reset").setAttribute("aria-label", "Reset flight");
       if (page === "controllers") controller.update();
+      suggestRecalibration();
       lastUI = now;
     }
   } catch (e) {
     pause();
     message(errorText(e), true);
   }
+  // The first drawn frame ends the loading screen.
+  bootDone();
   requestAnimationFrame(frame);
 }
 try {
+  bootProgress(0.7, "Building the Manisa field…");
   scene = new FlightScene($("viewport"));
   // Development-only handle for scripted screenshots and inspection.
   if (import.meta.env.DEV)
     Object.assign(window, {
-      __rcforge: {
+      __sim: {
         get scene() {
           return scene;
         },
@@ -1592,7 +1682,7 @@ try {
   const applyTheme = () =>
     scene?.setTheme(document.documentElement.dataset.theme === "light");
   applyTheme();
-  window.addEventListener("rcforge-themechange", applyTheme);
+  window.addEventListener("app-themechange", applyTheme);
   scene.onInspectionView = (view) => {
     cameraPlacer?.inspectionView(view);
     document
@@ -1676,3 +1766,5 @@ mountHost({
     } else location.hash = "/" + request.id;
   },
 });
+// First visit, or no calibration saved yet: open the transmitter wizard.
+if (shouldOpenWizard(setupState, hasSavedCalibration())) wizard.open();

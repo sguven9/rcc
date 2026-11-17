@@ -86,7 +86,7 @@ const references = await Promise.all(
 );
 
 // Only the torque-free angular subsystem is matched. Translation and local
-// Euler angles depend on NASA's rotating WGS-84/J2 world, which RCForge lacks.
+// Euler angles depend on NASA's rotating WGS-84/J2 world, which the simulator lacks.
 // Body angular rates relative to inertial space are independent of that world
 // when torque is zero. At the equator the published local roll rate plus Earth
 // rotation is 10 deg/s inertially; using 9.995821927 here would be a frame error.

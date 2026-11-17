@@ -5,7 +5,6 @@
  * - Logarithmic neutral-stability wind profile (wind gradient near the ground).
  * - MIL-F-8785C low-altitude Dryden turbulence, discrete first-order form.
  * - McCormick wing-in-ground-effect induced-drag factor.
- * - Cheeseman–Bennett rotor thrust increase in ground effect.
  *
  * These are textbook engineering models, not calibrated to a measured site or
  * aircraft. See docs/atmosphere-and-ground-effect.md for equations and limits.
@@ -182,23 +181,4 @@ export function groundEffectLiftRatio(
   if (!(k > 0) || !(liftSlope > 0) || liftSlope >= k) return 1;
   const a0 = liftSlope / (1 - liftSlope / k);
   return a0 / (1 + (phi * a0) / k) / liftSlope;
-}
-
-/** Below z/R = 0.5 the Cheeseman–Bennett expression is outside its basis. */
-export const ROTOR_GROUND_EFFECT_MIN_HEIGHT_RATIO = 0.5;
-/**
- * Cheeseman–Bennett hover thrust ratio T_IGE/T_OGE = 1/(1 − (R/4z)²) at equal
- * power, where z is the distance from the rotor disk to the ground along its
- * axis. Clamped at z/R = 0.5 (ratio 4/3). The small residual between z/R = 2
- * and 4 (below 1.6%) is blended smoothly to exactly 1.
- */
-export function rotorGroundEffect(axisDistanceM: number, radiusM: number) {
-  if (!(radiusM > 0) || !(axisDistanceM > 0)) return 1;
-  const ratio = axisDistanceM / radiusM;
-  if (ratio >= 4) return 1;
-  const z = Math.max(ratio, ROTOR_GROUND_EFFECT_MIN_HEIGHT_RATIO);
-  const gain = 1 / (1 - 1 / (16 * z * z)) - 1;
-  const t = clamp((ratio - 2) / 2, 0, 1),
-    fade = t * t * (3 - 2 * t);
-  return 1 + gain * (1 - fade);
 }

@@ -15,7 +15,6 @@ export function flightSetupMarkup() {
       <label>Launch from</label><div class="segmented launch-options" role="group" aria-label="Launch mode"><button data-launch="ground" class="active">Ground</button><button data-launch="hand">Hand throw</button><button data-launch="airborne">In flight</button></div>
       <p class="small muted" id="launch-description"></p>
       <label for="fc-mode">Flight controller</label><select id="fc-mode"><option value="acro">ACRO · gyro holds attitude</option><option value="manual">MANUAL · no gyro</option></select>
-      <div id="flight-vtol" class="vtol-flight-panel" hidden></div>
       <div class="setup-divider"></div><div class="setup-line"><span>All-up weight</span><strong id="flight-mass"></strong></div><div class="setup-line"><span>Landing gear</span><strong id="flight-gear"></strong></div>
       <div id="battery-telemetry" class="battery-telemetry" hidden></div><p id="flight-control-note" class="small muted"></p>
       <a class="setup-text-link" href="#/aircraft">Edit this aircraft ↗</a>
@@ -39,6 +38,7 @@ export function flightSetupMarkup() {
       <p id="flight-input-status" class="small muted" role="status"></p>
       <div id="flight-controller-diagram" class="controller-diagram compact"></div><div id="flight-shortcut-legend" class="shortcut-legend"></div>
       <div class="setup-line"><span>Mapping & calibration</span><a href="#/controllers" id="source-summary">Keyboard ↗</a></div>
+      <button id="open-setup-wizard-flight" class="wide">Run transmitter setup wizard</button>
     </section>
     <div class="setup-footer"><button id="launch" class="primary wide">Start flight</button></div>
   </aside>`;

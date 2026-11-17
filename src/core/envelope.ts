@@ -35,18 +35,8 @@ export function surveyEnvelope(aircraft: Aircraft) {
       const socs = a.battery ? [1, 0.5, 0.15] : [undefined];
       for (const soc of socs) {
         if (a.battery && soc !== undefined) a.battery.initialSoc = soc;
-        for (const speed of a.vehicleType === "multirotor"
-          ? [0]
-          : a.vtol
-            ? [0, 9, 12, 14, 16, 22]
-            : [6, 9, 12, 16, 22]) {
-          const trim = findTrim(
-            a,
-            speed,
-            environment,
-            0,
-            a.vtol && speed > 0 ? "cruise" : "hover",
-          );
+        for (const speed of [6, 9, 12, 16, 22]) {
+          const trim = findTrim(a, speed, environment, 0);
           const sim = new Simulation(a, environment, trim.state);
           const force = sim.forces(sim.state, trim.controls);
           const power = powertrain(a, sim.state.motors, soc, density);
@@ -56,7 +46,7 @@ export function surveyEnvelope(aircraft: Aircraft) {
             massKg: sim.properties.mass,
             soc: soc ?? null,
             speedMps: speed,
-            mode: a.vtol ? (speed === 0 ? "hover" : "cruise") : a.vehicleType,
+            mode: a.vehicleType,
             densityKgM3: density,
             trimmed: trim.converged,
             residual: Math.hypot(...trim.residual),

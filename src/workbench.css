@@ -1,20 +1,7 @@
-/* RCForge monochrome workbench. Shared tokens also style the field instruments.
-   Colour is reserved for physical axes, map markers and flight warnings. */
+/* Workbench styles. Colour, type and shape tokens come from
+   src/theme/theme.css; shared tokens also style the field instruments. */
 :root {
-  --ui-bg: #0c0c0e;
-  --ui-panel: #141416;
-  --ui-raised: #202023;
-  --ui-hover: #29292d;
-  --ui-border: #303034;
-  --ui-border-strong: #505056;
-  --ui-text: #ededf0;
-  --ui-muted: #a1a1aa;
-  --ui-faint: #92929c;
-  --ui-accent: #ededf0;
-  --ui-selection: #2c2c30;
-  --ui-inverse: #111113;
-  --ui-header-height: 56px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: var(--ui-text);
   background: var(--ui-bg);
@@ -31,7 +18,7 @@ h1,
 h2,
 h3,
 .brand {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
 }
 h1 {
   font-size: 20px;
@@ -83,8 +70,8 @@ button.primary {
   font-weight: 600;
 }
 button.primary:hover {
-  background: #fff;
-  border-color: #fff;
+  background: var(--p-white);
+  border-color: var(--p-white);
 }
 button.active,
 button[aria-pressed="true"] {
@@ -323,7 +310,7 @@ details > p {
   border: 1px solid var(--ui-border);
   border-radius: 3px;
   padding: 16px;
-  box-shadow: 0 6px 20px #0003;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--p-black) 20%, transparent);
   max-height: calc(100dvh - 200px);
 }
 .flight-setup .section-kicker {
@@ -628,7 +615,7 @@ details > p {
   border: 1px solid var(--ui-faint);
   color: var(--ui-text);
   font-size: 12px;
-  box-shadow: 0 3px 12px #0004;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--p-black) 27%, transparent);
 }
 .experiment-layout {
   gap: 12px;
@@ -653,7 +640,7 @@ dialog {
   background: var(--ui-panel);
   border: 1px solid var(--ui-border-strong);
   border-radius: 4px;
-  box-shadow: 0 20px 80px #0008;
+  box-shadow: 0 20px 80px color-mix(in srgb, var(--p-black) 53%, transparent);
 }
 dialog::backdrop {
   background: color-mix(in srgb, var(--ui-bg) 66%, transparent);
@@ -929,7 +916,7 @@ body[data-running="true"] .fly-page .flight-stage {
   color: var(--ui-muted);
 }
 .edit-state.pending {
-  color: #efc17b;
+  color: var(--p-accent-300);
 }
 #calibration-status {
   margin: 0 0 12px;
@@ -1388,8 +1375,8 @@ body[data-running="true"] .fly-page .flight-stage {
   stroke: var(--ui-faint);
 }
 .keyboard-key.mapped.power rect {
-  fill: #433824;
-  stroke: #bd9959;
+  fill: var(--p-amber-700);
+  stroke: var(--p-amber-500);
 }
 .keyboard-key.mapped.session rect {
   fill: var(--ui-hover);
@@ -1423,7 +1410,7 @@ body[data-running="true"] .fly-page .flight-stage {
   color: var(--ui-muted);
 }
 .keyboard-color-legend .power {
-  color: #dfb870;
+  color: var(--p-amber-500);
 }
 .keyboard-color-legend .session {
   color: var(--ui-muted);
@@ -1495,7 +1482,7 @@ body[data-running="true"] .fly-page .flight-stage {
   color: var(--ui-text);
 }
 #battery-hud.low-battery strong {
-  color: #efb275;
+  color: var(--p-accent-300);
 }
 @media (max-width: 800px) {
   .flight-instruments {
@@ -1547,7 +1534,7 @@ dialog::backdrop {
 }
 #arduino-status[data-state="signal-lost"],
 #arduino-status[data-state="error"] {
-  color: #efbc72;
+  color: var(--p-accent-300);
 }
 @media (max-width: 900px) {
   .arduino-connection {
@@ -1677,8 +1664,8 @@ button.primary.active {
   color: var(--ui-inverse);
 }
 button.primary:hover {
-  background: #fff;
-  border-color: #fff;
+  background: var(--p-white);
+  border-color: var(--p-white);
 }
 .editor-page,
 .settings-page,
@@ -1898,7 +1885,7 @@ button.primary:hover {
 }
 .live-card .stick-pad i {
   background: var(--ui-text);
-  box-shadow: 0 0 0 4px #ffffff12;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-white) 7%, transparent);
 }
 .live-card .input-tip {
   display: none;
@@ -1982,66 +1969,66 @@ button.primary:hover {
   fill: var(--ui-muted);
 }
 .controller-shell {
-  fill: #303034;
-  stroke: #909098;
+  fill: var(--p-n700);
+  stroke: var(--p-n400);
   stroke-width: 1.2;
 }
 .controller-well {
-  fill: #101012;
-  stroke: #49494f;
+  fill: var(--p-n900);
+  stroke: var(--p-n600);
   stroke-width: 1.2;
 }
 .controller-thumb {
-  fill: #303034;
-  stroke: #777780;
+  fill: var(--p-n700);
+  stroke: var(--p-n400);
   stroke-width: 1.2;
 }
 .thumb-inset {
-  fill: #222225;
-  stroke: #55555d;
+  fill: var(--p-n750);
+  stroke: var(--p-n500);
   stroke-width: 0.8;
 }
 .thumb-center {
-  stroke: #888891;
+  stroke: var(--p-n400);
   stroke-width: 1;
   fill: none;
 }
 .controller-grip {
-  fill: #1b1b1e;
-  stroke: #36363b;
+  fill: var(--p-n800);
+  stroke: var(--p-n700);
   stroke-width: 0.8;
 }
 .controller-outline {
   fill: none;
-  stroke: #87878f;
+  stroke: var(--p-n400);
   stroke-width: 3;
   stroke-linecap: round;
 }
 .controller-detail {
   fill: none;
-  stroke: #65656d;
+  stroke: var(--p-n500);
   stroke-width: 0.8;
   stroke-linecap: round;
 }
 .gimbal-guide {
-  stroke: #707079;
+  stroke: var(--p-n500);
   opacity: 0.5;
   stroke-width: 0.65;
 }
 .controller-screen {
-  fill: #0b0b0d;
-  stroke: #5b5b63;
+  fill: var(--p-n950);
+  stroke: var(--p-n500);
   stroke-width: 1;
 }
 .screen-lines {
-  stroke: #71717b;
+  stroke: var(--p-n400);
   stroke-width: 1.5;
 }
 .device-led {
-  fill: #b6b6be;
+  fill: var(--p-n300);
 }
 .controller-diagram .controller-glyph {
-  fill: #d9d9df;
+  fill: var(--p-n150);
   font-size: 9px;
   font-weight: 500;
 }
@@ -2054,13 +2041,13 @@ button.primary:hover {
   font-size: 7px;
   letter-spacing: 0.6px;
   /* These labels are printed on a dark device body in either page theme. */
-  fill: #c7c7d1;
+  fill: var(--p-n200);
 }
 .controller-diagram .pressed .controller-well,
 .controller-diagram .pressed .controller-thumb,
 .controller-diagram .pressed .thumb-inset {
   fill: var(--ui-text);
-  stroke: #fff;
+  stroke: var(--p-white);
 }
 .controller-diagram .pressed text {
   fill: var(--ui-inverse);
@@ -2069,45 +2056,45 @@ button.primary:hover {
   stroke: var(--ui-inverse);
 }
 .keyboard-body {
-  fill: #111113;
-  stroke: #43434a;
+  fill: var(--p-n900);
+  stroke: var(--p-n600);
   stroke-width: 1.2;
 }
 .keyboard-key rect {
-  fill: #18181b;
-  stroke: #303035;
+  fill: var(--p-n850);
+  stroke: var(--p-n700);
 }
 .keyboard-key.mapped.flight rect {
-  fill: #343438;
-  stroke: #9898a1;
+  fill: var(--p-n700);
+  stroke: var(--p-n300);
 }
 .keyboard-key.mapped.power rect {
-  fill: #46464b;
-  stroke: #c7c7cf;
+  fill: var(--p-n600);
+  stroke: var(--p-n200);
 }
 .keyboard-key.mapped.session rect {
-  fill: #29292d;
-  stroke: #96969f;
+  fill: var(--p-n700);
+  stroke: var(--p-n300);
 }
 .keyboard-key.mapped.view rect {
-  fill: #222226;
-  stroke: #64646e;
+  fill: var(--p-n750);
+  stroke: var(--p-n500);
 }
 .controller-diagram .keyboard-key .key-letter {
-  fill: #777780;
+  fill: var(--p-n400);
 }
 .controller-diagram .keyboard-key .key-function {
-  fill: #b9b9c3;
+  fill: var(--p-n200);
 }
 .controller-diagram .keyboard-key.mapped .key-letter {
-  fill: #efeff2;
+  fill: var(--p-n50);
 }
 .keyboard-key.pressed rect {
-  fill: #ededf0 !important;
-  stroke: #fff !important;
+  fill: var(--p-n100) !important;
+  stroke: var(--p-white) !important;
 }
 .controller-diagram .keyboard-key.pressed text {
-  fill: #111113;
+  fill: var(--p-n900);
 }
 .keyboard-color-legend {
   justify-content: center;
@@ -2390,15 +2377,15 @@ button.primary:hover {
   z-index: 5;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 1px 2px #000);
+  filter: drop-shadow(0 1px 2px var(--p-black));
   text-align: center;
 }
 .aircraft-locator span {
   display: block;
   width: 32px;
   height: 26px;
-  border-left: 2px solid #fff;
-  border-right: 2px solid #fff;
+  border-left: 2px solid var(--p-white);
+  border-right: 2px solid var(--p-white);
   border-radius: 5px;
 }
 .aircraft-locator small {
@@ -2461,10 +2448,10 @@ button.primary:hover {
 .editor-error,
 .experiment-draft-note {
   padding: 12px 16px;
-  border: 1px solid #806940;
+  border: 1px solid var(--p-amber-700);
   border-radius: 6px;
-  background: #312b20;
-  color: #e9ce9e;
+  background: var(--p-amber-700);
+  color: var(--p-amber-300);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -2472,8 +2459,8 @@ button.primary:hover {
   margin: 0 0 18px;
 }
 .editor-page input[aria-invalid="true"] {
-  border-color: #d4a95d;
-  box-shadow: 0 0 0 1px #d4a95d;
+  border-color: var(--p-amber-500);
+  box-shadow: 0 0 0 1px var(--p-amber-500);
 }
 .component-details {
   margin-top: 18px;
@@ -2920,7 +2907,7 @@ button.primary:hover {
   font-size: 10px;
 }
 .mix-saturated {
-  color: #e8b668 !important;
+  color: var(--p-accent-400) !important;
 }
 
 /* Docs stays with the shared utility controls in both editions. */

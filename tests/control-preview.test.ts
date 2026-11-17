@@ -19,7 +19,6 @@ import {
 import raptor from "../aircraft/ft-22-raptor.json";
 import bronco from "../aircraft/ft-bronco.json";
 import trainer from "../aircraft/ft-tiny-trainer.json";
-import quad from "../aircraft/quad-x-6s.json";
 
 it.each([raptor, bronco, trainer])(
   "matches actual flight servo deflections on $id",
@@ -71,7 +70,7 @@ it("shows the actual mixed FT-22 travel and responds to linkage changes", () => 
     ),
   ).toBeCloseTo(20);
 });
-it("expo softens the stick centre but keeps full travel and the included trim, while quads never spin motors", () => {
+it("expo softens the stick centre but keeps full travel and the included trim", () => {
   const preview = new ControlPreview(parseAircraft(raptor));
   // Half stick: out = (1 − e)·x + e·x³ = 0.3875 at e = 0.3, then trim 0.7.
   preview.step({ ...neutralControls(), pitch: 0.5 }, DEFAULT_EXPO, 0.7);
@@ -82,11 +81,4 @@ it("expo softens the stick centre but keeps full travel and the included trim, w
   preview.reset();
   preview.step(neutralControls(), DEFAULT_EXPO, 0.7);
   expect(preview.controls.pitch).toBe(0.7);
-  const drone = new ControlPreview(parseAircraft(quad));
-  drone.step(
-    { roll: 1, pitch: 1, yaw: 1, throttle: 1 },
-    { roll: 0, pitch: 0, yaw: 0, throttle: 0 },
-  );
-  expect(drone.controls).toEqual({ roll: 1, pitch: 1, yaw: 1, throttle: 0 });
-  expect(drone.deflections).toEqual([]);
 });

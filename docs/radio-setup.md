@@ -11,7 +11,7 @@ receivers, boards and cable pinouts need their own checks.
 | Bound receiver with CH1–CH6 PWM outputs   | [Receiver PWM](#3-receiver-pwm) — six signal wires  |
 | Documented trainer PPM OUT breakout       | [Trainer PPM](#4-trainer-ppm) — wired to the radio  |
 
-![Three radio connection paths and the matching RCForge connection button](images/diagram-radio-paths.svg)
+![Three radio connection paths and the matching connection button in the simulator](images/diagram-radio-paths.svg)
 
 Need help with your exact parts? [Configure a prompt for your coding agent](#set-up-with-an-ai-agent).
 The [detailed FS-i6 reference](flysky-fs-i6.md) includes troubleshooting and protocol details.
@@ -22,7 +22,7 @@ Have an **FS-i6 and Nano**? Start with the [direct trainer walkthrough](trainer-
 
 | Route                                   | Evidence and remaining checks                                                                                                                                                                               |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **FS-i6 trainer → Nano**                | User-supplied diagnostic output shows six-channel PPM and changing stick values; CH6 RUN was reported. Full RCForge calibration and signal-loss/recovery are not yet confirmed.                             |
+| **FS-i6 trainer → Nano**                | User-supplied diagnostic output shows six-channel PPM and changing stick values; CH6 RUN was reported. Full simulator calibration and signal-loss/recovery are not yet confirmed.                           |
 | **FS-iA6B receiver → Nano (PPM)**       | **Still to be tested successfully.** An attempted bench connection caused the USB port to disappear when the transmitter linked. The cause is unresolved; do not describe this route as hardware-validated. |
 | **Receiver → Uno/Nano (six PWM wires)** | **Still to be tested on hardware.** Firmware compilation is not a physical connection test.                                                                                                                 |
 | **USB simulator adapter**               | Documented option; no adapter hardware test is recorded here.                                                                                                                                               |
@@ -109,7 +109,7 @@ Connect no ESC, BEC, other supply, motors or servos to this circuit.
 
 ## Can I use another Arduino?
 
-**Yes—the bridge does not have to be a classic Uno or Nano.** Its job is to read the radio's PPM pulses and send channel values in a format RCForge understands. Another Arduino or microcontroller can do this if it supports suitable signal capture and USB serial, with firmware adapted to that board.
+**Yes—the bridge does not have to be a classic Uno or Nano.** Its job is to read the radio's PPM pulses and send channel values in a format the simulator understands. Another Arduino or microcontroller can do this if it supports suitable signal capture and USB serial, with firmware adapted to that board.
 
 ```text
 Transmitter PPM OUT ──→ compatible input pin
@@ -119,7 +119,7 @@ Transmitter GND ─────→ board GND
                   Decode pulses → RCF1 packets
                           │ USB serial
                           ▼
-               RCForge → Connect Arduino
+               the simulator → Connect Arduino
 ```
 
 The important distinction is **compatible hardware versus ready-to-upload firmware**:
@@ -138,16 +138,16 @@ Do not copy the classic Nano's D2 wiring to another board without checking its p
 
 ## Load the bridge and connect
 
-Download the version-matched [RCForge bridge sketch](../hardware/rcforge_bridge/rcforge_bridge.ino),
-or open it in your cloned project. Keep the file inside a folder named `rcforge_bridge`.
+Download the version-matched [the simulator bridge sketch](../hardware/rc_bridge/rc_bridge.ino),
+or open it in your cloned project. Keep the file inside a folder named `rc_bridge`.
 
 1. In Arduino IDE, set **`RCF_INPUT_MODE`** to 1 for PPM or 2 for PWM. Keep **`RCF_GUARD_CHANNEL 6`**.
 2. Select **Arduino AVR Boards → Arduino Uno** or **Arduino Nano → ATmega328P** and your board's USB port. Upload using a USB data cable.
-3. Close Serial Monitor. In desktop Chrome, open RCForge on localhost or HTTPS.
+3. Close Serial Monitor. In desktop Chrome, open the simulator on localhost or HTTPS.
 4. Choose **Controllers → RC transmitter → Connect Arduino**, select the serial port, and allow the board to reboot.
 
 Classic Nano clones may need **ATmega328P (Old Bootloader)**. This sketch is not
-for Uno R4 or Nano Every. It sends **USB serial** into RCForge, not a system-wide
+for Uno R4 or Nano Every. It sends **USB serial** into the simulator, not a system-wide
 USB joystick. [Uno R3](https://docs.arduino.cc/hardware/uno-rev3/),
 [classic Nano](https://docs.arduino.cc/hardware/nano/),
 [Web Serial](https://developer.chrome.com/docs/capabilities/serial).
@@ -176,11 +176,11 @@ bench verification.** No connected hardware is claimed by these guides.
 
 Fill in your hardware on the website, then **Copy prompt**. In the Markdown file,
 replace the `{{…}}` fields yourself. Paste it into your coding agent inside an
-RCForge checkout. The agent can inspect code and prepare board-specific commands;
+The simulator checkout. The agent can inspect code and prepare board-specific commands;
 you make the physical connections and operate the radio.
 
 ```agent-prompt
-Help me connect my RC controller to RCForge in this checkout.
+Help me connect my RC controller to the simulator in this checkout.
 
 Connection route: {{Connection route|Receiver PPM|Receiver PWM (six channels)|Trainer PPM|USB joystick adapter}}
 Board: {{Arduino board|Uno R3 (ATmega328P)|Classic Nano (ATmega328P)|Classic Nano (Old Bootloader)|None — USB joystick adapter|Other or unsure}}
@@ -189,7 +189,7 @@ Receiver or adapter: {{Receiver or adapter model}}
 Computer: {{Operating system and browser}}
 Cable / breakout information: {{Cable labels or pinout link}}
 
-Read AGENTS.md, docs/radio-setup.md, docs/flysky-fs-i6.md and hardware/rcforge_bridge/rcforge_bridge.ino first. Treat the current checked-out firmware as authoritative. Ask for missing model names, clear connector photos or manufacturer pinouts. Never guess DIN pin numbers from wire colors or assume a USB programming cable is a joystick adapter.
+Read AGENTS.md, docs/radio-setup.md, docs/flysky-fs-i6.md and hardware/rc_bridge/rc_bridge.ino first. Treat the current checked-out firmware as authoritative. Ask for missing model names, clear connector photos or manufacturer pinouts. Never guess DIN pin numbers from wire colors or assume a USB programming cable is a joystick adapter.
 
 For my chosen route, produce a labeled connection table with source pin, resistor, board pin, common ground and power arrangement. For the supplied classic ATmega328P sketch, PPM uses D2 and six-channel PWM uses CH1–CH6 to D2–D7. For another board, verify its pinout and port the input capture and USB serial code while preserving the RCF1 protocol, guard and signal-loss behavior. Each input needs 1 kΩ in series and 47 kΩ to ground on the Arduino side. Verify signal voltage and receiver supply requirements from primary sources. Do not join USB 5 V to an ESC/BEC or another supply. Use a bare bench receiver without motors or servos.
 

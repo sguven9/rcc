@@ -2,12 +2,12 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns:xlink="http://www.w3.org/1999/xlink" width="720pt" height="417.6pt" viewBox="0 0 720 417.6" xmlns="http://www.w3.org/2000/svg" version="1.1">
- <title>RCForge versus published NASA angular rates</title>
+ <title>Simulator versus published NASA angular rates</title>
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:title>RCForge versus published NASA angular rates</dc:title>
+    <dc:title>Simulator versus published NASA angular rates</dc:title>
     <dc:description>Maximum three-axis inertial body-rate differences over 30 seconds at 120 and 240 Hz; all five reference datasets are below the 0.01 degree per second engineering limit.</dc:description>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>

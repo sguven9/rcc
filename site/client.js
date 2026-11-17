@@ -343,5 +343,5 @@ const syncDiagramTheme = () => {
     document.querySelector("#diagram-original").href = source.src;
   }
 };
-window.addEventListener("rcforge-themechange", syncDiagramTheme);
+window.addEventListener("app-themechange", syncDiagramTheme);
 syncDiagramTheme();

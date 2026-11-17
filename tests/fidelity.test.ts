@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import quad from "../aircraft/quad-x-6s.json";
+import trainerWithBattery from "../aircraft/ft-tiny-trainer.json";
 import trainer from "./fixtures/generic-trainer.json";
 import { parseAircraft } from "../src/core/schema";
 import { powertrain } from "../src/core/powertrain";
@@ -17,22 +17,23 @@ import {
   replayRecording,
 } from "../src/core/experiment";
 it("battery bench interpolation and voltage sag satisfy V=OCV-IR", () => {
-  const a = parseAircraft(quad),
+  const a = parseAircraft(trainerWithBattery),
     soc = 0.5;
-  const p = powertrain(a, [0.5, 0.5, 0.5, 0.5], soc);
+  // 3S pack at 3.8 V/cell (50 %); bench point 1.4 N at half command, 11.1 V.
+  const p = powertrain(a, [0.5], soc);
   expect(p.voltage).toBeCloseTo(
-    6 * 3.8 - p.current * a.battery!.resistanceOhm,
+    3 * 3.8 - p.current * a.battery!.resistanceOhm,
     10,
   );
-  expect(p.thrust[0]).toBeCloseTo(2.5 * (p.voltage / 22.2) ** 2, 10);
-  const empty = powertrain(a, [1, 1, 1, 1], 0);
-  expect(empty.thrust).toEqual([0, 0, 0, 0]);
+  expect(p.thrust[0]).toBeCloseTo(1.4 * (p.voltage / 11.1) ** 2, 10);
+  const empty = powertrain(a, [1], 0);
+  expect(empty.thrust).toEqual([0]);
   expect(empty.current).toBe(0);
-  const full = powertrain(a, [0.5, 0.5, 0.5, 0.5], 1);
+  const full = powertrain(a, [0.5], 1);
   expect(full.thrust[0]).toBeGreaterThan(p.thrust[0]);
 });
 it("depletion is charge-conserving, bounded and recorded for deterministic replay", () => {
-  const a = parseAircraft(quad);
+  const a = parseAircraft(trainerWithBattery);
   const s = initialState(a, 0, 100, 0);
   s.motors.fill(0.5);
   const sim = new Simulation(a, undefined, s),
@@ -54,7 +55,7 @@ it("depletion is charge-conserving, bounded and recorded for deterministic repla
   expect(
     replayRecording(parseRecording(JSON.parse(JSON.stringify(recording)))),
   ).toEqual(sim.state);
-  const tiny = parseAircraft(quad);
+  const tiny = parseAircraft(trainerWithBattery);
   tiny.battery!.capacityMah = 0.01;
   const drained = new Simulation(tiny, undefined, initialState(tiny, 0, 100));
   for (let i = 0; i < 120; i++) drained.step({ ...c, throttle: 1 });
@@ -88,16 +89,16 @@ it("hot high-altitude air reduces thrust and lift at the same speed", () => {
   const density = airDensity(32, 1500);
   expect(density).toBeLessThan(airDensity(15, 0));
   expect(airDensity(15, 0)).toBeCloseTo(1.225, 3);
-  const a = parseAircraft(quad);
-  const nominal = powertrain(a, [0.5, 0.5, 0.5, 0.5], 1, 1.225),
-    thin = powertrain(a, [0.5, 0.5, 0.5, 0.5], 1, density);
+  const a = parseAircraft(trainerWithBattery);
+  const nominal = powertrain(a, [0.5], 1, 1.225),
+    thin = powertrain(a, [0.5], 1, density);
   expect(thin.thrust[0] / nominal.thrust[0]).toBeCloseTo(density / 1.225, 10);
 });
 it("rejects contradictory component data and malformed lookup curves", () => {
-  const a = structuredClone(quad);
+  const a = structuredClone(trainerWithBattery);
   a.battery.partId = "missing";
   expect(() => parseAircraft(a)).toThrow(/Battery/);
-  const b = structuredClone(quad);
+  const b = structuredClone(trainerWithBattery);
   b.motors[0].performance.points[1].command = 0;
   expect(() => parseAircraft(b)).toThrow(/Performance/);
   const c = parseAircraft(trainer);
@@ -151,7 +152,10 @@ it("servo travel follows its rate limit and remains replayable", () => {
   expect(replayRecording(parseRecording(recording))).toEqual(sim.state);
 });
 it("axis-specific body drag opposes motion and differs by projected area", () => {
-  const a = parseAircraft(quad);
+  const a = parseAircraft(trainerWithBattery);
+  // Body drag alone: no wing or tail side force, no windmilling propeller.
+  a.surfaces = [];
+  a.motors = [];
   a.bodyDragAreaM2 = [0.01, 0.02, 0.04];
   const sim = new Simulation(a),
     c = neutralControls();

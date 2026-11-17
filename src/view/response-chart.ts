@@ -9,16 +9,13 @@ export const responseMetrics = {
   batteryVoltageV: "Pack voltage · V",
   batteryCurrentA: "Current draw · A",
   batteryUsedMah: "Charge used · mAh",
-  vtolTiltDeg: "Front motor tilt · degrees",
-  vtolRearTiltDeg: "Rear yaw tilt · degrees",
-  vtolRearMotor: "Rear motor command · %",
 } as const;
 export type ResponseMetric = keyof typeof responseMetrics;
 export function metricValue(sample: Sample, metric: ResponseMetric) {
   const value = sample[metric];
   return value === undefined
     ? undefined
-    : metric === "batterySoc" || metric === "vtolRearMotor"
+    : metric === "batterySoc"
       ? value * 100
       : value;
 }

@@ -1,11 +1,9 @@
 // Independent Flite Test / Vortex RC reconstructions. Designer and plan credits:
 // docs/plans.md and references/manifest.json; no original artwork is embedded.
-import { vtolHardware } from "./vtol-hardware";
 import { batchStatic } from "./batch-static";
 import { buildFpvHousing } from "./fpv-camera";
 import { orientComponent } from "./component-pose";
 import { surfaceActuation } from "../core/actuation";
-import { buildQuad } from "./quad-model";
 import { buildPanel } from "./planform";
 import { buildFoamWing } from "./foam-wing";
 import { propellerBlade } from "./propeller";
@@ -26,8 +24,6 @@ import type { Controls } from "../core/simulation";
 export interface AircraftVisual {
   group: T.Group;
   propellers: T.Group[];
-  tiltMounts?: { motorIndex: number; pivot: T.Group }[];
-  tiltServoHorns?: { partId: string; pivot: T.Object3D }[];
   controls: {
     surfaceId: string;
     pivot: T.Group;
@@ -413,15 +409,10 @@ export function buildAircraft(
   a: Aircraft,
   editablePartId?: string,
 ): AircraftVisual {
-  if (a.vehicleType === "multirotor") return buildQuad(a, editablePartId);
   const group = new T.Group(),
     propellers: T.Group[] = [],
-    tiltMounts: NonNullable<AircraftVisual["tiltMounts"]> = [],
     controls: AircraftVisual["controls"] = [];
-  const isBronco =
-      a.id === "ft-bronco" ||
-      a.id === "ft-bronco-conventional" ||
-      a.id === "bronco-tri-vtol",
+  const isBronco = a.id === "ft-bronco" || a.id === "ft-bronco-conventional",
     isTiny = a.id === "ft-tiny-trainer",
     planModel = isBronco || isTiny,
     baseColor = isBronco
@@ -442,21 +433,14 @@ export function buildAircraft(
   const surfacePaint = (kind: string) =>
     kind === "wing" ? wingPaint : tailPaint;
   // Detailed generic airframe (smooth lofts, planforms, painted textures).
-  const detailed = !!a.visual && !planModel && !a.vtol;
+  const detailed = !!a.visual && !planModel;
   let fuselageTop: { x: number; top: number }[] = [];
-  const hardware = a.vtol ? vtolHardware() : undefined;
   const propellerMaterials = new Map<string, T.Material>();
   const servoMaterials = new Map<string, T.Material>();
   for (const p of a.parts) {
-    if (p.id === a.fpv?.partId || (a.vtol && p.id === "vtol-skids")) continue;
+    if (p.id === a.fpv?.partId) continue;
     const firstChild = group.children.length;
-    if (hardware?.part(group, p, a)) {
-      // Detailed fixtures and electronics remain tied to their installed mass part.
-    } else if (
-      detailed &&
-      (p.kind === "body" || p.kind === "boom") &&
-      p.bodyLoft
-    ) {
+    if (detailed && (p.kind === "body" || p.kind === "boom") && p.bodyLoft) {
       const [x, , z] = p.positionM,
         [l, w, h] = p.sizeM;
       const sections = p.bodyLoft.map((s) => ({
@@ -679,15 +663,6 @@ export function buildAircraft(
       }
       box(housing, p.sizeM, [0, 0, 0], plastic).name = `servo-housing:${p.id}`;
       // Surface servos already get their animated linkage horn below.
-      if (
-        a.vtol &&
-        [
-          a.vtol.leftServoPartId,
-          a.vtol.rightServoPartId,
-          a.vtol.rearServoPartId,
-        ].includes(p.id)
-      )
-        hardware?.servo(group, p);
       const surface = a.surfaces.find(
         (s) => s.control?.linkage?.servoPartId === p.id,
       );
@@ -730,7 +705,6 @@ export function buildAircraft(
       p,
       group.children.slice(firstChild),
     );
-    if (hardware && assembly && !p.servo) batchStatic(assembly);
   }
   if (detailed && a.visual?.canopy && fuselageTop.length > 1) {
     const topAt = (x: number) => {
@@ -942,8 +916,6 @@ export function buildAircraft(
   }
   for (const [motorIndex, motor] of a.motors.entries()) {
     const firstMotorChild = group.children.length;
-    const rearVtol = a.vtol?.rearMotorId === motor.id;
-    const verticalMass = rearVtol || a.vtol?.massConfiguration === "hover";
     const [x, y, z] = motor.positionM;
     const motorPart = a.parts.find((p) => p.id === motor.partId);
     const propPart = a.parts.find((p) => p.id === motor.propPartId);
@@ -958,21 +930,11 @@ export function buildAircraft(
     }
     // A pusher's mass sits ahead of its prop disk; use the authored installation.
     const shaft = motorPart && motorPart.positionM[0] > x + 0.001 ? -1 : 1;
-    const center: Vec3 =
-      verticalMass && motorPart
-        ? [
-            x + z - motorPart.positionM[2],
-            motorPart.positionM[1],
-            z + motorPart.positionM[0] - x,
-          ]
-        : (motorPart?.positionM ?? [x - shaft * 0.012, y, z]);
+    const center: Vec3 = motorPart?.positionM ?? [x - shaft * 0.012, y, z];
     const size: Vec3 =
-      (verticalMass && motorPart
-        ? [motorPart.sizeM[2], motorPart.sizeM[1], motorPart.sizeM[0]]
-        : motorPart?.sizeM) ??
+      motorPart?.sizeM ??
       (isTiny ? [0.019, 0.024, 0.024] : [0.027, 0.034, 0.034]);
-    if (hardware) hardware.motor(group, size, center);
-    else {
+    {
       const engine = mesh(
         new T.CylinderGeometry(0.5, 0.5, 1, 24),
         orange,
@@ -1005,13 +967,7 @@ export function buildAircraft(
     }
     const prop = new T.Group();
     prop.position.set(
-      ...(verticalMass
-        ? ([
-            x + z - (propPart?.positionM[2] ?? z - 0.052),
-            propPart?.positionM[1] ?? y,
-            z + (propPart?.positionM[0] ?? x) - x,
-          ] as Vec3)
-        : (propPart?.positionM ?? ([x + shaft * 0.008, y, z] as Vec3))),
+      ...(propPart?.positionM ?? ([x + shaft * 0.008, y, z] as Vec3)),
     );
     prop.rotation.x = Math.PI / 2;
     rod(
@@ -1051,23 +1007,7 @@ export function buildAircraft(
       prop.add(cone);
       hub.visible = false;
     }
-    if (a.vtol) {
-      const assembly = group.children.slice(firstMotorChild);
-      const pivot = new T.Group();
-      pivot.name = `tilt-pivot:${motor.id}`;
-      pivot.userData.partId = motor.partId;
-      pivot.userData.pairedPartId = motor.propPartId;
-      pivot.position.set(x, y, z);
-      group.add(pivot);
-      for (const child of assembly) {
-        group.remove(child);
-        child.position.sub(pivot.position);
-        pivot.add(child);
-      }
-      hardware?.cradle(pivot, rearVtol, size, center[0] - x);
-      pivot.rotation.y = Math.PI / 2;
-      tiltMounts.push({ motorIndex, pivot });
-    } else {
+    {
       for (const child of group.children.slice(firstMotorChild)) {
         child.userData.partId = motor.partId;
         child.userData.pairedPartId = motor.propPartId;
@@ -1114,14 +1054,8 @@ export function buildAircraft(
   for (const contact of a.contactPoints.filter(
     (p) => p.kind === "skid" && p.strutAnchorM,
   ))
-    rod(
-      group,
-      contact.strutAnchorM!,
-      contact.positionM,
-      a.vtol ? 0.003 : 0.0015,
-      dark,
-    ).name = contact.id;
-  hardware?.rails(group, a);
+    rod(group, contact.strutAnchorM!, contact.positionM, 0.0015, dark).name =
+      contact.id;
   const properties = massProperties(a);
   const fpvHousing = buildFpvHousing(a);
   if (fpvHousing) group.add(fpvHousing);
@@ -1148,19 +1082,5 @@ export function buildAircraft(
     );
   cg.visible = false;
   group.add(cg);
-  const tiltServoHorns: NonNullable<AircraftVisual["tiltServoHorns"]> = [];
-  group.traverse((o) => {
-    const id = o.name.slice("tilt-servo-horn:".length);
-    if (
-      o.name.startsWith("tilt-servo-horn:") &&
-      a.vtol &&
-      [
-        a.vtol.leftServoPartId,
-        a.vtol.rightServoPartId,
-        a.vtol.rearServoPartId,
-      ].includes(id)
-    )
-      tiltServoHorns.push({ partId: id, pivot: o });
-  });
-  return { group, propellers, controls, cg, tiltMounts, tiltServoHorns };
+  return { group, propellers, controls, cg };
 }

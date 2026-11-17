@@ -2,11 +2,11 @@
  * Coordinates are rounded so `docs:check` stays byte-stable across platforms.
  * These plot the implemented equations; they are not measured data.
  */
+import { BRAND } from "../src/config/brand.ts";
 import {
   DrydenTurbulence,
   drydenParameters,
   groundEffectLiftRatio,
-  rotorGroundEffect,
   shearFactor,
   wingGroundEffect,
 } from "../src/core/atmosphere";
@@ -47,7 +47,7 @@ const text = (
   `<text x="${r1(x)}" y="${r1(y)}" font-size="${size}" fill="${fill}" text-anchor="${anchor}">${esc(s)}</text>`;
 
 function frame(title: string, desc: string, height: number, body: string) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${height}" viewBox="0 0 960 ${height}" role="img" aria-labelledby="title desc"><title id="title">${esc(title)}</title><desc id="desc">${esc(desc)}</desc><style>text{font-family:Arial,Helvetica,sans-serif}</style><rect width="960" height="${height}" rx="16" fill="${c.bg}"/>${text(32, 42, title, 26)}${text(32, 69, desc, 14, c.muted)}${body}${text(32, height - 18, "RCFORGE  /  IMPLEMENTED EQUATIONS, NOT MEASUREMENTS", 11, c.faint)}</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${height}" viewBox="0 0 960 ${height}" role="img" aria-labelledby="title desc"><title id="title">${esc(title)}</title><desc id="desc">${esc(desc)}</desc><style>text{font-family:Arial,Helvetica,sans-serif}</style><rect width="960" height="${height}" rx="16" fill="${c.bg}"/>${text(32, 42, title, 26)}${text(32, 69, desc, 14, c.muted)}${body}${text(32, height - 18, `${BRAND.name.toUpperCase()}  /  IMPLEMENTED EQUATIONS, NOT MEASUREMENTS`, 11, c.faint)}</svg>\n`;
 }
 
 type Series = { points: [number, number][]; color: string; dash?: boolean };
@@ -103,14 +103,14 @@ const legend = (x: number, y: number, items: [string, string][]) =>
     )
     .join("");
 
-/** Wing (McCormick) and rotor (Cheeseman–Bennett) ground-effect factors. */
+/** Wing (McCormick) ground-effect factors. */
 function groundEffect() {
   const ar = 6,
     e = 0.9,
     slope = 4.6;
   const hb = range(0, 1.2, 240);
   let body = plot(
-    { x: 92, y: 140, w: 360, h: 300 },
+    { x: 92, y: 140, w: 828, h: 300 },
     [0, 1.2],
     [0, 1.4],
     [0, 0.25, 0.5, 0.75, 1],
@@ -131,35 +131,13 @@ function groundEffect() {
       },
     ],
   );
-  body += legend(220, 300, [
+  body += legend(560, 300, [
     ["Induced drag × φ", c.a],
     ["Lift slope × (AR 6)", c.b],
   ]);
-  const zr = range(0.25, 4.5, 170);
-  body += plot(
-    { x: 560, y: 140, w: 360, h: 300 },
-    [0, 4.5],
-    [0.9, 1.4],
-    [0, 1, 2, 3, 4],
-    [0.9, 1, 1.1, 1.2, 1.3, 1.4],
-    "Rotor-to-ground distance ÷ radius (z/R)",
-    "ROTOR · hover thrust ratio at equal power",
-    [
-      { points: zr.map((z) => [z, rotorGroundEffect(z, 1)]), color: c.d },
-      {
-        points: [
-          [0, 1],
-          [4.5, 1],
-        ],
-        color: c.faint,
-        dash: true,
-      },
-    ],
-  );
-  body += text(740, 210, "Clamped below z/R = 0.5", 12, c.muted, "middle");
   return frame(
     "Ground effect near the runway",
-    "Wing factors fade to exactly 1 above two spans; rotor gain fades out between 2R and 4R.",
+    "Wing factors fade to exactly 1 above two spans.",
     540,
     body,
   );

@@ -18,7 +18,8 @@ const RevisionSchema = z
   .strict();
 export const AircraftHistorySchema = z
   .object({
-    format: z.literal("rcforge-aircraft-history"),
+    /** "aircraft-history"; files exported under the former name also load. */
+    format: z.string().regex(/(^|-)aircraft-history$/),
     formatVersion: z.literal(HISTORY_FORMAT_VERSION),
     aircraftId: z.string().min(1).max(100),
     nextRevision: z.number().int().positive().max(1_000_001),

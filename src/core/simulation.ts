@@ -1,10 +1,4 @@
 import { ObstacleCollisions, type Obstacle } from "./obstacles";
-import {
-  initialVtolState,
-  vtolCommands,
-  vtolRotorLoads,
-  vtolThrustAxis,
-} from "./vtol";
 import { propellerMoments, propellerSpinAxis } from "./propeller-effects";
 import { acroStep, type ControlPower } from "./flight-controller";
 import {
@@ -18,7 +12,6 @@ import {
   type RotorModel,
 } from "./rotor-dynamics";
 import { DiscreteGusts, type DiscreteGustSettings } from "./discrete-gust";
-import type { VtolCommand, VtolState } from "./vtol-config";
 import {
   surfacePolar,
   STANDARD_AIR_VISCOSITY,
@@ -35,12 +28,10 @@ import {
   DrydenTurbulence,
   groundEffectLiftRatio,
   meanWindAt,
-  rotorGroundEffect,
   wingGroundEffect,
   type WindProfile,
 } from "./atmosphere";
 import { powertrain, thrustSpeedFactor } from "./powertrain";
-import { rotorCommands } from "./multirotor";
 import { surfaceCommand } from "./surface-control";
 import { PHYSICS } from "./physics-config";
 import { sceneries, surfaceAt, type Scenery } from "./scenery";
@@ -74,7 +65,6 @@ export interface Controls {
   pitch: number;
   yaw: number;
   throttle: number;
-  vtol?: VtolCommand;
   /** One-shot: start a discrete gust at this step (recorded for replay). */
   gust?: boolean;
   /**
@@ -138,7 +128,6 @@ export interface State {
   motors: number[];
   batterySoc?: number;
   surfaceCommands?: number[];
-  vtol?: VtolState;
   /** Shaft speed Ω per motor, rad/s (only with dynamic-rotor motors; 0 for others). */
   rotorRadS?: number[];
   /** Constant-speed governor integral (pitch factor) per motor. */
@@ -211,7 +200,6 @@ export const initialState = (
   omega: [0, 0, 0],
   motors: a.motors.map(() => 0),
   ...(a.battery ? { batterySoc: a.battery.initialSoc } : {}),
-  ...(a.vtol ? { vtol: initialVtolState([0, 0, -altitude]) } : {}),
   status: "flying",
 });
 /** Mean wind (sheared when `heightM` and a profile are given) plus legacy sinusoidal gusts. */
@@ -233,20 +221,6 @@ export function windAt(t: number, e: Environment, heightM?: number): Vec3 {
 }
 export function cleanControls(c: Controls): Controls {
   return {
-    ...(c.vtol
-      ? {
-          vtol: {
-            mode:
-              c.vtol.mode === "cruise"
-                ? ("cruise" as const)
-                : ("hover" as const),
-            assistance:
-              c.vtol.assistance === "intermediate"
-                ? ("intermediate" as const)
-                : ("beginner" as const),
-          },
-        }
-      : {}),
     roll: clamp(Number.isFinite(c.roll) ? c.roll : 0, -1, 1),
     pitch: clamp(Number.isFinite(c.pitch) ? c.pitch : 0, -1, 1),
     yaw: clamp(Number.isFinite(c.yaw) ? c.yaw : 0, -1, 1),
@@ -323,11 +297,7 @@ export class Simulation {
         : undefined;
     if (site?.surfaceZones)
       this.surfaceLookup = (x, y) => surfaceAt(site, x, y);
-    this.rotorModels = aircraft.vtol
-      ? aircraft.motors.map(() => null)
-      : aircraft.motors.map((m) => rotorModel(m));
-    if (aircraft.vtol && !this.state.vtol)
-      this.state.vtol = initialVtolState(this.state.position);
+    this.rotorModels = aircraft.motors.map((m) => rotorModel(m));
     if (aircraft.battery && this.state.batterySoc === undefined)
       this.state.batterySoc = aircraft.battery.initialSoc;
     if (environment.turbulence === "dryden") {
@@ -355,12 +325,7 @@ export class Simulation {
   /** Angular acceleration per unit roll/pitch/yaw command at the trim speed. */
   private measureControlPower(): ControlPower | undefined {
     const a = this.aircraft;
-    if (
-      a.vtol ||
-      a.vehicleType === "multirotor" ||
-      !a.surfaces.some((w) => w.control)
-    )
-      return undefined;
+    if (!a.surfaces.some((w) => w.control)) return undefined;
     const speed = a.reference.trimSpeedMps ?? 12;
     const probe = initialState(a, speed, 200, 0);
     probe.motors = probe.motors.map(() => 0);
@@ -407,7 +372,6 @@ export class Simulation {
   forces(s: State, c: Controls): Forces {
     const rho = densityAt(this.environment, -s.position[2]);
     let thrustForce: Vec3 = [0, 0, 0],
-      vtolThrust: Vec3 = [0, 0, 0],
       propellerGyro: Vec3 = [0, 0, 0],
       pFactor: Vec3 = [0, 0, 0];
     const flow = rotate(
@@ -426,8 +390,7 @@ export class Simulation {
       if (!model) return;
       const input = {
         commandRpmRatio: power.rpmRatio[i],
-        axialSpeedMps:
-          this.aircraft.vehicleType === "multirotor" ? 0 : Math.max(0, flow[0]),
+        axialSpeedMps: Math.max(0, flow[0]),
         density: rho,
         pitch: 1,
       };
@@ -456,13 +419,9 @@ export class Simulation {
     const rotorAt = (i: number) => rotors.find((r) => r.motor === i);
     // Shaft torque on the airframe: −(Q_motor − Q_friction)·ŝ, i.e. the
     // propeller load plus the spin-up torque I·dΩ/dt (no separate reaction).
-    const shaftReaction = (i: number, thrustAxis: Vec3, rotor: boolean) => {
+    const shaftReaction = (i: number, thrustAxis: Vec3) => {
       const r = rotorAt(i)!,
-        axis = propellerSpinAxis(
-          thrustAxis,
-          this.aircraft.motors[i].spin,
-          rotor,
-        )!;
+        axis = propellerSpinAxis(thrustAxis, this.aircraft.motors[i].spin)!;
       return scale(axis, -(r.qMotor - r.qFriction));
     };
     let force: Vec3 = [0, 0, 0],
@@ -474,19 +433,13 @@ export class Simulation {
     };
     // Gyroscopic and P-factor moments of one propeller (zero unless the motor
     // defines spin plus I_p/max rpm or k_p).
-    const propeller = (
-      i: number,
-      thrustAxis: Vec3,
-      rotor: boolean,
-      thrustN: number,
-    ) => {
+    const propeller = (i: number, thrustAxis: Vec3, thrustN: number) => {
       const m = this.aircraft.motors[i];
       if (!m.spin || !(m.propInertiaKgM2 || m.pFactor)) return;
       const r = sub(m.positionM, this.properties.cg);
       const dynamic = rotorAt(i);
       const effects = propellerMoments(m, {
         thrustAxis,
-        rotor,
         omegaBody: s.omega,
         rpmRatio: rpmRatio[i],
         thrustN,
@@ -530,11 +483,7 @@ export class Simulation {
         span = rotate(orient, [0, 1, 0]);
       // Tractor slipstream: raise the surface's mean axial dynamic pressure by
       // the span fraction inside each contracted actuator-disk slipstream.
-      if (
-        PHYSICS.slipstream.enabled &&
-        !this.aircraft.vtol &&
-        this.aircraft.vehicleType !== "multirotor"
-      ) {
+      if (PHYSICS.slipstream.enabled) {
         const axial = Math.max(0, v[0]);
         let extra = 0,
           swirl: Vec3 = [0, 0, 0];
@@ -584,7 +533,7 @@ export class Simulation {
                   rEff);
               const d = sub(wing.positionM, motor.positionM);
               const across: Vec3 = [0, d[1], d[2]];
-              const axisS = propellerSpinAxis([1, 0, 0], motor.spin, false)!;
+              const axisS = propellerSpinAxis([1, 0, 0], motor.spin)!;
               let u = scale(cross(axisS, across), rate);
               const cap = sw.maxSideFraction * (axial + slip.increment);
               if (length(u) > cap) u = scale(u, cap / length(u));
@@ -693,54 +642,10 @@ export class Simulation {
       };
     }
     surfaces.push(...records);
-    if (this.aircraft.vtol) {
-      const rotor = vtolRotorLoads(
-        this.aircraft,
-        s,
-        this.properties.cg,
-        power.thrust,
-        flow,
-      );
-      force = add(force, rotor.force);
-      torque = add(torque, rotor.torque);
-      vtolThrust = rotor.force;
-      this.aircraft.motors.forEach((_, i) =>
-        propeller(
-          i,
-          vtolThrustAxis(this.aircraft, s, i),
-          true,
-          power.thrust[i] * rotor.factors[i],
-        ),
-      );
-    }
-    for (
-      let i = 0;
-      i < this.aircraft.motors.length && !this.aircraft.vtol;
-      i++
-    ) {
+    for (let i = 0; i < this.aircraft.motors.length; i++) {
       const m = this.aircraft.motors[i],
         speedFactor = thrustSpeedFactor(flow[0], zeroThrust[i], rpmRatio[i]);
-      if (this.aircraft.vehicleType === "multirotor") {
-        const axis = rotate(s.orientation, [0, 0, 1]),
-          rotorHeight = -(
-            s.position[2] +
-            rotate(s.orientation, sub(m.positionM, this.properties.cg))[2]
-          );
-        const thrust =
-          staticThrust[i] *
-          (axis[2] > 0.1
-            ? rotorGroundEffect(rotorHeight / axis[2], m.propDiameterM / 2)
-            : 1);
-        apply([0, 0, -thrust], m.positionM);
-        thrustForce = add(thrustForce, [0, 0, -thrust]);
-        // Ground effect adds thrust at equal shaft power, so reaction torque is unchanged.
-        if (rotorAt(i))
-          torque = add(torque, shaftReaction(i, [0, 0, -1], true));
-        else
-          torque[2] +=
-            power.thrust[i] * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
-        propeller(i, [0, 0, -1], true, thrust);
-      } else {
+      {
         const thrust = staticThrust[i] * speedFactor;
         // Down- and right-thrust tilt the thrust line, as on real airframes.
         const down = radians(m.downThrustDeg ?? 0),
@@ -757,11 +662,10 @@ export class Simulation {
           Math.cos(down) * Math.sin(right),
           Math.sin(down),
         ];
-        if (rotorAt(i))
-          torque = add(torque, shaftReaction(i, thrustAxis, false));
+        if (rotorAt(i)) torque = add(torque, shaftReaction(i, thrustAxis));
         else if (m.spin)
           torque[0] += thrust * m.torquePerThrustM * (m.spin === "cw" ? -1 : 1);
-        propeller(i, thrustAxis, false, thrust);
+        propeller(i, thrustAxis, thrust);
       }
     }
     // Quadratic body drag, bounded so one explicit step cannot reverse the
@@ -796,7 +700,6 @@ export class Simulation {
           -w * this.aircraft.angularDamping[i] * (1 + length(flow) * 0.1),
       ) as Vec3,
     );
-    if (this.aircraft.vtol) thrustForce = vtolThrust;
     const aero = surfaces.reduce<Vec3>((n, f) => add(n, f.force), [0, 0, 0]);
     return {
       force,
@@ -882,23 +785,6 @@ export class Simulation {
         this.environment.windProfile,
       );
     }
-    const hybrid = this.aircraft.vtol
-      ? vtolCommands(
-          this.aircraft,
-          s,
-          c,
-          this.properties,
-          this.environment,
-          rotate(inverseQ(s.orientation), sub(s.velocity, this.airVelocity(s))),
-          this.forces(s, c),
-          dt,
-        )
-      : null;
-    const rotors =
-      hybrid?.motors ??
-      (this.aircraft.vehicleType === "multirotor"
-        ? rotorCommands(this.aircraft, s, c)
-        : null);
     // Actuators advance over the step; the integrator samples them at the
     // matching instants (start for k1, midpoint average for k2) so actuator
     // dynamics keep the scheme second order instead of leading by dt/2.
@@ -906,8 +792,7 @@ export class Simulation {
       startCommands = s.surfaceCommands ? [...s.surfaceCommands] : undefined;
     s.motors = s.motors.map((v, i) => {
       const m = this.aircraft.motors[i];
-      const target =
-        rotors?.[i] ?? clamp(c.throttle * (1 + c.yaw * m.yawMix * 0.45), 0, 1);
+      const target = clamp(c.throttle * (1 + c.yaw * m.yawMix * 0.45), 0, 1);
       return v + (target - v) * (1 - Math.exp(-dt / m.responseSeconds));
     });
     if (
@@ -920,7 +805,7 @@ export class Simulation {
     ) {
       s.surfaceCommands = this.aircraft.surfaces.map((w, i) => {
         if (!w.control) return 0;
-        const target = surfaceCommand(w.control, hybrid?.surfaces ?? c),
+        const target = surfaceCommand(w.control, c),
           previous = s.surfaceCommands?.[i] ?? 0;
         return advanceSurfaceCommand(previous, target, this.actuations[i], dt);
       });

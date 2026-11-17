@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import * as T from "three";
 import bronco from "../aircraft/ft-bronco.json";
-import quad from "../aircraft/quad-x-6s.json";
+import tiny from "../aircraft/ft-tiny-trainer.json";
 import { parseAircraft } from "../src/core/schema";
 import { massProperties } from "../src/core/aircraft";
 import { installFpvCamera, removeFpvCamera } from "../src/core/fpv";
@@ -32,14 +32,6 @@ it("installs once, changes mass/CG and removes the camera transactionally", () =
   invalid.fpv!.partId = a.fpv!.partId;
   invalid.fpv!.fovDeg = 180;
   expect(() => parseAircraft(invalid)).toThrow();
-});
-it("reuses an existing quad camera without double-counting its mass", () => {
-  const a = parseAircraft(quad);
-  delete a.fpv;
-  const mounted = installFpvCamera(a);
-  expect(mounted.fpv!.partId).toBe("camera");
-  expect(mounted.parts).toEqual(a.parts);
-  expect(massProperties(mounted)).toEqual(massProperties(a));
 });
 it("places the optical center at the mounted lens, relative to CG and body attitude", () => {
   const a = installFpvCamera(parseAircraft(bronco));
@@ -106,7 +98,7 @@ it("looks forward when level and rolls the horizon with the aircraft", () => {
   placeFpvCamera(camera, mount, new T.Vector3(), conversion);
   expect(camera.up.distanceTo(new T.Vector3(0, 0, 1))).toBeLessThan(1e-12);
 });
-it.each([bronco, quad])("renders one camera installation on $id", (data) => {
+it.each([bronco, tiny])("renders one camera installation on $id", (data) => {
   vi.stubGlobal("document", {
     createElement: () => ({
       getContext: () => ({ fillRect() {}, fillStyle: "" }),

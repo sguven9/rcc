@@ -1,6 +1,7 @@
 // Shared, early theme setup for the workbench and static documentation.
+// The key prefix matches BRAND.storagePrefix in src/config/brand.ts.
 (() => {
-  const key = "rcforge.theme";
+  const key = "rcsim.theme";
   let current = "dark";
   try {
     if (localStorage.getItem(key) === "light") current = "light";
@@ -19,7 +20,7 @@
       button.setAttribute("aria-pressed", String(current === "light"));
     });
     window.dispatchEvent(
-      new CustomEvent("rcforge-themechange", { detail: current }),
+      new CustomEvent("app-themechange", { detail: current }),
     );
   }
   apply(current);

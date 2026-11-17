@@ -17,7 +17,7 @@
   width: 286px;
   padding: 12px 14px;
   border: 1px solid var(--ui-border);
-  background: #111113ec;
+  background: color-mix(in srgb, var(--p-n900) 93%, transparent);
   pointer-events: none;
 }
 .flight-location {
@@ -57,13 +57,13 @@
   display: none;
 }
 .field-label[data-tone="impact"] {
-  border-left: 3px solid #e4937b;
+  border-left: 3px solid var(--p-red-500);
 }
 .field-label[data-tone="impact"] #flight-cue-title {
-  color: #efb09e;
+  color: var(--p-red-300);
 }
 .field-label[data-tone="paused"] {
-  border-left: 3px solid #bdbdc7;
+  border-left: 3px solid var(--p-n200);
 }
 .flight-key-guide {
   bottom: calc(var(--flight-hud-height) + 10px);
@@ -75,7 +75,7 @@
   padding: 4px;
   max-width: calc(100% - 40px);
   border: 1px solid var(--ui-border);
-  background: #111113ef;
+  background: color-mix(in srgb, var(--p-n900) 94%, transparent);
   font:
     11px -apple-system,
     BlinkMacSystemFont,
@@ -111,7 +111,7 @@
   background: var(--ui-raised);
 }
 #quick-input.input-offline {
-  color: #efb09e;
+  color: var(--p-red-300);
 }
 #quick-guide {
   width: 28px;
@@ -160,7 +160,7 @@
   line-height: 1.45;
 }
 #flight-control-note.trim-limited {
-  color: #dfbd91;
+  color: var(--p-accent-300);
 }
 @media (max-width: 1150px) {
   .field-label {

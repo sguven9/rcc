@@ -3,73 +3,147 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0c0c0e" />
+    <meta name="theme-color" content="%APP_THEME_COLOR%" />
     <script src="/theme.js"></script>
-    <link rel="icon" type="image/svg+xml" href="/brand/rcforge-favicon.svg" />
-    <!-- rcforge:seo -->
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+    <!-- app:seo -->
     <style>
-      .boot-intro {
-        max-width: 640px;
-        margin: 12vh auto;
-        padding: 24px;
-        font:
-          16px/1.6 system-ui,
-          sans-serif;
-        color: #dadade;
-      }
-      .boot-intro h1 {
-        font-size: 32px;
-        line-height: 1.2;
-        letter-spacing: -1px;
-      }
-      .boot-intro a {
-        color: inherit;
-      }
+      /* Loading screen: inline so it paints before the app bundle loads. */
       html {
-        background: #0c0c0e;
+        background: #14110f;
       }
       html[data-theme="light"] {
-        background: #f6f7f9;
+        background: #f7f1ea;
       }
-      html[data-theme="light"] .boot-intro {
-        color: #252b35;
+      .boot {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #f3ece4;
+        font:
+          500 15px/1.5 system-ui,
+          sans-serif;
+        background: linear-gradient(
+          180deg,
+          #1d1630 0%,
+          #5a2d3a 38%,
+          #c4603a 62%,
+          #f2a65a 74%,
+          #f2a65a 100%
+        );
+        transition: opacity 0.4s ease;
+      }
+      .boot-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .boot-scene {
+        position: absolute;
+        inset: auto 0 0 0;
+        width: 100%;
+        height: 46%;
+      }
+      .boot-card {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        width: min(320px, calc(100vw - 32px));
+        text-align: center;
+      }
+      .boot-card img {
+        filter: drop-shadow(0 10px 24px #0007);
+      }
+      .boot-name {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .boot-tagline {
+        margin: -10px 0 4px;
+        color: #f6dcc4;
+        font-size: 14px;
+      }
+      .boot-bar {
+        width: 100%;
+        height: 6px;
+        border-radius: 99px;
+        background: #ffffff2b;
+        overflow: hidden;
+      }
+      .boot-bar > i {
+        display: block;
+        height: 100%;
+        width: calc(var(--boot-progress, 0.12) * 100%);
+        border-radius: inherit;
+        background: #fffaf3;
+        transition: width 0.3s ease;
+      }
+      .boot-status {
+        color: #f6dcc4;
+        font-size: 13px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot,
+        .boot-bar > i {
+          transition: none;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="app">
-      <main class="boot-intro">
-        <img
-          src="/brand/rcforge-mark.svg"
-          width="48"
-          height="48"
-          alt="RCForge"
+    <div id="boot" class="boot" aria-live="polite">
+      <svg
+        class="boot-scene"
+        viewBox="0 0 1200 420"
+        preserveAspectRatio="xMidYMax slice"
+        aria-hidden="true"
+      >
+        <circle cx="880" cy="150" r="64" fill="#ffd9a0" opacity=".7" />
+        <path
+          d="M0 170 C140 120 230 70 360 96 C470 118 520 60 640 52 C760 44 840 110 960 100 C1060 92 1130 120 1200 110 V420 H0Z"
+          fill="#3b2230"
         />
-        <h1>Free, open-source RC flight simulator</h1>
-        <p>Your aircraft. Your components. Your controls.</p>
-        <p>
-          Fly RC planes, drones and VTOL aircraft in your browser. Customize
-          components and balance, connect your controller, or extend aircraft
-          and environments in code.
-        </p>
-        <p>
-          Bring your own plans as a reference for an editable aircraft
-          definition. RCForge is MIT licensed; its flight models are
-          experimental.
-        </p>
-        <nav aria-label="Getting started">
-          <a href="/docs/next">RC flight simulator guide</a> ·
-          <a href="/docs/next/aircraft-editor">Customize an aircraft</a> ·
-          <a href="/docs/next/radio-setup">Connect an RC transmitter</a> ·
-          <a href="https://github.com/adithya-s-k/RCForge">Open-source code</a>
-        </nav>
-        <p role="status">Opening the simulator…</p>
-        <noscript
-          >Enable JavaScript and use a WebGL2-capable browser to fly. The
-          documentation works without JavaScript.</noscript
+        <path
+          d="M0 230 C160 190 300 205 430 180 C560 155 690 210 820 196 C950 182 1060 210 1200 196 V420 H0Z"
+          fill="#24161d"
+        />
+        <path
+          d="M0 300 C220 280 420 290 600 286 C780 282 980 292 1200 280 V420 H0Z"
+          fill="#14110f"
+        />
+        <path d="M560 420 L590 300 L610 300 L640 420Z" fill="#2b2420" />
+        <path
+          d="M600 302 V420"
+          stroke="#f3ece4"
+          stroke-width="2"
+          stroke-dasharray="10 12"
+          opacity=".5"
+        />
+      </svg>
+      <div class="boot-card">
+        <img src="/brand/mark.svg" width="72" height="72" alt="" />
+        <h1 class="boot-name">%APP_NAME%</h1>
+        <p class="boot-tagline">%APP_TAGLINE%</p>
+        <div
+          class="boot-bar"
+          role="progressbar"
+          aria-label="Loading"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="10"
         >
-      </main>
+          <i></i>
+        </div>
+        <span class="boot-status">Loading…</span>
+        <noscript>Enable JavaScript and use a WebGL2-capable browser.</noscript>
+      </div>
     </div>
+    <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

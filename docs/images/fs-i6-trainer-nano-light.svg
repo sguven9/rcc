@@ -3,7 +3,7 @@
 <desc id="desc">An outside rear view locates the trainer socket below the antenna. A builder reference identifies upper-left PPM OUT and the metal shell as ground, with the key opening at the top. Confirm actual hardware before wiring. Use a documented breakout: PPM OUT through 1 kiloohm to D2, 47 kiloohms from D2 to ground, and shared ground. Transmitter and Nano have separate power. Read diagnostics before using the bridge.</desc>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#263442}.small{font-size:16px;fill:#526273}.label{font-size:13px;letter-spacing:2px;fill:#526273}.heading{font-size:22px;font-weight:700}.mono{font-family:monospace;font-size:18px}.signal{stroke:#8b5915;fill:none;stroke-width:4;stroke-linejoin:round}.ground{stroke:#536574;fill:none;stroke-width:4}.panel{fill:#edf1f5;stroke:#c2cbd5}.outline{stroke:#647283;stroke-width:2;fill:none}</style>
 <rect width="1200" height="970" rx="20" fill="#f7f9fb"/>
-<text x="40" y="40" class="label">RCFORGE / BENCH CONNECTION GUIDE</text>
+<text x="40" y="40" class="label">SKYMANISA / BENCH CONNECTION GUIDE</text>
 <text x="40" y="86" font-size="34" font-weight="700">Your transmitter. Two signal connections.</text>
 <text x="40" y="118" class="small">FS-i6 → verified trainer breakout → classic Nano → USB</text>
 
@@ -89,8 +89,8 @@
 <text x="430" y="865" class="small">Upload ppm_monitor.ino.</text>
 <text x="430" y="890" class="small">Serial Monitor → 115200 baud.</text>
 <rect x="792" y="804" width="376" height="110" rx="10" class="panel"/>
-<text x="814" y="836" class="heading">3. Connect RCForge</text>
-<text x="814" y="865" class="small">Upload rcforge_bridge.ino instead.</text>
+<text x="814" y="836" class="heading">3. Connect SkyManisa</text>
+<text x="814" y="865" class="small">Upload rc_bridge.ino instead.</text>
 <text x="814" y="890" class="small">Six channels + CH6 RUN → calibrate.</text>
 <text x="40" y="947" font-size="13" fill="#647283">Contact reference: rootik/RCTransmitter-USBGamepad / verify your hardware / receiver route still unverified</text>
 <style>.keyboard-body{fill:#e5ebf0;stroke:#8c9bab}.keyboard-key rect{fill:#f8fafb;stroke:#c2cbd5}.key-letter{fill:#607182}.key-function,.mapped .key-letter{fill:#263442}.mapped.flight rect{fill:#dbeaf0;stroke:#547f91}.mapped.power rect{fill:#f6ecd8;stroke:#987032}.mapped.session rect{fill:#e2ecdf;stroke:#64865e}.mapped.view rect{fill:#ebe4f3;stroke:#8b74a4}</style></svg>

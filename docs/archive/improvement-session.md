@@ -4,7 +4,7 @@ User-authorized work window: 4 September 2026 21:28:46 UTC to
 5 September 2026 02:28:46 UTC (07:58:46 IST). All changes belong on
 `improve/flight-polish-20260905`; do not merge into or push `main`.
 
-Continuation automation: `rcforge-five-hour-improvement-session`.
+Continuation automation: `sim-five-hour-improvement-session`.
 After the deadline, finish verification of pending changes, commit a safe result,
 pause the automation, and report the outcome. Do not start more work.
 

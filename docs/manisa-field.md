@@ -3,7 +3,7 @@
 The Manisa site is a procedural model of the concrete runway, hangar and club
 buildings of Manisa Havacılık Sporları Tesisi in western Turkey. Its layout was
 measured from aerial screenshots supplied by a contributor. No aerial imagery,
-photograph or map tile is copied into RCForge.
+photograph or map tile is copied into the simulator.
 
 ## Fly it
 

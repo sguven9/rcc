@@ -1,7 +1,6 @@
 export interface KeyboardLayout {
   turnAxis?: "roll" | "yaw";
   yaw?: boolean;
-  vtol?: boolean;
   walking?: boolean;
 }
 /** Physical key positions with a second line naming each flight command. */
@@ -27,9 +26,6 @@ export function keyboardDiagram(layout: KeyboardLayout = {}) {
     KeyR: ["Restart", "session"],
     KeyV: ["Camera", "view"],
     KeyC: ["Rates", "flight"],
-    KeyT: ["VTOL mode", "flight"],
-    KeyH: ["Hover 50%", "power"],
-    KeyB: ["VTOL assist", "flight"],
     KeyF: ["Locate", "view"],
     KeyI: ["Walk", "view"],
     KeyJ: ["Walk", "view"],
@@ -46,8 +42,6 @@ export function keyboardDiagram(layout: KeyboardLayout = {}) {
     delete actions.KeyQ;
     delete actions.KeyE;
   }
-  if (!layout.vtol)
-    for (const code of ["KeyT", "KeyH", "KeyB"]) delete actions[code];
   if (layout.walking)
     for (const code of ["KeyW", "KeyA", "KeyS", "KeyD"])
       actions[code] = ["Walk", "view"];

@@ -1,8 +1,8 @@
 # Building a credible RC flight engine
 
-Original research and implementation review: September 5, 2026, RCForge 0.6.
+Original research and implementation review: September 5, 2026, the simulator 0.6.
 The implementation and verification snapshots below are preserved as that baseline.
-RCForge 0.7.1 additionally has component replacement, individual servo/linkage
+The simulator 0.7.1 additionally has component replacement, individual servo/linkage
 models, battery-consumption comparisons, revised FT reconstructions and corrected
 ground-contact impulses. See [current component contracts](component-models.md),
 [model limits](validation.md) and the [iteration record](archive/improvement-session.md).
@@ -17,7 +17,7 @@ claims and need separate evidence.
 
 ## What other simulators teach us
 
-| Reference                                                                                                                                                                       | Useful approach                                                                                                            | RCForge decision                                                                                                                                                                                                            |
+| Reference                                                                                                                                                                       | Useful approach                                                                                                            | The simulator decision                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X-Plane's force model](https://www.x-plane.com/desktop/how-x-plane-works/)                                                                                                     | Resolve airflow and loads at multiple elements; include angular velocity and propwash.                                     | Keep local surface forces and CG-relative moments. Add spanwise resolution and wake coupling only with convergence and measured-response checks. More elements alone do not fix poor coefficients.                          |
 | [JSBSim](https://github.com/JSBSim-Team/jsbsim)                                                                                                                                 | Separate data-defined aircraft from the dynamics engine; maintain reproducible verification cases.                         | Keep the pure TypeScript core, explicit aircraft/recording contracts, and headless tests. A later backend comparison must match axes, inputs, force models and integration conditions. We have not run JSBSim comparisons.  |
@@ -25,7 +25,7 @@ claims and need separate evidence.
 | [FlightGear vegetation](https://wiki.flightgear.org/Random_Vegetation) and [scenery LOD](https://wiki.flightgear.org/Scenery_LoD)                                               | Use varied vegetation atlases on crossed cards and allocate scene detail by distance. Texture padding matters for mipmaps. | Replace the bright-edged atlas, use multiple silhouettes in groves, and concentrate existing terrain vertices closer to the flying area. Keep instancing and fixed render budgets.                                          |
 | [Three.js material filtering](https://threejs.org/docs/pages/Material.html)                                                                                                     | Alpha-to-coverage smooths cutouts in an MSAA context; hashed alpha introduces noise that benefits from temporal filtering. | Keep depth-writing alpha-tested foliage with alpha-to-coverage. Avoid adding temporal noise or a TAA pipeline to this lightweight renderer.                                                                                 |
 
-These references guide engineering choices, not an endorsement of RCForge or a
+These references guide engineering choices, not an endorsement of the simulator or a
 claim that one simulator's marketing comparison proves its physical accuracy.
 
 ## Implemented in this revision
@@ -47,7 +47,7 @@ transient battery depletion is checked separately.
 
 **Operating-point survey.** `physics:envelope` writes an HTML/JSON report with
 source evidence and definition hashes. It surveys three field atmospheres and
-80/100/120% mass. Airplanes use 6/9/12/16/22 m/s; quads use hover, including
+80/100/120% mass. Airplanes use 6/9/12/16/22 m/s, including
 100/50/15% SOC where a battery exists. This uniformly scales the mass ledger and
 inertia; it does not substitute a real battery or move CG. Failed trim and table
 coverage are visible. High-angle finite-load checks are separate from trim.
@@ -62,15 +62,15 @@ not collidable objects. There is no additional shadow-map pass or postprocessing
 
 ## Next work, in order
 
-| Priority | Work                                                                                                                                               | Acceptance evidence                                                                                                                                                                                                                |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | Measure one Bronco or Trainer and one quad completely: BOM, assembled mass, CG, principal inertia, control throws, trim and actual radio response. | Publish raw measurements, method, units, repeatability and uncertainty. Reproduce the mass ledger without double-counting.                                                                                                         |
-| 2        | Motor/prop/battery maps versus command, voltage, RPM and airspeed.                                                                                 | Bench static thrust/current plus forward-flow data; verify interpolation and power balance. Compare sag and endurance at multiple charge levels. Current fixed-wing speed falloff is still approximate.                            |
-| 3        | Finite-wing aerodynamic tables across Reynolds number, angle and control deflection.                                                               | Match the built wing and tail, including roughness and hinge geometry. Distinguish measured 2-D section data from finite-wing data; document any conversion and induced drag. Validate trim and glide before stall/spin claims.    |
-| 4        | Spanwise forces, downwash and asymmetric propwash, then carefully bounded ground effect.                                                           | Compare increasing element counts, geometry/control signs, power-off glides and powered maneuvers. Revisit empirical damping to avoid double-counting damping now produced by distributed loads.                                   |
-| 5        | Quad dynamic inflow, induced power, translational effects and actuator allocation.                                                                 | Thrust/torque/RPM transients, climb/descent and lateral-flight logs. A simple angle/rate controller is not Betaflight. Firmware SITL and sensor/latency models need their own contracts and evidence.                              |
-| 6        | Shared terrain/contact model.                                                                                                                      | One height/normal/material query for wheels, placement, observer height, AGL, minimap and shadows. Validate slopes, touchdown and runway-to-grass friction transitions together. Do not add visual bumps that wheels pass through. |
-| 7        | Independent comparison and held-out flight data.                                                                                                   | Run the same physical inputs in a second implementation; then compare flights excluded from parameter fitting. Record bias, RMSE, maximum error, uncertainty and repeatability per maneuver.                                       |
+| Priority | Work                                                                                                                                       | Acceptance evidence                                                                                                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Measure one Bronco and one Trainer completely: BOM, assembled mass, CG, principal inertia, control throws, trim and actual radio response. | Publish raw measurements, method, units, repeatability and uncertainty. Reproduce the mass ledger without double-counting.                                                                                                         |
+| 2        | Motor/prop/battery maps versus command, voltage, RPM and airspeed.                                                                         | Bench static thrust/current plus forward-flow data; verify interpolation and power balance. Compare sag and endurance at multiple charge levels. Current fixed-wing speed falloff is still approximate.                            |
+| 3        | Finite-wing aerodynamic tables across Reynolds number, angle and control deflection.                                                       | Match the built wing and tail, including roughness and hinge geometry. Distinguish measured 2-D section data from finite-wing data; document any conversion and induced drag. Validate trim and glide before stall/spin claims.    |
+| 4        | Spanwise forces, downwash and asymmetric propwash, then carefully bounded ground effect.                                                   | Compare increasing element counts, geometry/control signs, power-off glides and powered maneuvers. Revisit empirical damping to avoid double-counting damping now produced by distributed loads.                                   |
+| 5        | Flight-controller (ACRO) fidelity: sensor noise, latency and firmware tuning.                                                              | Gyro/servo logs from the real board. The simple rate controller is not iNav or Betaflight. Firmware SITL and sensor/latency models need their own contracts and evidence.                                                          |
+| 6        | Shared terrain/contact model.                                                                                                              | One height/normal/material query for wheels, placement, observer height, AGL, minimap and shadows. Validate slopes, touchdown and runway-to-grass friction transitions together. Do not add visual bumps that wheels pass through. |
+| 7        | Independent comparison and held-out flight data.                                                                                           | Run the same physical inputs in a second implementation; then compare flights excluded from parameter fitting. Record bias, RMSE, maximum error, uncertainty and repeatability per maneuver.                                       |
 
 Simulation 0.9.0 adds bounded wing/rotor ground effect, a logarithmic wind
 gradient and optional MIL-F-8785C Dryden turbulence; see
@@ -131,7 +131,7 @@ not a portable frame-rate guarantee.
 - `npm run check`: all five bundled definitions, 133 tests in 22 files, TypeScript
   and production build passed. The existing large Three.js bundle warning remains.
 - `physics:validate`: 55 checks passed across all five aircraft. Explicit JSON-path
-  invocation was also exercised with the electrical quad.
+  invocation was also exercised with an electrical aircraft.
 - `physics:envelope`: 171 operating points, 108 solved trim points, zero nonfinite
   load cases. The 63 unsolved points remain visible in the report. An explicit
   Trainer ID invocation was also checked.

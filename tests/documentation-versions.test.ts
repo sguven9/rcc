@@ -23,10 +23,10 @@ const write = (file: string, data: Buffer | string) => {
 const git = (...args: string[]) =>
   execFileSync("git", args, { cwd: root, stdio: "pipe" }).toString();
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "rcforge-docs-"));
+  root = mkdtempSync(join(tmpdir(), "sim-docs-"));
   for (const [file, data] of current.files) write(file, data);
   write("package.json", JSON.stringify({ version: current.version }));
-  for (const f of ["site/docs.css", "site/client.js"])
+  for (const f of ["site/docs.css", "site/client.js", "src/theme/theme.css"])
     write(f, readFileSync(f));
   git("init", "--quiet");
   git("add", ".");

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import trainer from "./fixtures/generic-trainer.json";
-import quad from "../aircraft/quad-x-450.json";
 import { parseAircraft } from "../src/core/schema";
 import { massProperties } from "../src/core/aircraft";
 import {
@@ -10,7 +9,6 @@ import {
   drydenParameters,
   groundEffectLiftRatio,
   meanWindAt,
-  rotorGroundEffect,
   shearFactor,
   wingGroundEffect,
 } from "../src/core/atmosphere";
@@ -143,12 +141,6 @@ describe("ground effect", () => {
     expect(near).toBeLessThan(a0 / a);
     expect(groundEffectLiftRatio(20, ar, e, 0.5)).toBe(1);
   });
-  it("follows Cheeseman–Bennett near a rotor and fades out by four radii", () => {
-    expect(rotorGroundEffect(0.1, 0.1)).toBeCloseTo(1 / (1 - 1 / 16), 12);
-    expect(rotorGroundEffect(0.01, 0.1)).toBeCloseTo(4 / 3, 12);
-    expect(rotorGroundEffect(0.4, 0.1)).toBe(1);
-    expect(rotorGroundEffect(0, 0.1)).toBe(1);
-  });
   it("lowers induced drag and raises lift for a wing close to the ground", () => {
     const a = parseAircraft(trainer);
     a.motors = [];
@@ -176,27 +168,7 @@ describe("ground effect", () => {
     const dragRatio = (f: typeof low) => -f.force[0] / -f.force[2];
     expect(dragRatio(low)).toBeLessThan(dragRatio(high));
   });
-  it("gives a hovering quad more thrust close to the ground", () => {
-    const a = parseAircraft(quad);
-    const sim = new Simulation(a);
-    const at = (height: number) => {
-      const s = initialState(a, 0, height, 0);
-      s.motors = s.motors.map(() => 0.5);
-      return -sim.forces(s, neutralControls()).force[2];
-    };
-    const radius = a.motors[0].propDiameterM / 2;
-    expect(at(0.6 * radius)).toBeGreaterThan(at(10) * 1.05);
-    expect(at(10)).toBeCloseTo(at(20), 10);
-    const yaw = (height: number) => {
-      const st = initialState(a, 0, height, 0);
-      st.motors = st.motors.map((_, i) => (i % 2 ? 0.4 : 0.6));
-      return sim.forces(st, neutralControls()).torque[2];
-    };
-    expect(yaw(0.6 * radius)).toBeCloseTo(yaw(10), 10);
-  });
-});
 
-describe("replay with near-ground atmosphere", () => {
   it("replays Dryden turbulence and wind gradient exactly", () => {
     const a = parseAircraft(trainer);
     const env: Environment = {

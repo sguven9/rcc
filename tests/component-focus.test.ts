@@ -57,61 +57,6 @@ it("keeps the highlight centered on the rendered component after moving the CG",
   disposeAircraft(visual.group);
 });
 
-it("preserves the battery installation through quad construction batching", async () => {
-  const data = (await import("../aircraft/quad-x-450.json")).default;
-  const a = parseAircraft(data);
-  const part = a.parts.find((p) => p.id === "battery")!;
-  part.positionM = [0.026, -0.013, -0.06];
-  part.orientationDeg = [19, 11, 73];
-  part.color = "#e917c1";
-  vi.stubGlobal("document", {
-    createElement: () => ({
-      getContext: () => ({ fillRect() {}, fillStyle: "" }),
-    }),
-  });
-  try {
-    const visual = buildAircraft(a);
-    visual.group.updateMatrixWorld(true);
-    const pack = visual.group.getObjectByName("battery")!;
-    expect(pack).toBeDefined();
-    const origin = pack.getWorldPosition(new T.Vector3());
-    const cg = massProperties(a).cg;
-    expect(
-      origin.distanceTo(
-        new T.Vector3(...part.positionM).sub(new T.Vector3(...cg)),
-      ),
-    ).toBeLessThan(1e-9);
-    const reference = new T.Mesh(new T.BoxGeometry(...part.sizeM));
-    reference.position.copy(origin);
-    reference.rotation.set(
-      ...(part.orientationDeg.map(T.MathUtils.degToRad) as [
-        number,
-        number,
-        number,
-      ]),
-      "ZYX",
-    );
-    const expected = new T.Box3().setFromObject(reference);
-    const bounds = new T.Box3().setFromObject(pack);
-    // Rounded pack corners sit inside the same rotated mass envelope.
-    expect(bounds.min.distanceTo(expected.min)).toBeLessThan(0.006);
-    expect(bounds.max.distanceTo(expected.max)).toBeLessThan(0.006);
-    const axis = new T.Vector3(1, 0, 0).applyQuaternion(
-      pack.getWorldQuaternion(new T.Quaternion()),
-    );
-    expect(
-      axis.distanceTo(
-        new T.Vector3(1, 0, 0).applyQuaternion(reference.quaternion),
-      ),
-    ).toBeLessThan(1e-10);
-    reference.geometry.dispose();
-    (reference.material as T.Material).dispose();
-    disposeAircraft(visual.group);
-  } finally {
-    vi.unstubAllGlobals();
-  }
-});
-
 it("keeps edited fixed-wing motor housings at their declared component center and dimensions", () => {
   const a = parseAircraft(bronco);
   const motor = a.motors[0];

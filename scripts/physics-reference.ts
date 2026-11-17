@@ -15,7 +15,7 @@ import {
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const args = process.argv.slice(2);
 let python =
-  process.env.RCFORGE_REFERENCE_PYTHON ?? "results/reference/.venv/bin/python";
+  process.env.SIM_REFERENCE_PYTHON ?? "results/reference/.venv/bin/python";
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--python" && args[i + 1]) python = args[++i];
   else
@@ -126,7 +126,7 @@ const report = {
     "Propwash and rotor-wing interference",
     "Servo/motor transients",
     "Battery charge integration",
-    "Closed-loop quad/VTOL controllers",
+    "Closed-loop flight controllers (ACRO)",
     "Ground and obstacle contacts",
     "Tabulated aerodynamic polars",
     "Browser wall-clock scheduling",
@@ -148,9 +148,9 @@ const escape = (s: string) =>
   );
 await writeFile(
   join(out, "report.html"),
-  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>RCForge / JSBSim verification</title>
+  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>the simulator / JSBSim verification</title>
 <style>:root{color-scheme:light dark}body{font:15px/1.6 system-ui;max-width:1100px;margin:40px auto;padding:0 20px}table{border-collapse:collapse;width:100%}td,th{padding:8px;text-align:left;border-bottom:1px solid #8886}.fail{color:#d55}summary{cursor:pointer}code{overflow-wrap:anywhere}</style>
-<h1>RCForge / JSBSim verification</h1><p>${report.passed ? "Passed" : "Failed"} · ${comparisons.length} cases · JSBSim ${report.reference.version} · RCForge physics ${SIM_VERSION}</p>
+<h1>the simulator / JSBSim verification</h1><p>${report.passed ? "Passed" : "Failed"} · ${comparisons.length} cases · JSBSim ${report.reference.version} · the simulator physics ${SIM_VERSION}</p>
 <p>${escape(report.scope)}</p><p>Native JSBSim mass assembly and rigid-body integration; independently configured force expressions, tables and native wind-axis cases. Shared aircraft estimates are not experimental evidence.</p>
 <details><summary>Coverage limits and provenance</summary><p>${report.excluded.map(escape).join(" · ")}</p><pre><code>${escape(JSON.stringify({ ...report, cases: undefined }, null, 2))}</code></pre></details>
 ${comparisons.map((c) => `<details ${c.pass ? "" : "open"}><summary class="${c.pass ? "" : "fail"}">${escape(c.id)} · ${c.pass ? "passed" : "failed"}</summary><table><tr><th>Metric</th><th>Error</th><th>Limit</th></tr>${c.metrics.map((m) => `<tr class="${m.pass ? "" : "fail"}"><td>${escape(m.name)}</td><td>${m.value.toExponential(5)}</td><td>${m.limit.toExponential(5)}</td></tr>`).join("")}</table></details>`).join("")}</html>`,

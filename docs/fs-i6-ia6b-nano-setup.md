@@ -1,6 +1,6 @@
 # FS-i6 + FS-iA6B + Nano: your bench setup
 
-A step-by-step guide for the transmitter, receiver and jumper wires in your photo. Checked against FlySky/Arduino references and the RCForge bridge on **5 September 2026**. Applies to the original **FS-i6**, **FS-iA6B**, and a **classic 5 V ATmega328P Nano**.
+A step-by-step guide for the transmitter, receiver and jumper wires in your photo. Checked against FlySky/Arduino references and the bridge on **5 September 2026**. Applies to the original **FS-i6**, **FS-iA6B**, and a **classic 5 V ATmega328P Nano**.
 
 The receiver and transmitter labels are visible. The board looks like a classic Nano, but its processor marking, USB chip and header solder joints cannot be confirmed from the photo. Check those before selecting the board or connecting power.
 
@@ -11,7 +11,7 @@ The receiver and transmitter labels are visible. The board looks like a classic 
 ```text
  Your hands          Wireless radio        Three connections       USB data
 ┌───────────┐        AFHDS 2A              ┌──────────────┐       ┌──────────┐
-│ FlySky    │ ~~~~~~~~~~~~~~~~~> FS-iA6B ──│ Arduino Nano │──────>│ RCForge  │
+│ FlySky    │ ~~~~~~~~~~~~~~~~~> FS-iA6B ──│ Arduino Nano │──────>│ the simulator  │
 │ FS-i6     │                   receiver  └──────────────┘       │ browser  │
 └───────────┘                    PPM, +, −                       └──────────┘
  Own batteries                    ↑                              Computer
@@ -20,7 +20,7 @@ The receiver and transmitter labels are visible. The board looks like a classic 
 
 **For the receiver route, PPM uses fewer wires.** PPM carries the stick and auxiliary channels on one signal wire. PWM uses a separate wire per channel. The receiver's `PPM/CH1` connector provides PPM when enabled; `i-BUS/SERVO` and `SENS` are different interfaces. Leave those unused for this guide. [FlySky receiver manual, interface diagram](https://storage.ua.prom.st/3070002_fs_ia6b_user_manual_20240327.pdf).
 
-The Nano runs RCForge's existing serial bridge. You do **not** need a USB simulator adapter, a connection to the transmitter's trainer socket, or a flight controller for this route. It does not turn the Nano into a system-wide USB gamepad.
+The Nano runs the simulator's existing serial bridge. You do **not** need a USB simulator adapter, a connection to the transmitter's trainer socket, or a flight controller for this route. It does not turn the Nano into a system-wide USB gamepad.
 
 ## 2. Put these on the desk
 
@@ -118,7 +118,7 @@ Reconnect USB only after checking every label and joint. Keep D0/RX and D1/TX fr
 
 ## 6. Set up the simulator model on the FS-i6
 
-Use a spare **airplane** model named `RCForge`. Leave transmitter elevon, V-tail, custom mixes, trainer/student mode and throttle hold disabled. Start with centered trims/subtrims and normal rates; RCForge applies aircraft-specific mixing.
+Use a spare **airplane** model named `The simulator`. Leave transmitter elevon, V-tail, custom mixes, trainer/student mode and throttle hold disabled. Start with centered trims/subtrims and normal rates; the simulator applies aircraft-specific mixing.
 
 With the receiver connected:
 
@@ -128,15 +128,15 @@ With the receiver connected:
 
 These menu functions are described in [FS-i6 manual §§5.5, 7.7–7.8 and 8.2](https://raw.githubusercontent.com/flysky-rc/FLYSKY-ProductInformationDownload/master/Transmitter/FS-i6/FS-i6%20User%20manual%2020240110-EN.pdf). Menu wording may differ by firmware. “PPM” is the setting you need, not an i-BUS channel assignment.
 
-### What CH6 does in RCForge
+### What CH6 does in the simulator
 
 The checked-in bridge accepts input only while **CH6 > 1700 µs**. Call that switch position **RUN**; the other is **STOP**. Determine the direction from the values during step 8—do not assume switch up/down corresponds to high/low.
 
-STOP means RCForge deliberately reports invalid/stopped input. It is not a start button or a motor arm command. Use the on-screen Start initially. Keep the guard enabled for this wireless receiver route.
+STOP means the simulator deliberately reports invalid/stopped input. It is not a start button or a motor arm command. Use the on-screen Start initially. Keep the guard enabled for this wireless receiver route.
 
 ## 7. Upload the existing sketch with Arduino IDE
 
-Open [rcforge_bridge.ino](../hardware/rcforge_bridge/rcforge_bridge.ino). In a local checkout it is inside `hardware/rcforge_bridge/`. If downloaded separately, keep it in a folder called `rcforge_bridge` so Arduino IDE recognizes the sketch.
+Open [rc_bridge.ino](../hardware/rc_bridge/rc_bridge.ino). In a local checkout it is inside `hardware/rc_bridge/`. If downloaded separately, keep it in a folder called `rc_bridge` so Arduino IDE recognizes the sketch.
 
 Near the top, retain:
 
@@ -158,9 +158,9 @@ Near the top, retain:
 
 Arduino documents Nano processor/bootloader selection [here](https://support.arduino.cc/hc/en-us/articles/4401874304274-Select-the-right-processor-for-Arduino-Nano). A charge-only cable, occupied serial port or missing USB-chip driver can also prevent upload; a lit LED does not resolve those possibilities.
 
-No receiver library is required. Do not replace this sketch with a generic PPM-to-serial example: RCForge expects its specific `RCF1` packets and checksum.
+No receiver library is required. Do not replace this sketch with a generic PPM-to-serial example: the simulator expects its specific `RCF1` packets and checksum.
 
-## 8. Verify the data before opening RCForge
+## 8. Verify the data before opening the simulator
 
 Open Arduino IDE **Serial Monitor**, select **115200 baud**, then switch CH6 to RUN. The sketch emits about 50 lines/second. Lines have this structure:
 
@@ -188,11 +188,11 @@ In **RX setup → Failsafe**, enable a stored **CH6 STOP** value and **CH3 low t
 
 Bench test with the bare receiver: start in RUN, switch the transmitter off and watch `valid` become `0`. Power the radio back on and verify recovery. If input stays valid, fix failsafe before relying on automatic radio-loss detection. This intentional radio-off test is for the receiver-only simulator setup, with no actuators connected.
 
-## 9. Connect and calibrate RCForge
+## 9. Connect and calibrate the simulator
 
 **Close Serial Monitor and Serial Plotter first.** Only one program can own this serial port.
 
-1. Open RCForge in desktop Chrome at localhost or HTTPS. Use your local development URL, or the hosted site once deployed.
+1. Open the simulator in desktop Chrome at localhost or HTTPS. Use your local development URL, or the hosted site once deployed.
 2. Open **Controllers → RC transmitter → Connect Arduino**.
 3. Select the Nano's port in the browser chooser. Allow a few seconds for the board to reboot.
 4. Radio on, receiver linked, CH6 in RUN: expect **Live transmitter input**.
@@ -200,16 +200,16 @@ Bench test with the bare receiver: start in RUN, switch the transmitter off and 
 6. Use Detect to identify each input; the initial channel order is below.
 7. Capture neutral with pitch/roll/yaw released, sweep full travel, save calibration, then check throttle spans 0–100%. Do not center the throttle as if it were a spring-return axis.
 
-| Radio channel | RCForge function  | Mode 2 control           |
-| ------------- | ----------------- | ------------------------ |
-| CH1           | Roll              | Right stick left/right   |
-| CH2           | Pitch             | Right stick forward/back |
-| CH3           | Throttle          | Left stick up/down       |
-| CH4           | Yaw               | Left stick left/right    |
-| CH5           | Optional function | Assigned switch/knob     |
-| CH6           | RUN/STOP guard    | SwD, as configured above |
+| Radio channel | The simulator function | Mode 2 control           |
+| ------------- | ---------------------- | ------------------------ |
+| CH1           | Roll                   | Right stick left/right   |
+| CH2           | Pitch                  | Right stick forward/back |
+| CH3           | Throttle               | Left stick up/down       |
+| CH4           | Yaw                    | Left stick left/right    |
+| CH5           | Optional function      | Assigned switch/knob     |
+| CH6           | RUN/STOP guard         | SwD, as configured above |
 
-Use **Reverse** when the live diagram moves opposite to your intended command. Check right roll, nose-up pitch and right yaw individually; throttle down must be 0%. RCForge's control-test view lets you inspect the simulated surfaces before flight.
+Use **Reverse** when the live diagram moves opposite to your intended command. Check right roll, nose-up pitch and right yaw individually; throttle down must be 0%. The simulator's control-test view lets you inspect the simulated surfaces before flight.
 
 The receiver has six signal channels; this does not give six independent stick axes. Four carry primary flight controls, and two carry auxiliary values. Radio menu buttons are not transmitted as gamepad buttons. Start/pause/reset can stay on-screen while you finish calibration; use the controller settings for supported auxiliary bindings afterward.
 
@@ -251,20 +251,20 @@ All six signal wires must be present. Repeat the serial, failsafe and calibratio
 
 ## Quick troubleshooting
 
-| Symptom                                             | Check next                                                                                      |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Receiver LED does not light                         | USB power, `5V`/GND labels, reversed polarity, loose or unsoldered headers.                     |
-| Receiver keeps flashing                             | Correct model/protocol, bind plug procedure, transmitter power; pairing may not have completed. |
-| Radio appears paired but RCForge says input stopped | CH6 RUN assignment and direction, then PPM/D2 and frame format.                                 |
-| Arduino upload works but browser cannot connect     | Close IDE serial windows; select Connect Arduino in a desktop Web Serial browser.               |
-| No serial-port chooser / disabled button            | Try desktop Chrome on localhost or HTTPS; browser support differs.                              |
-| Only one axis changes                               | CH1 may still be PWM, or an incorrect port/protocol is being read.                              |
-| Two flight functions move together                  | Disable radio mixes; check RCForge axis assignments for duplicates.                             |
-| Radio off but simulation stays live                 | Receiver is holding outputs; revisit CH6 failsafe and test again.                               |
-| Cannot read the pin labels                          | Stop before power-up and take a clear close-up of the receiver pin end and both Nano sides.     |
+| Symptom                                                   | Check next                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Receiver LED does not light                               | USB power, `5V`/GND labels, reversed polarity, loose or unsoldered headers.                     |
+| Receiver keeps flashing                                   | Correct model/protocol, bind plug procedure, transmitter power; pairing may not have completed. |
+| Radio appears paired but the simulator says input stopped | CH6 RUN assignment and direction, then PPM/D2 and frame format.                                 |
+| Arduino upload works but browser cannot connect           | Close IDE serial windows; select Connect Arduino in a desktop Web Serial browser.               |
+| No serial-port chooser / disabled button                  | Try desktop Chrome on localhost or HTTPS; browser support differs.                              |
+| Only one axis changes                                     | CH1 may still be PWM, or an incorrect port/protocol is being read.                              |
+| Two flight functions move together                        | Disable radio mixes; check the simulator axis assignments for duplicates.                       |
+| Radio off but simulation stays live                       | Receiver is holding outputs; revisit CH6 failsafe and test again.                               |
+| Cannot read the pin labels                                | Stop before power-up and take a clear close-up of the receiver pin end and both Nano sides.     |
 
 ## Verification limits
 
-The connections match the checked-in [bridge](../hardware/rcforge_bridge/rcforge_bridge.ino), the manufacturer's documented PPM port and the classic Nano pinout. Your particular board, receiver firmware, actual voltages and physical wiring have **not** been tested remotely. No upload or change to your transmitter has been performed by this guide.
+The connections match the checked-in [bridge](../hardware/rc_bridge/rc_bridge.ino), the manufacturer's documented PPM port and the classic Nano pinout. Your particular board, receiver firmware, actual voltages and physical wiring have **not** been tested remotely. No upload or change to your transmitter has been performed by this guide.
 
 Additional references: [general visual radio guide](radio-setup.md), [full FS-i6 bridge reference](flysky-fs-i6.md), [Chrome Web Serial documentation](https://developer.chrome.com/docs/capabilities/serial).

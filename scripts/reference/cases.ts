@@ -16,8 +16,6 @@ export interface Condition {
   controls: Controls;
   motorCommands?: number[];
   soc?: number;
-  tiltDeg?: [number, number];
-  rearTiltDeg?: number;
   wind?: Vec3;
   /** Shaft speed per motor (rad/s) for dynamic-rotor motors. */
   rotorRadS?: number[];
@@ -47,8 +45,6 @@ export function referenceCases(aircraft: Aircraft[]): ReferenceCase[] {
     // The original part ledger and all aerodynamic surfaces are retained.
     const a = structuredClone(source);
     a.vehicleType = "fixed-wing";
-    delete a.vtol;
-    delete a.multirotor;
     delete a.battery;
     a.motors = [];
     const base: ReferenceCase = {
@@ -176,7 +172,6 @@ export function referenceCases(aircraft: Aircraft[]): ReferenceCase[] {
               motorCommands: powered.motors.map((_, i) =>
                 Math.max(0, command - i * 0.04),
               ),
-              tiltDeg: [command * 90, Math.max(0, command * 90 - 7)],
               // Dynamic-rotor motors: shaft speed is a state, set
               // independently of the command (0.1–1.1 × maxRpm).
               ...(powered.motors.some((m) => m.motorPowerW)
@@ -188,7 +183,6 @@ export function referenceCases(aircraft: Aircraft[]): ReferenceCase[] {
                     ),
                   }
                 : {}),
-              rearTiltDeg: command * 40 - 20,
             }),
           );
         }
@@ -271,10 +265,6 @@ export function simulationFor(c: ReferenceCase, initial: Condition) {
   if (initial.motorCommands) s.motors = [...initial.motorCommands];
   if (initial.soc !== undefined) s.batterySoc = initial.soc;
   if (initial.rotorRadS) s.rotorRadS = [...initial.rotorRadS];
-  if (s.vtol) {
-    s.vtol.tiltDeg = initial.tiltDeg ?? [0, 0];
-    s.vtol.rearTiltDeg = initial.rearTiltDeg ?? 0;
-  }
   // Steady actuators isolate aerodynamics from different servo integrators.
   s.surfaceCommands = c.aircraft.surfaces.map((s) =>
     s.control ? surfaceCommand(s.control, initial.controls) : 0,

@@ -23,8 +23,7 @@ export class SurfaceMixer {
   render() {
     const a = this.getAircraft(),
       host = $("surface-mixer");
-    host.hidden = a.vehicleType === "multirotor";
-    if (host.hidden) return;
+    host.hidden = false;
     const surfaces = a.surfaces
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => s.control);

@@ -49,7 +49,7 @@
   position: relative;
   min-height: 0;
   min-width: 0;
-  background: #1d2024;
+  background: var(--p-n800);
 }
 .camera-placement-stage #viewport {
   position: absolute;
@@ -103,13 +103,13 @@
   font-variant-numeric: tabular-nums;
 }
 .camera-position-fields label:nth-child(1) {
-  color: #ef8c84;
+  color: var(--p-red-300);
 }
 .camera-position-fields label:nth-child(2) {
-  color: #a7d08d;
+  color: var(--p-green-300);
 }
 .camera-position-fields label:nth-child(3) {
-  color: #8ebfec;
+  color: var(--p-blue-300);
 }
 .camera-aim-field {
   display: grid;
@@ -125,7 +125,7 @@
 .camera-aim-field input {
   grid-column: 1 / -1;
   width: 100%;
-  accent-color: #dedede;
+  accent-color: var(--p-n150);
 }
 .camera-placement-options {
   display: grid;
@@ -151,8 +151,8 @@
 .camera-placement-views {
   display: flex;
   gap: 3px;
-  background: #101113ee;
-  border: 1px solid #434549;
+  background: color-mix(in srgb, var(--p-n900) 93%, transparent);
+  border: 1px solid var(--p-n600);
   border-radius: 6px;
   padding: 4px;
   position: absolute;
@@ -169,15 +169,15 @@
 .camera-placement-tools button,
 .camera-placement-views button {
   background: transparent;
-  color: #aeb1b6;
+  color: var(--p-n300);
   border: 0;
   font-size: 11px;
   padding: 9px 12px;
 }
 .camera-placement-tools button[aria-pressed="true"],
 .camera-placement-views button[aria-pressed="true"] {
-  background: #34363a;
-  color: #fff;
+  background: var(--p-n700);
+  color: var(--p-white);
 }
 .camera-placement-hint {
   position: absolute;
@@ -186,7 +186,7 @@
   bottom: 8px;
   right: 16px;
   margin: 0;
-  color: #c1c3c7;
+  color: var(--p-n200);
   font-size: 11px;
   pointer-events: none;
 }
@@ -194,9 +194,9 @@
   position: absolute;
   z-index: 4;
   pointer-events: none;
-  border: 1px solid #888b90;
+  border: 1px solid var(--p-n400);
   border-radius: 3px;
-  box-shadow: 0 4px 22px #0005;
+  box-shadow: 0 4px 22px color-mix(in srgb, var(--p-black) 33%, transparent);
   box-sizing: content-box;
 }
 .camera-lens-preview > span {
@@ -204,9 +204,9 @@
   bottom: 100%;
   left: -1px;
   right: -1px;
-  background: #101113ef;
+  background: color-mix(in srgb, var(--p-n900) 94%, transparent);
   padding: 7px 10px;
-  border: 1px solid #55585d;
+  border: 1px solid var(--p-n500);
   font-size: 9px;
   letter-spacing: 1px;
 }
@@ -214,7 +214,7 @@
   position: absolute;
   top: 100%;
   right: 0;
-  color: #b8bbc0;
+  color: var(--p-n200);
   font-size: 9px;
   padding-top: 5px;
   white-space: nowrap;
@@ -231,8 +231,8 @@
 .camera-lens-preview i::after {
   content: "";
   position: absolute;
-  background: #fff;
-  box-shadow: 0 0 1px #000;
+  background: var(--p-white);
+  box-shadow: 0 0 1px var(--p-black);
 }
 .camera-lens-preview i::before {
   width: 14px;
@@ -245,7 +245,7 @@
   left: 7px;
 }
 #camera-placement-error {
-  color: #ffbcad;
+  color: var(--p-red-300);
   font-size: 12px;
 }
 .fpv-place-action {
@@ -323,7 +323,7 @@
 }
 .component-balance-output strong {
   font-size: 23px;
-  color: #edb561;
+  color: var(--p-accent-400);
 }
 .component-balance-output strong small {
   font-size: 11px;

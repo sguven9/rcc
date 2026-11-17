@@ -13,7 +13,6 @@ import { parseAircraft } from "../src/core/schema";
 import { launchState, fitLandingGear } from "../src/core/launch";
 import bronco from "../aircraft/ft-bronco.json";
 import tiny from "../aircraft/ft-tiny-trainer.json";
-import quad from "../aircraft/quad-x-5inch.json";
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -78,7 +77,7 @@ it.each(Object.entries(sceneries) as [string, Scenery][])(
       expect(shelter.center[1]).toBeCloseTo(-29);
       expect(shelter.center[2]).toBeCloseTo(-1.8);
     }
-    for (const raw of [bronco, tiny, quad]) {
+    for (const raw of [bronco, tiny]) {
       const a = fitLandingGear(parseAircraft(raw)),
         env = { ...calmEnvironment(), surface: profile.surface, obstacles };
       const sim = new Simulation(a, env, launchState(a, "ground", env));

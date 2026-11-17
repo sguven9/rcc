@@ -2,7 +2,7 @@
 
 `aircraft/vt-simple-trainer.json` is an independent reconstruction of the
 **Vortex RC VT-Simple Trainer**. Select **Simple Trainer** in the
-hangar or aircraft selector. The old generic RCForge example is no longer a
+hangar or aircraft selector. The old generic simulator example is no longer a
 bundled preset; its definition is retained only as a numerical test fixture.
 Previously exported copies still import as custom aircraft. The FT Tiny Trainer
 remains a separate design.
@@ -78,7 +78,7 @@ rudder airflow, with the simulator's approximate contact friction.
 
 - **Pitch:** ↑/↓. **Rudder/turn:** Q/E. **Power:** Space/Shift. There is no aileron,
   so the roll channel intentionally has no effect. On the keyboard, left/right arrows (or A/D) automatically steer the rudder; Q/E also work. On a radio/gamepad, map **yaw**
-  to the horizontal stick you want to steer with. RCForge keeps physical channels
+  to the horizontal stick you want to steer with. The simulator keeps physical channels
   explicit instead of silently rewiring an existing controller profile.
 - Use **Control test** to inspect elevator and rudder travel. The preset starts
   with Standard response; Gentle and Custom remain available. Servo speed, horn

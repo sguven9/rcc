@@ -282,14 +282,7 @@ export class ComponentWorkshop {
                 return `<fieldset class="linkage-fields"><legend>${escape(s.id.replaceAll("-", " "))} · ±${act.maxDeg.toFixed(1)}° effective</legend><div class="component-fields">${numberField(`link-${i}-travel`, "Servo command · ±°", l.servoTravelDeg, 0.1, 135, 0.5)}${numberField(`link-${i}-servo-arm`, "Servo horn · mm", l.servoArmM * 1000, 0.1, 200, 0.5)}${numberField(`link-${i}-surface-arm`, "Surface horn · mm", l.surfaceArmM * 1000, 0.1, 200, 0.5)}${numberField(`link-${i}-limit`, "Surface limit · ±°", s.control!.maxDeg, 0, 45, 0.5)}</div><small class="muted">${act.rateLimitDegS.toFixed(0)}°/s surface rate · ${((act.maxDeg / act.rateLimitDegS) * 1000).toFixed(0)} ms center-to-end, before configured lag</small></fieldset>`;
               })
               .join("") ||
-            (a.vtol &&
-            [
-              a.vtol.leftServoPartId,
-              a.vtol.rightServoPartId,
-              a.vtol.rearServoPartId,
-            ].includes(part.id)
-              ? `<p class="component-note">${part.id === a.vtol.rearServoPartId ? `Rear yaw servo · ±${a.vtol.yawTiltDeg}° sideways motor lean` : "Front conversion servo · 0° vertical → 90° forward"}. Test its motion in Control test.</p>`
-              : '<p class="component-note">No control surface is linked to this servo yet.</p>')
+            '<p class="component-note">No control surface is linked to this servo yet.</p>'
           }`
         : ""
     }
@@ -299,17 +292,10 @@ export class ComponentWorkshop {
     <details id="part-installation-${partIndex}" class="component-position"><summary>Installation position & dimensions</summary><p class="small muted">Body axes: X forward · Y right · Z down. Millimeters from the aircraft datum.</p><div class="component-fields component-axis-fields">${part.positionM.map((v, i) => f(`pos-${i}`, `${["X", "Y", "Z"][i]} position · mm`, v * 1000, -10000, 10000, 0.5)).join("")}</div><div class="component-fields component-axis-fields">${part.sizeM.map((v, i) => f(`size-${i}`, `${["Length X", "Width Y", "Height Z"][i]} · mm`, v * 1000, 0.1, 10000, 0.5)).join("")}</div>${part.kind === "battery" || part.servo || fpv ? `<div class="component-fields component-axis-fields">${(part.orientationDeg ?? [0, 0, 0]).map((v, i) => f(`angle-${i}`, `Installation ${["roll", "pitch", "yaw"][i]} · °`, v, -180, 180, 1)).join("")}</div>` : ""}</details>
     ${part.catalogId && !reference ? `<small class="muted">External catalog reference: ${escape(part.catalogId)}. Specifications are stored in this aircraft; this catalog is not installed.</small>` : ""}</div>`;
     const bind = (key: string, edit: Edit) => this.register(id(key), edit);
-    if (
-      ["battery", "motor", "equipment"].includes(part.kind) &&
-      !fpv &&
-      part.id !== "vtol-skids"
-    ) {
+    if (["battery", "motor", "equipment"].includes(part.kind) && !fpv) {
       const placement = document.createElement("div");
       placement.className = "component-placement-entry";
-      const cgLabel =
-        a.vehicleType === "multirotor"
-          ? `X ${(total.cg[0] * 1000).toFixed(1)} mm from datum`
-          : `${((a.reference.leadingEdgeXM - total.cg[0]) * 1000).toFixed(1)} mm aft LE`;
+      const cgLabel = `${((a.reference.leadingEdgeXM - total.cg[0]) * 1000).toFixed(1)} mm aft LE`;
       placement.innerHTML = `<button id="place-component" class="wide">Move on model ↗</button><small class="muted">${part.positionM.map((v, i) => `${["X", "Y", "Z"][i]} ${(v * 1000).toFixed(1)}`).join(" · ")} mm · CG ${cgLabel}</small>`;
       $("component-detail")
         .querySelector(".component-detail-heading")!

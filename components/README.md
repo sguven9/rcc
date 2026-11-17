@@ -33,7 +33,7 @@ Servo details expose speed, rated positional range, commanded travel, horn lengt
 and surface limit. The displayed effective angle and rate drive flight forces and
 animation. A motor package replaces its tested motor/prop curve and both mass
 components. Motor packages require explicit `motors[].partId` and `propPartId`
-links. The Bronco, Tiny Trainer, FT-22 and 450 mm quad provide complete examples.
+links. The Bronco, Tiny Trainer and FT-22 provide complete examples.
 The **Propellers** filter and paired-part buttons connect each blade assembly to
 its motor. Replace them as a package so a prop's mass and performance stay paired.
 The preview includes diameter and test voltage; a larger prop needs a clearance
@@ -62,7 +62,7 @@ field. A listed 1 kHz impedance is not a pack DC-resistance measurement. The old
 Robu MT2213 sheet describes a different KV variant; its maximum-thrust headline
 was not merged into the current EMAX 1045 curve.
 
-All fixed-wing presets and the basic 5-inch quad now have an electrical model.
+All presets now have an electrical model.
 Where no current bench curve exists, current is explicitly **estimated** from
 ideal induced power divided by an assumed 0.45 overall factor and nominal voltage,
 plus a small no-load term. This does not measure the actual motor or account for
@@ -93,8 +93,8 @@ Types are `battery`, `servo`, `motor` and passive `equipment`.
   fields, a matching performance curve, and a separate `prop` mass part. Record
   the tested voltage, propeller, command convention and density uncertainty.
   Optional `shaftAxis: "x" | "z"` declares the product envelope's shaft direction.
-  Installation converts dimensions and principal inertia to X for fixed-wing or
-  Z for multirotor use, retaining the existing component installation rotation.
+  Installation converts dimensions and principal inertia to the X shaft axis,
+  retaining the existing component installation rotation.
   Omission preserves the legacy body-frame convention. This does not model cant.
 - Passive equipment changes mass/inertia only. A printed ESC current rating does
   not magically implement firmware, thermal limits or battery cutoff behavior.

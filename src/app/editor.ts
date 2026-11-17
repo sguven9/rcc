@@ -1,5 +1,4 @@
 import type { Vec3 } from "../core/math";
-import { renderVtolEditor } from "./vtol-editor";
 import { powertrain } from "../core/powertrain";
 import { aircraftCredit } from "./aircraft-credit";
 import { findTrim } from "../core/trim";
@@ -282,112 +281,13 @@ export class AircraftEditor {
       `${(p.mass * 1000).toFixed(0)} g · ${a.parts.length} parts`;
     this.workshop.render();
     this.mixer.render();
-    renderVtolEditor(
-      a,
-      (id, edit) => this.registerNumber(id, edit),
-      (edit) => {
-        try {
-          this.commitPending();
-          const out = structuredClone(this.draft);
-          edit(out);
-          out.provenance.vtolTuning = {
-            status: "estimated",
-            note: "User-edited simulation assistance or calculated cruise trim; not hardware tuning.",
-          };
-          this.draft = parseAircraft(out);
-          this.update();
-          this.changed(this.draft);
-        } catch (e) {
-          this.notify(e instanceof Error ? e.message : "Check VTOL settings.");
-        }
-      },
-    );
-    const quad = a.vehicleType === "multirotor";
-    $("mass-scope").textContent = a.vtol
-      ? "Includes installed tilt servos, brackets, electronics and skids."
-      : quad
-        ? "Includes all components and battery."
-        : a.contactPoints.some((p) => p.kind === "wheel")
-          ? "Includes installed landing gear and battery."
-          : "Ground starts add removable gear to this mass.";
-    $("mass-evidence").textContent = quad
-      ? `Component total: ${(p.mass * 1000).toFixed(0)} g. Each listed component is counted once. Rendered detail adds no hidden mass; replace estimates with measured values.`
-      : `Component total: ${(p.mass * 1000).toFixed(0)} g. Replace estimated component weights with measured values for your build.`;
-    document.querySelector('label[for="edit-span"]')!.textContent = quad
-      ? "Motor diagonal · mm"
-      : "Wingspan · mm";
-    $<HTMLInputElement>("edit-span").min = quad ? "100" : "400";
-    document.querySelector('label[for="edit-cg"]')!.textContent = quad
-      ? "CG aft datum · mm"
-      : "CG aft of LE · mm";
-    $("edit-throws").toggleAttribute("disabled", quad);
-    $("edit-throws").parentElement!.hidden = quad;
-    document.querySelector<HTMLElement>(".balance-track")!.hidden = quad;
-    $("loading-label").textContent = quad ? "Thrust / weight" : "Wing loading";
-    $("stall-label").textContent = quad
-      ? "Estimated hover command"
-      : "Estimated stall speed";
-    $("quad-config").hidden = !quad;
-    if (quad) {
-      $("quad-config").innerHTML =
-        `<div class="section-kicker">ROTOR SETUP · SI UNITS · body X forward, Y right, Z down</div><p class="small muted">Thrust and response must be measured for your motor, prop and battery combination. Spin means viewed from above. Changing spin flips the complete diagonal pair pattern. Mode is a simple internal controller, not Betaflight or PX4 firmware.</p><div class="two-col"><label>Flight mode<select id="quad-mode"><option value="angle" ${a.multirotor!.mode === "angle" ? "selected" : ""}>Angle / self-level</option><option value="rate" ${a.multirotor!.mode === "rate" ? "selected" : ""}>Rate / acro</option></select></label><label>Max tilt · degrees<input id="quad-tilt" type="number" value="${a.multirotor!.maxTiltDeg}"/></label></div><div class="component-scroll"><table><thead><tr><th>Rotor</th><th>X / m</th><th>Y / m</th><th>Z / m</th><th>Max thrust / N</th><th>Prop / m</th><th>Lag / s</th><th>Torque / thrust · m</th><th>Spin</th></tr></thead><tbody>${a.motors.map((m, i) => `<tr><th>${escape(m.id)}</th>${[...m.positionM, m.maxThrustN, m.propDiameterM, m.responseSeconds, m.torquePerThrustM].map((v, j) => `<td><input id="rotor-${i}-${j}" type="number" step="0.001" value="${Number(Number(v).toFixed(4))}" aria-label="${escape(m.id)} ${["X", "Y", "Z", "thrust", "propeller", "lag", "torque ratio"][j]}"/></td>`).join("")}<td><select id="spin-${i}"><option ${m.spin === "cw" ? "selected" : ""}>cw</option><option ${m.spin === "ccw" ? "selected" : ""}>ccw</option></select></td></tr>`).join("")}</tbody></table></div>`;
-      const register = (
-        id: string,
-        edit: (out: Aircraft, value: string) => void,
-      ) => {
-        const field = $<HTMLInputElement>(id);
-        field.oninput = () => this.track(id, field.value);
-        field.onchange = () => {
-          const raw = field.value;
-          try {
-            if (field.type === "number") numericValue(field);
-            const out = structuredClone(this.draft);
-            edit(out, field.value);
-            this.draft = parseAircraft(out);
-            this.pending.delete(id);
-            this.errors.delete(id);
-            this.changed(this.draft);
-            this.update();
-          } catch (e) {
-            this.fail(id, raw, e);
-          }
-        };
-      };
-      register(
-        "quad-mode",
-        (out, v) => (out.multirotor!.mode = v as "angle" | "rate"),
-      );
-      register(
-        "quad-tilt",
-        (out, v) => (out.multirotor!.maxTiltDeg = Number(v)),
-      );
-      a.motors.forEach((m, i) => {
-        for (let j = 0; j < 7; j++)
-          register(`rotor-${i}-${j}`, (out, v) => {
-            const motor = out.motors[i],
-              n = Number(v);
-            if (j < 3) {
-              const delta = n - motor.positionM[j];
-              motor.positionM[j] = n;
-              const part = out.parts.find((p) => p.id === motor.partId);
-              const prop = out.parts.find((p) => p.id === motor.propPartId);
-              if (part) part.positionM[j] += delta;
-              if (prop) prop.positionM[j] += delta;
-            } else if (j === 3) {
-              motor.performance?.points.forEach(
-                (p) => (p.thrustN *= n / motor.maxThrustN),
-              );
-              motor.maxThrustN = n;
-            } else if (j === 4) motor.propDiameterM = n;
-            else if (j === 5) motor.responseSeconds = n;
-            else motor.torquePerThrustM = n;
-          });
-        register(`spin-${i}`, (out, v) => {
-          if (out.motors[i].spin !== v)
-            for (const m of out.motors) m.spin = m.spin === "cw" ? "ccw" : "cw";
-        });
-      });
-    }
+    $("mass-scope").textContent = a.contactPoints.some(
+      (p) => p.kind === "wheel",
+    )
+      ? "Includes installed landing gear and battery."
+      : "Ground starts add removable gear to this mass.";
+    $("mass-evidence").textContent =
+      `Component total: ${(p.mass * 1000).toFixed(0)} g. Replace estimated component weights with measured values for your build.`;
 
     const values: Record<string, number> = {
       "edit-mass": p.mass * 1000,
@@ -408,16 +308,6 @@ export class AircraftEditor {
       Math.sqrt(
         (2 * p.mass * 9.80665) / (1.225 * a.reference.areaM2 * clmax),
       ).toFixed(1) + " m/s";
-    if (quad) {
-      const available = powertrain(
-        a,
-        a.motors.map(() => 1),
-      ).thrust.reduce((sum, v) => sum + v, 0);
-      $("edit-loading").textContent =
-        (available / (p.mass * 9.80665)).toFixed(2) + " : 1";
-      $("edit-stall").textContent =
-        (findTrim(a).controls.throttle * 100).toFixed(1) + "%";
-    }
 
     $("cg-marker").style.left =
       Math.max(0, Math.min(100, (cg / (wing?.chordM ?? 0.2)) * 100)) + "%";

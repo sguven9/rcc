@@ -63,7 +63,7 @@ GLSL material renders correctly; inspect it in the actual browser.
 
 - Deliot and Heitz, [Procedural Stochastic Textures by Tiling and Blending](https://eheitzresearch.wordpress.com/738-2/),
   and the [Unity Grenoble texture synthesis demo](https://unity-grenoble.github.io/website/demo/2020/10/16/demo-histogram-preserving-blend-synthesis.html).
-  RCForge uses the random-offset blending principle, with its own small shader;
+  The simulator uses the random-offset blending principle, with its own small shader;
   it does not implement the papers' histogram transformations or lookup tables.
 - [Three.js texture documentation](https://threejs.org/docs/pages/Texture.html)
   describes mipmap filtering, colour space and anisotropy tradeoffs. Relief uses
@@ -71,7 +71,7 @@ GLSL material renders correctly; inspect it in the actual browser.
 - [Prepar3D terrain options](https://www.prepar3d.com/SDKv6/prepar3d/options/graphics/world.html)
   distinguish nearby texture detail from mesh density and drawing distance. This
   is a useful flight-simulator reference for spending detail near the observer;
-  RCForge does not implement Prepar3D's terrain system.
+  the simulator does not implement Prepar3D's terrain system.
 
 Photograph sources and licenses remain in
 [the scenery asset manifest](../public/scenery/README.md).

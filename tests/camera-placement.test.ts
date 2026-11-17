@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import * as T from "three";
 import bronco from "../aircraft/ft-bronco.json";
-import quad from "../aircraft/quad-x-6s.json";
+import tiny from "../aircraft/ft-tiny-trainer.json";
 import { parseAircraft } from "../src/core/schema";
 import { installFpvCamera } from "../src/core/fpv";
 import {
@@ -12,7 +12,7 @@ import { massProperties } from "../src/core/aircraft";
 import { cameraSurfacePosition } from "../src/view/camera-placement";
 import { fpvMount } from "../src/view/fpv-camera";
 
-it.each([bronco, quad])(
+it.each([bronco, tiny])(
   "commits mount pose once without changing component mass or unrelated edits on $id",
   (raw) => {
     const a = installFpvCamera(parseAircraft(raw));

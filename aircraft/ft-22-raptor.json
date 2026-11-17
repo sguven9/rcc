@@ -25,7 +25,7 @@
     "controls": {
       "status": "estimated",
       "url": "https://www.flitetest.com/articles/ft-22-raptor-build",
-      "note": "Two elevons mix pitch and roll in RCForge; transmitter should send unmixed aircraft axes. Maximum 40 degree throw follows plan; 0.06 s and 400 deg/s servo response estimated. No physical rudder; yaw input has no direct authority."
+      "note": "Two elevons mix pitch and roll in the simulator; transmitter should send unmixed aircraft axes. Maximum 40 degree throw follows plan; 0.06 s and 400 deg/s servo response estimated. No physical rudder; yaw input has no direct authority."
     },
     "propulsion": {
       "status": "estimated",

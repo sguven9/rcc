@@ -44,6 +44,6 @@
   font:
     11px/1.4 ui-monospace,
     monospace;
-  color: #f2f2ee;
+  color: var(--p-n50);
   white-space: pre-wrap;
 }

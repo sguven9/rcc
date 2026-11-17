@@ -1,6 +1,7 @@
 import { clamp } from "../core/math";
 import { cleanControls, type Controls } from "../core/simulation";
 import { ownsKeyboard } from "./ui-focus";
+import { storageKey } from "../config/brand";
 export type Channel = "roll" | "pitch" | "yaw" | "throttle";
 /** Shared, read-only input surface for browser HID and the Arduino serial bridge. */
 export interface InputDevice {
@@ -21,10 +22,27 @@ export interface AxisBinding {
   deadzone: number;
   expo: number;
 }
+/** Optional two-position switch: a button or a spare axis. */
+export interface SwitchBinding {
+  kind: "button" | "axis";
+  index: number;
+  /** The value read in the "on" position (armed / ACRO). */
+  onValue: number;
+  /** Raw midpoint separating the two positions. */
+  threshold: number;
+}
+/**
+ * Axis mapping per channel. Version 2 is the setup wizard's calibration
+ * (input/calibration.ts) and adds the stick mode, optional switches and the
+ * measured rest noise; version 1 profiles still load.
+ */
 export interface ControllerProfile {
-  version: 1;
+  version: 1 | 2;
   deviceId: string;
   bindings: Record<Channel, AxisBinding>;
+  mode?: 1 | 2 | 3 | 4;
+  switches?: { arm?: SwitchBinding; flightMode?: SwitchBinding };
+  noise?: number[];
 }
 export const channels: Channel[] = ["roll", "pitch", "yaw", "throttle"];
 export function defaultProfile(id = ""): ControllerProfile {
@@ -87,8 +105,18 @@ export function validProfile(raw: unknown): raw is ControllerProfile {
   if (!raw || typeof raw !== "object") return false;
   const p = raw as ControllerProfile;
   return (
-    p.version === 1 &&
+    (p.version === 1 || p.version === 2) &&
     typeof p.deviceId === "string" &&
+    (p.mode === undefined || [1, 2, 3, 4].includes(p.mode)) &&
+    (p.switches === undefined ||
+      Object.values(p.switches).every(
+        (s) =>
+          s === undefined ||
+          ((s.kind === "button" || s.kind === "axis") &&
+            Number.isInteger(s.index) &&
+            Number.isFinite(s.onValue) &&
+            Number.isFinite(s.threshold)),
+      )) &&
     channels.every((ch) => {
       const b = p.bindings?.[ch];
       return (
@@ -111,7 +139,10 @@ export function validProfile(raw: unknown): raw is ControllerProfile {
 }
 export function saveProfile(p: ControllerProfile) {
   try {
-    localStorage.setItem("rcforge.controller." + p.deviceId, JSON.stringify(p));
+    localStorage.setItem(
+      storageKey("controller.") + p.deviceId,
+      JSON.stringify(p),
+    );
     return true;
   } catch {
     return false;
@@ -123,7 +154,7 @@ export function loadProfile(
 ): ControllerProfile {
   try {
     const p = JSON.parse(
-      localStorage.getItem("rcforge.controller." + id) || "null",
+      localStorage.getItem(storageKey("controller.") + id) || "null",
     );
     if (validProfile(p) && p.deviceId === id) return p;
   } catch {

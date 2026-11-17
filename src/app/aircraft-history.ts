@@ -13,6 +13,7 @@ import {
 } from "./aircraft-history-storage";
 import { $, download, escape } from "./dom";
 import "../view/aircraft-history.css";
+import { BRAND } from "../config/brand";
 
 interface HistoryEditor {
   getDraft: () => Aircraft;
@@ -93,7 +94,7 @@ export function setupAircraftHistory(editor: HistoryEditor) {
     const entry = selected,
       properties = massProperties(entry.aircraft),
       differences = aircraftDifferences(draft, entry.aircraft);
-    detail.innerHTML = `<div class="history-detail-heading"><div><h3>v${entry.revision} · ${escape(entry.name)}</h3><p>${escape(new Date(entry.createdAt).toLocaleString())}</p></div><button id="history-aircraft-export">Export JSON</button></div><div class="history-metrics"><div><span>All-up mass</span><strong>${Number((properties.mass * 1000).toFixed(1))} g</strong></div><div><span>Components</span><strong>${entry.aircraft.parts.length}</strong></div><div><span>Saved with</span><strong>RCForge ${escape(entry.appVersion)}</strong></div></div><div class="history-restore" ${differences.length ? "" : "hidden"}><p>Restore opens this setup in the editor. Your current draft is saved first.</p><button id="history-restore" class="primary">Restore to draft</button></div><h4>Changes from your current draft</h4>${
+    detail.innerHTML = `<div class="history-detail-heading"><div><h3>v${entry.revision} · ${escape(entry.name)}</h3><p>${escape(new Date(entry.createdAt).toLocaleString())}</p></div><button id="history-aircraft-export">Export JSON</button></div><div class="history-metrics"><div><span>All-up mass</span><strong>${Number((properties.mass * 1000).toFixed(1))} g</strong></div><div><span>Components</span><strong>${entry.aircraft.parts.length}</strong></div><div><span>Saved with</span><strong>${escape(BRAND.name)} ${escape(entry.appVersion)}</strong></div></div><div class="history-restore" ${differences.length ? "" : "hidden"}><p>Restore opens this setup in the editor. Your current draft is saved first.</p><button id="history-restore" class="primary">Restore to draft</button></div><h4>Changes from your current draft</h4>${
       differences.length
         ? `<div class="history-differences"><table><thead><tr><th>Setting</th><th>Current draft</th><th>This version</th></tr></thead><tbody>${differences
             .slice(0, 100)

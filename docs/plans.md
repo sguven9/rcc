@@ -1,6 +1,6 @@
 # Plans & design credits
 
-Aircraft belong to their original designers. RCForge's models are independent
+Aircraft belong to their original designers. The simulator's models are independent
 procedural reconstructions with explicit estimates, not official digital replicas
 or manufacturing templates.
 
@@ -9,11 +9,9 @@ or manufacturing templates.
 ## Find the original design
 
 The reference library below links each bundled aircraft to its creator and its
-RCForge JSON definition. Flite Test plan entries include the exact reference
+The simulator JSON definition. Flite Test plan entries include the exact reference
 identity, byte count and SHA-256 digest. The Bronco's two configurations share one
-source plan; they retain separate components, controls and local histories. The
-[experimental tricopter conversion](bronco-vtol.md) retains Bronco geometry credits
-and adds a separately estimated motor/servo installation. It is not an official FT VTOL plan.
+source plan; they retain separate components, controls and local histories.
 
 Read the [Flite Test reconstruction notes](flite-test-reconstruction.md) for
 measured plan stations and assembly assumptions, or the
@@ -49,8 +47,7 @@ from Git, release artifacts and documentation snapshots. See
 [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 Vortex RC's original product and build photographs remain with Vortex RC. A public
-downloadable plan has not been established for the kit. Quad examples are RCForge
-assemblies with component/manufacturer sources in their JSON provenance.
+downloadable plan has not been established for the kit.
 
 When contributing a new reference, record the designer, original URL, revision,
 retrieval date, hash and redistribution terms. Keep sourced dimensions separate

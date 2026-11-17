@@ -1,6 +1,6 @@
 # Versions and aircraft history
 
-RCForge separates application releases, simulation compatibility, file formats and your own aircraft versions. Open the version badge in the header to see the running application's versions.
+The simulator separates application releases, simulation compatibility, file formats and your own aircraft versions. Open the version badge in the header to see the running application's versions.
 
 ## What each version means
 
@@ -23,13 +23,13 @@ A UI release does not invalidate physics recordings. Recording import checks the
 2. Edit the aircraft's components, mass, geometry, control response or FPV mount.
 3. **Apply to flight** saves the changed definition and an automatic version. Repeated applies of an identical setup do not create duplicates. The first changed apply also keeps the starting setup.
 4. Open **History** and select a version. The comparison shows what would change from your current draft to that version, including component masses and positions.
-5. Choose **Restore to draft**. RCForge saves your current draft first, then opens the selected version for inspection. **Apply to flight** adopts that setup; restoring alone leaves the current flight configuration unchanged.
+5. Choose **Restore to draft**. The simulator saves your current draft first, then opens the selected version for inspection. **Apply to flight** adopts that setup; restoring alone leaves the current flight configuration unchanged.
 
 A named checkpoint can mark an already applied setup without changing it. Repeating the same checkpoint name and setup does not create another entry.
 
 Checkpoints are complete snapshots, not a chain of patches. Removing one does not break later versions. They are grouped by aircraft ID: use a new ID in JSON when creating a separate design. Revision numbers are local to that aircraft on that browser and keep increasing after deletion. Imported snapshots keep their unique IDs, but can receive new local revision numbers when merged with existing history.
 
-The original bundled definition remains available through **Restore original aircraft**. Your edited setup is checkpointed before restoring it. Older browser installations start history from their currently applied definition; RCForge cannot reconstruct edits made before history existed.
+The original bundled definition remains available through **Restore original aircraft**. Your edited setup is checkpointed before restoring it. Older browser installations start history from their currently applied definition; the simulator cannot reconstruct edits made before history existed.
 
 ### Save, apply and export
 
@@ -46,15 +46,15 @@ When importing a backup, choose **Apply to flight** to keep that aircraft availa
 
 ### Storage and recovery
 
-History stays on this browser profile and origin. It is not an account, cloud sync or Git repository. [Browser local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) is scoped to protocol, hostname and port: localhost, a different local port, and `https://rcforge.adithyask.com` have separate storage. Clearing site data or private browsing storage can remove it.
+History stays on this browser profile and origin. It is not an account, cloud sync or Git repository. [Browser local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) is scoped to protocol, hostname and port: localhost, a different local port, and your hosted HTTPS address have separate storage. Clearing site data or private browsing storage can remove it.
 
-Each aircraft supports up to **40 snapshots**, with a compact archive limited to **1.8 MB of UTF-8 JSON**. Browser-wide quotas may be reached sooner. RCForge reports failures and never silently prunes old versions. Export a backup, then remove selected older versions under **Version details & removal** to make space. Applying can still work if history storage is full; a visible message explains that the version was not saved. Restore stops if the current draft cannot be preserved.
+Each aircraft supports up to **40 snapshots**, with a compact archive limited to **1.8 MB of UTF-8 JSON**. Browser-wide quotas may be reached sooner. The simulator reports failures and never silently prunes old versions. Export a backup, then remove selected older versions under **Version details & removal** to make space. Applying can still work if history storage is full; a visible message explains that the version was not saved. Restore stops if the current draft cannot be preserved.
 
 Malformed or incompatible history is left untouched and reported. Imports validate the format, every aircraft and revision identity before merging. Re-importing the same archive adds no duplicates; a conflicting snapshot with an existing unique ID is rejected. Local history is intended for one editing tab at a time, not concurrent collaborative editing.
 
 ## Move from localhost to the hosted workbench
 
-The intended public address is **[rcforge.adithyask.com](https://rcforge.adithyask.com)**. These instructions do not imply the site has been deployed yet.
+The public address is whatever `BRAND.siteUrl` names. These instructions do not imply the site has been deployed yet.
 
 1. On localhost, open each aircraft you want to keep. Save any draft as a version, then **Export history**. For only the current setup, ordinary **Export** is sufficient.
 2. Back up controller mappings separately through **Controllers → Mapping → Aircraft trim & profile files → Export setup**. Aircraft history does not contain input profiles, scenery preferences or flight recordings.
@@ -87,7 +87,10 @@ finite-jet factor.
 - Recordings that use the new fields need 0.14.0.
 - Earlier recordings of propeller fixed-wing aircraft are rejected with an
   explanation, because their lift changed.
-- Other 0.10.0–0.13.0 recordings (for example multirotors) replay unchanged.
+- Other 0.10.0–0.13.0 recordings (gliders without motors) replay unchanged.
+- Multirotor and VTOL recordings and aircraft files are no longer accepted:
+  the simulator flies fixed-wing aircraft only. Stored browser settings for
+  them are ignored without an error.
 
 ## Simplified flight app compatibility (0.13.0)
 

@@ -13,13 +13,13 @@ On the **Simple Trainer**, left/right keyboard inputs steer the rudder because i
 
 ## A gamepad or joystick is missing
 
-Connect the device, focus RCForge, then move a stick or press a button. Refresh devices in Controllers and select the intended device. A USB radio adapter must expose joystick input; a firmware-update cable does not do that.
+Connect the device, focus the simulator, then move a stick or press a button. Refresh devices in Controllers and select the intended device. A USB radio adapter must expose joystick input; a firmware-update cable does not do that.
 
-If the operating system cannot see the device either, resolve that connection first. An Arduino running the RCForge bridge uses **Connect Arduino**, not the gamepad chooser.
+If the operating system cannot see the device either, resolve that connection first. An Arduino running the bridge uses **Connect Arduino**, not the gamepad chooser.
 
 ## Arduino: failed to open serial port
 
-This happens before RCForge can read channel data. It does not indicate CH6 STOP.
+This happens before the simulator can read channel data. It does not indicate CH6 STOP.
 
 1. Close Arduino Serial Monitor, Serial Plotter and any other tab or program using the port.
 2. Reconnect the USB data cable and select the current port; its name may change.
@@ -29,19 +29,19 @@ If the USB device disappears when you connect or power hardware, disconnect that
 
 ## Arduino: waiting for bridge data
 
-USB opened, but RCForge has not accepted bridge packets. Upload [`rcforge_bridge.ino`](../hardware/rcforge_bridge/rcforge_bridge.ino), then close Serial Monitor and reconnect.
+USB opened, but the simulator has not accepted bridge packets. Upload [`rc_bridge.ino`](../hardware/rc_bridge/rc_bridge.ino), then close Serial Monitor and reconnect.
 
 The [`ppm_monitor.ino`](../hardware/ppm_monitor/ppm_monitor.ino) sketch prints readable diagnostics. It is useful for checking wiring, but its `PPM | channels=...` lines are not flight input. The bridge uses **115200 baud** and lines beginning `RCF1`.
 
 ## Arduino: input stopped
 
-Keep throttle low and put the CH6 control in the position that showed **RUN** in the diagnostic sketch. If the input remains stopped, disconnect RCForge and inspect Serial Monitor at 115200 baud:
+Keep throttle low and put the CH6 control in the position that showed **RUN** in the diagnostic sketch. If the input remains stopped, disconnect the simulator and inspect Serial Monitor at 115200 baud:
 
 | Output                            | What it tells you                                                                                                         |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `RCF1,number,1,PPM,6,...`         | The bridge accepts the current input. Close the monitor and reconnect RCForge.                                            |
+| `RCF1,number,1,PPM,6,...`         | The bridge accepts the current input. Close the monitor and reconnect the simulator.                                      |
 | `RCF1,number,0,PPM,6,...`         | Input is invalid or the RUN guard is off. The following channel values are inactive replacements, not raw stick readings. |
-| Diagnostic PPM with CH6 over 1700 | The diagnostic sees the RUN position. Upload the bridge again to use it in RCForge.                                       |
+| Diagnostic PPM with CH6 over 1700 | The diagnostic sees the RUN position. Upload the bridge again to use it in the simulator.                                 |
 | `NO SIGNAL` in the diagnostic     | Check documented signal output, ground and transmitter output mode.                                                       |
 
 Do not infer actual CH6 from a status-0 bridge packet: the sketch replaces it with 1000. If the cause is unclear, use the [trainer diagnostic walkthrough](trainer-nano.md#3-upload-the-diagnostic-sketch) to see the raw channels. Keep the guard enabled while diagnosing an unknown failure.
@@ -50,11 +50,11 @@ Do not infer actual CH6 from a status-0 bridge packet: the sketch replaces it wi
 
 In Controllers, use **Detect** to identify each axis and **Reverse** to correct its direction. Capture neutral, then full travel, and save calibration. Confirm throttle goes from 0 to 100%.
 
-For gentler handling, select **Gentle** on Fly. For a noisy center, adjust the device dead zone. Avoid applying expo or surface mixing in both the transmitter and RCForge. [Rates and mixing](fpv-and-control-setup.md#adjust-sensitivity).
+For gentler handling, select **Gentle** on Fly. For a noisy center, adjust the device dead zone. Avoid applying expo or surface mixing in both the transmitter and the simulator. [Rates and mixing](fpv-and-control-setup.md#adjust-sensitivity).
 
 ## Aircraft edits disappeared
 
-Browser storage belongs to a particular browser and address. Different localhost ports and the hosted site have separate saved setups. Import an exported backup when changing where you run RCForge.
+Browser storage belongs to a particular browser and address. Different localhost ports and the hosted site have separate saved setups. Import an exported backup when changing where you run the simulator.
 
 An unapplied draft is not a saved aircraft. Use **Apply to flight**, named versions in **History**, and **Export history** for a portable backup. [Saving and recovery](aircraft-editor.md#save-restore-and-contribute).
 
@@ -66,7 +66,7 @@ The models contain estimates. Do not treat a successful simulated flight as vali
 
 ## Flight pauses after a long frame delay
 
-A browser frame took more than a quarter of a second. RCForge pauses instead of
+A browser frame took more than a quarter of a second. The simulator pauses instead of
 advancing through old input or silently slowing the flight. Close heavy tabs or
 applications, return to the field and choose **Resume flight**. Time spent paused
 is not added to the flight.

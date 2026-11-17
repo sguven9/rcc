@@ -1,4 +1,4 @@
-"""Independent JSBSim 1.3.1 oracle. Reads definitions/conditions, never RCForge results.
+"""Independent JSBSim 1.3.1 oracle. Reads definitions/conditions, never the simulator results.
 
 Original MIT adapter; upstream JSBSim is installed separately under LGPL-2.1.
 See docs/physics-reference.md for equations, matching assumptions and exclusions.
@@ -20,7 +20,7 @@ FT = 0.3048
 LBF = 4.4482216152605
 SLUG = LBF / FT
 WEIGHT_PER_SLUG = 32.174049  # JSBSim 1.3.1 mass/weight convention.
-RADIUS = 1e9  # Nonrotating large sphere approximates RCForge's local flat frame.
+RADIUS = 1e9  # Nonrotating large sphere approximates the simulator's local flat frame.
 ALTITUDE = 1000
 G = 9.80665
 
@@ -51,14 +51,14 @@ ROTOR_VISCOUS = 0.02
 ROTOR_SMOOTHING = 0.02
 
 
-def rotor_constants(m, vtol):
+def rotor_constants(m):
     """Dynamic shaft-speed constants (docs/physics-engine.md), or None."""
     if not (
         m.get("motorPowerW")
         and m.get("propInertiaKgM2")
         and m.get("maxRpm")
         and m.get("spin")
-    ) or vtol:
+    ):
         return None
     if m.get("propGovernor"):
         raise ValueError("Constant-speed governor is not mirrored by the adapter")
@@ -141,7 +141,7 @@ def mass_xml(aircraft):
     """Six quadrature masses per part reproduce its principal second moments.
 
     JSBSim, not this adapter, assembles CG, parallel-axis terms and full inertia.
-    This takes a different route from RCForge's tensor accumulation.
+    This takes a different route from the simulator's tensor accumulation.
     """
     points = []
     for part_index, part in enumerate(aircraft["parts"]):
@@ -180,9 +180,6 @@ def model_xml(aircraft, density, mode="airframe"):
         "pitch",
         "yaw",
         "soc",
-        "tilt-left",
-        "tilt-right",
-        "tilt-rear",
     ]
     declarations.extend(f"motor-{i}" for i in range(len(aircraft["motors"])))
     declarations.extend(f"rotor-{i}" for i in range(len(aircraft["motors"])))
@@ -571,7 +568,6 @@ def model_xml(aircraft, density, mode="airframe"):
                     ),
                 ),
             )
-        vtol = aircraft.get("vtol")
         for i, m in enumerate(motors):
             ratio = (
                 op(
@@ -583,7 +579,7 @@ def model_xml(aircraft, density, mode="airframe"):
                 if battery
                 else 1
             )
-            dyn = rotor_constants(m, vtol)
+            dyn = rotor_constants(m)
             omega = prop(f"reference/rotor-{i}")
             # Quasi-static rpm of the command: sqrt(bench / max) x voltage ratio.
             command_rpm = variable(
@@ -650,92 +646,54 @@ def model_xml(aircraft, density, mode="airframe"):
                         / m.get("performance", {}).get("referenceDensityKgM3", 1.225),
                     ),
                 )
-            if vtol:
-                if m["id"] == vtol["rearMotorId"]:
-                    angle = op("product", prop("reference/tilt-rear"), math.pi / 180)
-                    axis = [
-                        value(0),
-                        op("sin", angle),
-                        op("product", -1, op("cos", angle)),
-                    ]
-                else:
-                    key = (
-                        "tilt-left"
-                        if m["id"] == vtol["frontLeftMotorId"]
-                        else "tilt-right"
-                    )
-                    angle = op("product", prop("reference/" + key), math.pi / 180)
-                    axis = [
-                        op("sin", angle),
-                        value(0),
-                        op("product", -1, op("cos", angle)),
-                    ]
-                axial = op("sum", *(op("product", u, d) for u, d in zip(uvw, axis)))
-                reaction_sign = 1 if m["spin"] == "cw" else -1
-            elif aircraft["vehicleType"] == "multirotor":
-                axis, axial = [value(0), value(0), value(-1)], value(0)
-                reaction_sign = 1 if m["spin"] == "cw" else -1
-            else:
-                # Installed down/right thrust tilts the thrust line; the
-                # speed falloff still uses body-axis airspeed, as in RCForge.
-                down = math.radians(m.get("downThrustDeg", 0))
-                right = math.radians(m.get("rightThrustDeg", 0))
-                axis = [
-                    value(math.cos(down) * math.cos(right)),
-                    value(math.cos(down) * math.sin(right)),
-                    value(math.sin(down)),
-                ]
-                axial = uvw[0]
-                reaction_sign = -1 if m.get("spin") == "cw" else 1
-            tilted = not vtol and aircraft["vehicleType"] != "multirotor"
-            if tilted:
-                # Fixed-wing: zero-thrust speed scales with shaft speed
-                # n/n_max = sqrt(bench thrust / max thrust) x voltage ratio;
-                # above it the propeller brakes (negative factor).
-                rpm = variable(
-                    f"motor-{i}/rpm-ratio",
-                    op("quotient", omega, dyn["w_max"]) if dyn else command_rpm,
-                )
-                factor = op(
-                    "ifthen",
-                    op("gt", rpm, 0),
-                    op(
-                        "min",
-                        1,
-                        op(
-                            "difference",
-                            1,
-                            op(
-                                "quotient",
-                                op("max", 0, axial),
-                                op("product", m["zeroThrustSpeedMps"], rpm),
-                            ),
-                        ),
-                    ),
-                    0,
-                )
-            else:
-                factor = op(
-                    "max",
-                    0,
+            # Installed down/right thrust tilts the thrust line; the
+            # speed falloff still uses body-axis airspeed, as in the simulator.
+            down = math.radians(m.get("downThrustDeg", 0))
+            right = math.radians(m.get("rightThrustDeg", 0))
+            axis = [
+                value(math.cos(down) * math.cos(right)),
+                value(math.cos(down) * math.sin(right)),
+                value(math.sin(down)),
+            ]
+            axial = uvw[0]
+            reaction_sign = -1 if m.get("spin") == "cw" else 1
+            # Fixed-wing: zero-thrust speed scales with shaft speed
+            # n/n_max = sqrt(bench thrust / max thrust) x voltage ratio;
+            # above it the propeller brakes (negative factor).
+            rpm = variable(
+                f"motor-{i}/rpm-ratio",
+                op("quotient", omega, dyn["w_max"]) if dyn else command_rpm,
+            )
+            factor = op(
+                "ifthen",
+                op("gt", rpm, 0),
+                op(
+                    "min",
+                    1,
                     op(
                         "difference",
                         1,
-                        op("quotient", op("max", 0, axial), m["zeroThrustSpeedMps"]),
+                        op(
+                            "quotient",
+                            op("max", 0, axial),
+                            op("product", m["zeroThrustSpeedMps"], rpm),
+                        ),
                     ),
-                )
+                ),
+                0,
+            )
             for j, direction in enumerate(axis):
                 f = op("product", t, factor, direction)
                 unit = [int(j == k) for k in range(3)]
                 load(f"motor-{i}-{j}", f, unit, m["positionM"])
                 # Fixed-wing reaction torque acts about body X from the thrust
                 # magnitude, independent of a small installation tilt.
-                if m.get("spin") and not dyn and (not tilted or j == 0):
+                if m.get("spin") and not dyn and j == 0:
                     load(
                         f"reaction-{i}-{j}",
                         op(
                             "product",
-                            op("product", t, factor) if tilted else f,
+                            op("product", t, factor),
                             m["torquePerThrustM"] * reaction_sign,
                         ),
                         unit,
@@ -747,12 +705,12 @@ def model_xml(aircraft, density, mode="airframe"):
             inertia = m.get("propInertiaKgM2", 0)
             k_p = m.get("pFactor", 0)
             if m.get("spin") and (inertia or k_p):
-                sign = (1 if m["spin"] == "cw" else -1) * (1 if tilted else -1)
+                sign = 1 if m["spin"] == "cw" else -1
                 spin_axis = [op("product", sign, d) for d in axis]
                 units = [[int(j == k) for k in range(3)] for j in range(3)]
-                rpm_ratio = rpm if tilted else command_rpm
+                rpm_ratio = rpm
                 # Shaft speed (rad/s): the state for dynamic rotors, otherwise
-                # the rpm law (zero without maxRpm), as in RCForge.
+                # the rpm law (zero without maxRpm), as in the simulator.
                 shaft = (
                     omega
                     if dyn
@@ -819,7 +777,7 @@ def model_xml(aircraft, density, mode="airframe"):
                         load(f"pfactor-{i}-{j}", c, units[j])
 
     return (
-        '<?xml version="1.0"?>\n<fdm_config name="RCForge comparison" version="2.0">'
+        '<?xml version="1.0"?>\n<fdm_config name="The simulator comparison" version="2.0">'
         '<metrics><wingarea unit="FT2">1</wingarea><wingspan unit="FT">1</wingspan>'
         '<chord unit="FT">1</chord>'
         + location([0, 0, 0], "AERORP")
@@ -855,7 +813,7 @@ def make_fdm(aircraft, density, mode, root):
         raise RuntimeError("JSBSim model/planet load failed")
     f["simulation/gravity-model"] = 0
     # High-order independent integrators. Rate/position integration is not copied
-    # from RCForge's midpoint/quaternion implementation.
+    # from the simulator's midpoint/quaternion implementation.
     for kind in ["rate/rotational", "rate/translational", "position/translational"]:
         f["simulation/integrator/" + kind] = 5  # Adams-Bashforth 4
     f["simulation/integrator/position/rotational"] = 7  # Buss 2
@@ -881,10 +839,6 @@ def initialize(f, condition):
     f["reference/soc"] = condition.get("soc", 1)
     for i, v in enumerate(condition.get("motorCommands", [])):
         f[f"reference/motor-{i}"] = v
-    f["reference/tilt-left"], f["reference/tilt-right"] = condition.get(
-        "tiltDeg", [0, 0]
-    )
-    f["reference/tilt-rear"] = condition.get("rearTiltDeg", 0)
     for i, v in enumerate(condition.get("rotorRadS", [])):
         f[f"reference/rotor-{i}"] = v
     if not f.run_ic():

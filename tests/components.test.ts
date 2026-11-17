@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
 import catalogData from "../components/catalog.json";
 import raptor from "../aircraft/ft-22-raptor.json";
-import quad from "../aircraft/quad-x-450.json";
 import bronco from "../aircraft/ft-bronco.json";
 import tiny from "../aircraft/ft-tiny-trainer.json";
 import {
@@ -52,18 +51,18 @@ it("separates edited product specifications from installation and charge setting
 
 it("tracks the complete motor and prop package while allowing installation changes", () => {
   const entry = get("emax-mt2213-1045-3s");
-  const a = replaceComponent(parseAircraft(quad), "motor-1", entry);
-  moveComponent(a, "motor-1", 1, 0.2);
+  const a = replaceComponent(parseAircraft(tiny), "motor", entry);
+  moveComponent(a, "motor", 1, 0.2);
   a.motors[0].spin = a.motors[0].spin === "cw" ? "ccw" : "cw";
   a.motors[0].yawMix *= -1;
-  expect(componentDifferences(a, "motor-1", entry)).toEqual([]);
-  a.parts.find((p) => p.id === "prop-1")!.massKg += 0.001;
+  expect(componentDifferences(a, "motor", entry)).toEqual([]);
+  a.parts.find((p) => p.id === "nose-propeller")!.massKg += 0.001;
   a.motors[0].performance!.points[1].currentA += 0.1;
-  expect(componentDifferences(a, "motor-1", entry)).toEqual([
+  expect(componentDifferences(a, "motor", entry)).toEqual([
     "Propeller: Mass",
     "Propulsion model",
   ]);
-  expect(componentDifferences(a, "prop-1", entry)).toEqual([
+  expect(componentDifferences(a, "nose-propeller", entry)).toEqual([
     "Propeller: Mass",
     "Propulsion model",
   ]);
@@ -126,8 +125,8 @@ it("capacity changes discharge time independently of mass", () => {
   expect(one.state.velocity).toEqual(two.state.velocity);
 });
 
-it("heavier batteries increase the required hover thrust and current", () => {
-  const a = parseAircraft(quad),
+it("heavier batteries increase the required cruise power and current", () => {
+  const a = parseAircraft(tiny),
     b = structuredClone(a);
   b.parts.find((p) => p.id === "battery")!.massKg += 0.1;
   const light = findTrim(a),
@@ -161,21 +160,25 @@ it("servo replacement preserves linkage while its rated speed drives actuation",
 });
 
 it("motor packages replace motor and propeller mass without losing rotor installation", () => {
-  const a = parseAircraft(quad),
+  const a = parseAircraft(tiny),
     entry = structuredClone(get("emax-mt2213-1045-3s"));
   if (entry.type !== "motor") throw new Error("Expected motor entry");
   entry.part.massKg += 0.01;
   entry.prop.massKg += 0.002;
   entry.motor.performance!.points.forEach((p) => (p.thrustN *= 0.8));
   entry.motor.maxThrustN *= 0.8;
-  const next = replaceComponent(a, "motor-1", entry);
-  expect(massProperties(next).mass - massProperties(a).mass).toBeCloseTo(0.012);
+  const next = replaceComponent(a, "motor", entry);
+  // Same package unmodified: the delta isolates the edited masses and thrust.
+  const baseline = replaceComponent(a, "motor", get("emax-mt2213-1045-3s"));
+  expect(massProperties(next).mass - massProperties(baseline).mass).toBeCloseTo(
+    0.012,
+  );
   expect(next.parts.length).toBe(a.parts.length);
   expect(next.motors[0].positionM).toEqual(a.motors[0].positionM);
   expect(next.motors[0].spin).toBe(a.motors[0].spin);
-  expect(next.motors[0].propPartId).toBe("prop-1");
-  expect(powertrain(next, [1, 0, 0, 0]).thrust[0]).toBeCloseTo(
-    powertrain(a, [1, 0, 0, 0]).thrust[0] * 0.8,
+  expect(next.motors[0].propPartId).toBe("nose-propeller");
+  expect(powertrain(next, [1]).thrust[0]).toBeCloseTo(
+    powertrain(baseline, [1]).thrust[0] * 0.8,
   );
   const legacy = parseAircraft(raptor);
   delete legacy.motors[0].propPartId;
@@ -229,11 +232,6 @@ it("maps catalog motor/prop dimensions and principal inertia into the aircraft s
     plane.parts.find((p) => p.id === plane.motors[0].propPartId)!.sizeM,
   ).toEqual([entry.prop.sizeM[2], entry.prop.sizeM[1], entry.prop.sizeM[0]]);
   expect(componentDifferences(plane, "motor", entry)).toEqual([]);
-  const multirotor = replaceComponent(parseAircraft(quad), "motor-1", entry);
-  expect(multirotor.parts.find((p) => p.id === "motor-1")!.sizeM).toEqual(
-    entry.part.sizeM,
-  );
-  expect(componentDifferences(multirotor, "motor-1", entry)).toEqual([]);
 });
 
 it("reports used charge and conditional time to reserve without infinity", () => {
@@ -254,7 +252,7 @@ it("reports used charge and conditional time to reserve without infinity", () =>
 
 it("all catalog entries apply to compatible assemblies and reject malformed identities", () => {
   for (const e of catalog.entries) {
-    const a = parseAircraft(quad);
+    const a = parseAircraft(tiny);
     if (e.type === "servo")
       expect(() =>
         replaceComponent(parseAircraft(raptor), "servo-left-elevon", e),
@@ -266,8 +264,8 @@ it("all catalog entries apply to compatible assemblies and reject malformed iden
           e.type === "battery"
             ? "battery"
             : e.type === "motor"
-              ? "motor-1"
-              : "esc-1",
+              ? "motor"
+              : "esc",
           e,
         ),
       ).not.toThrow();
@@ -287,15 +285,15 @@ it("all catalog entries apply to compatible assemblies and reject malformed iden
 });
 
 it("moving a motor or prop retains the assembly offsets and force station", () => {
-  for (const id of ["motor-1", "prop-1"]) {
-    const a = parseAircraft(quad),
+  for (const id of ["motor", "nose-propeller"]) {
+    const a = parseAircraft(tiny),
       old = structuredClone(a);
     const part = a.parts.find((p) => p.id === id)!;
     moveComponent(a, id, 2, part.positionM[2] + 0.02);
     expect(a.motors[0].positionM[2] - old.motors[0].positionM[2]).toBeCloseTo(
       0.02,
     );
-    for (const linked of ["motor-1", "prop-1"])
+    for (const linked of ["motor", "nose-propeller"])
       expect(
         a.parts.find((p) => p.id === linked)!.positionM[2] -
           old.parts.find((p) => p.id === linked)!.positionM[2],

@@ -1,3 +1,4 @@
+import { BRAND } from "../src/config/brand.ts";
 import { lightDiagram } from "./diagram-theme";
 import { physicsCharts } from "./physics-charts";
 import { trainerNanoDiagram } from "./trainer-visual";
@@ -80,7 +81,7 @@ const controller = (
   `<g class="controller" transform="translate(${x} ${y}) scale(${scale})">${inner(controllerDiagram(kind, style, true))}</g>`;
 const styles = `text{font-family:Arial,Helvetica,sans-serif}.controller-shell{fill:#30343b;stroke:#9ba0ab;stroke-width:1.2}.controller-well{fill:#11141a;stroke:#555d69;stroke-width:1.2}.controller-thumb{fill:#404754;stroke:#949caa}.thumb-inset{fill:#252b34;stroke:#697181}.controller-grip{fill:#222832;stroke:#48505e}.controller-outline{fill:none;stroke:#adb4bf;stroke-width:3;stroke-linecap:round}.controller-detail,.thumb-center{fill:none;stroke:#929aa8;stroke-width:1}.gimbal-guide{stroke:#69717d;stroke-width:.6}.controller-screen{fill:#141921;stroke:#858c99}.screen-lines{stroke:#82928c;stroke-width:1.5}.device-led{fill:#b5d1a3}.controller-glyph{font-size:9px;fill:#f4f4f6;text-anchor:middle}.controller-channel-label{font-size:7px;fill:#b5bac4;text-anchor:middle}.controller-caption{display:none}.keyboard-body{fill:#101319;stroke:#414956}.keyboard-key rect{fill:#1b2028;stroke:#3b4350}.keyboard-key text{text-anchor:middle}.key-letter{font-size:12px;fill:#7e8795}.key-function{font-size:7.5px;fill:#e4e9f0}.mapped .key-letter{fill:#fff}.mapped.flight rect{fill:#273e49;stroke:#7fa7b9}.mapped.power rect{fill:#4b3e29;stroke:#d1b479}.mapped.session rect{fill:#354336;stroke:#8ab193}.mapped.view rect{fill:#3f364c;stroke:#ac97c6}`;
 function svg(title: string, desc: string, height: number, body: string) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${height}" viewBox="0 0 960 ${height}" role="img" aria-labelledby="title desc"><title id="title">${esc(title)}</title><desc id="desc">${esc(desc)}</desc><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 8 4 0 8" fill="none" stroke="#b2bccb" stroke-width="1.5"/></marker></defs><style>${styles}</style><rect width="960" height="${height}" rx="16" fill="#111419"/>${text(32, 42, title, 26)}${text(32, 69, desc, 14, color.muted)}${body}${text(32, height - 18, "RCFORGE  /  VISUAL FIELD GUIDE", 11, "#737c89")}</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${height}" viewBox="0 0 960 ${height}" role="img" aria-labelledby="title desc"><title id="title">${esc(title)}</title><desc id="desc">${esc(desc)}</desc><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 8 4 0 8" fill="none" stroke="#b2bccb" stroke-width="1.5"/></marker></defs><style>${styles}</style><rect width="960" height="${height}" rx="16" fill="#111419"/>${text(32, 42, title, 26)}${text(32, 69, desc, 14, color.muted)}${body}${text(32, height - 18, `${BRAND.name.toUpperCase()}  /  VISUAL FIELD GUIDE`, 11, "#737c89")}</svg>\n`;
 }
 
 function routes() {
@@ -91,7 +92,7 @@ function routes() {
       items: [
         ["radio", "FS-i6", "Trainer OUT"],
         ["adapter", "Simulator adapter", "USB joystick / HID"],
-        ["computer", "RCForge", "Find USB adapter"],
+        ["computer", BRAND.name, "Find USB adapter"],
       ],
     },
     {
@@ -101,7 +102,7 @@ function routes() {
         ["radio", "FS-i6", "Bound radio link"],
         ["receiver", "Receiver", "PPM / PWM"],
         ["arduino", "Uno / Nano", "RCF1 serial bridge"],
-        ["computer", "RCForge", "Connect Arduino"],
+        ["computer", BRAND.name, "Connect Arduino"],
       ],
     },
     {
@@ -110,7 +111,7 @@ function routes() {
       items: [
         ["radio", "FS-i6", "Verified trainer OUT"],
         ["arduino", "Uno / Nano", "RCF1 serial bridge"],
-        ["computer", "RCForge", "Connect Arduino"],
+        ["computer", BRAND.name, "Connect Arduino"],
       ],
     },
   ] as const;
@@ -140,7 +141,7 @@ function routes() {
     });
   });
   return svg(
-    "Your radio, connected to RCForge",
+    `Your radio, connected to ${BRAND.name}`,
     "Choose a route, then follow its wiring diagram. Hardware silhouettes are not connector pinouts.",
     830,
     body +
@@ -230,7 +231,13 @@ function ppm(trainer = false) {
   else body += text(52, 382, "VCC / PPM IN: unused", 16, color.power);
   body +=
     line("M795 403v49", color.usb, true) +
-    block(662, 468, 266, "Computer → RCForge", "Connect Arduino · USB serial");
+    block(
+      662,
+      468,
+      266,
+      `Computer → ${BRAND.name}`,
+      "Connect Arduino · USB serial",
+    );
   body +=
     rect(32, 440, 592, 114, "#1c2027") +
     text(
@@ -343,7 +350,7 @@ function pwm() {
     text(
       32,
       717,
-      "USB data cable → computer → RCForge → Controllers → RC transmitter → Connect Arduino",
+      `USB data cable → computer → ${BRAND.name} → Controllers → RC transmitter → Connect Arduino`,
       15,
       color.usb,
     );
@@ -505,60 +512,6 @@ function workflow(calibration = false) {
 function balance() {
   return staticBalanceDiagram();
 }
-function vtolLayout() {
-  let body =
-    rect(24, 104, 546, 422, "#171c21", "#303941", 8) +
-    rect(586, 104, 350, 422, "#171c21", "#303941", 8);
-  body +=
-    text(44, 133, "HOVER / TOP VIEW", 12, color.muted) +
-    text(606, 133, "REAR YAW / LOOKING FORWARD", 12, color.muted);
-  body += `<g stroke="#9eabb3" stroke-width="1.5"><path d="M280 168q15-28 30 0l15 160-30 20-30-20Z" fill="#47575f"/><path d="M93 256h404v47H93Z" fill="#8e999d"/><path d="M176 245h16v206h-16Zm222 0h16v206h-16Z" fill="#6f7c83"/><path d="m184 451 111-74 111 74-8 12-103-65-103 65Z" fill="#808d93"/><path d="M290 310h10v67h-10Z" fill="#b49d73"/></g>`;
-  [
-    [184, 220, "L"],
-    [406, 220, "R"],
-    [295, 369, "REAR"],
-  ].forEach(([x, y, label]) => {
-    body +=
-      `<circle cx="${x}" cy="${y}" r="48" fill="#87c8d50a" stroke="#6f9ca5" stroke-dasharray="5 5"/><path d="M${Number(x) - 42} ${y}h84" stroke="#b3c2c9" stroke-width="7" stroke-linecap="round"/>` +
-      dot(Number(x), Number(y), color.signal);
-  });
-  body += text(
-    295,
-    484,
-    "Front pair: together, vertical → forward",
-    16,
-    color.ink,
-    "middle",
-  );
-  body +=
-    line("M716 226q42-37 87 0", color.signal, true) +
-    text(760, 194, "±20° yaw lean", 17, color.signal, "middle");
-  body +=
-    `<path d="M668 388h185v15H668Z" fill="#ad956e" stroke="#d2bd98"/><path d="M712 383v-40h80v40" fill="none" stroke="#bd643f" stroke-width="9"/><g transform="rotate(-20 752 350)"><path d="M725 347h54v-24h-54Z" fill="#d36b3e"/><rect x="735" y="274" width="34" height="49" rx="5" fill="#30383e" stroke="#adbac0"/><path d="M738 279h28M736 316h32" stroke="#d77b40" stroke-width="7"/><path d="M752 252v22M680 257h144" stroke="#b7c4cb" stroke-width="5" stroke-linecap="round"/></g>` +
-    dot(752, 350, color.signal) +
-    line("M759 353h79v56", color.signal) +
-    text(
-      757,
-      433,
-      "Longitudinal hinge + separate servo",
-      13,
-      color.muted,
-      "middle",
-    );
-  body +=
-    text(44, 558, "RDS3115MG × 2", 19) +
-    text(44, 583, "Front conversion · 0–90°", 14, color.muted) +
-    text(350, 558, "MG996R · provisional", 19) +
-    text(350, 583, "Rear yaw · motor leans sideways", 14, color.muted) +
-    text(666, 558, "Wing-borne cruise", 19) +
-    text(666, 583, "Front rotors forward · rear off", 14, color.muted);
-  return svg(
-    "Three rotors. Three tilt servos.",
-    "Bronco-sized experimental layout. Geometry is reconstructed from references, not a manufacturing drawing.",
-    637,
-    body,
-  );
-}
 export function documentationDiagrams() {
   const diagrams = new Map(
     Object.entries({
@@ -574,7 +527,6 @@ export function documentationDiagrams() {
       "diagram-calibration.svg": workflow(true),
       "diagram-workflow.svg": workflow(),
       "diagram-mass-cg.svg": balance(),
-      "diagram-vtol-layout.svg": vtolLayout(),
       ...physicsCharts(),
     }),
   );

@@ -5,10 +5,7 @@ import { pwmPins, documentationDiagrams } from "../site/diagrams";
 // Deliberately checks across firmware, docs and drawings. A firmware pin change
 // must update the published wiring rather than silently leaving old instructions.
 describe("published Arduino wiring contract", () => {
-  const firmware = readFileSync(
-    "hardware/rcforge_bridge/rcforge_bridge.ino",
-    "utf8",
-  );
+  const firmware = readFileSync("hardware/rc_bridge/rc_bridge.ino", "utf8");
   const guide = readFileSync("docs/radio-setup.md", "utf8");
   it("agrees with the ATmega328P capture pins and required channel count", () => {
     const channels = Number(

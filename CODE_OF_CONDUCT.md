@@ -1,6 +1,6 @@
 # Community code of conduct
 
-RCForge welcomes people with different backgrounds, experience levels and ways of working. Treat contributors, users and maintainers with respect in issues, pull requests and other project spaces.
+The simulator welcomes people with different backgrounds, experience levels and ways of working. Treat contributors, users and maintainers with respect in issues, pull requests and other project spaces.
 
 ## Expected behavior
 

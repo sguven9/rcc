@@ -42,7 +42,7 @@ const escape = (s: unknown) =>
   );
 await writeFile(
   "results/validation/envelope.html",
-  `<!doctype html><meta charset="utf-8"><title>RCForge operating points</title>
+  `<!doctype html><meta charset="utf-8"><title>the simulator operating points</title>
 <style>body{background:#111;color:#ddd;font:14px system-ui;max-width:1200px;margin:40px auto;padding:20px}table{border-collapse:collapse;width:100%}td,th{padding:8px;text-align:left;border-bottom:1px solid #333}.warn{color:#e8b76b}summary{cursor:pointer}p{color:#aaa;line-height:1.6}</style>
 <h1>Aircraft operating points</h1><p>Engine ${SIM_VERSION}. Mass changes uniformly scale the whole build and inertia; this is a sensitivity test, not a component substitution. Calm air at each site's density. Fixed-wing speed sweep; quad hover at three charge levels. Green checks are deliberately absent: trim is not proof of stability or physical accuracy.</p>
 ${reports
