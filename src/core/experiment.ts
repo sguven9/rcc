@@ -205,6 +205,7 @@ const control = z
     yaw: finite.min(-1).max(1),
     throttle: finite.min(0).max(1),
     gust: z.literal(true).optional(),
+    fcMode: z.literal("acro").optional(),
   })
   .strict();
 export function parseRecording(raw: unknown): Recording {
@@ -269,6 +270,8 @@ export function parseRecording(raw: unknown): Recording {
           vtol: VtolStateSchema.optional(),
           rotorRadS: z.array(finite.min(0)).optional(),
           rotorPitch: z.array(finite).optional(),
+          fcIntegral: z.tuple([finite, finite, finite]).optional(),
+          fcAttitude: z.tuple([finite, finite, finite]).optional(),
           status: z.enum(["flying", "grounded", "landed", "crashed"]),
         })
         .strict(),
@@ -317,8 +320,13 @@ function upgradeRecording<R extends { simulationVersion: string }>(
   r: R & {
     aircraft: Aircraft;
     environment: { discreteGusts?: unknown; surfaceZones?: unknown };
-    frames: { gust?: true }[];
-    initialState: { rotorRadS?: unknown; rotorPitch?: unknown };
+    frames: { gust?: true; fcMode?: "acro" }[];
+    initialState: {
+      rotorRadS?: unknown;
+      rotorPitch?: unknown;
+      fcIntegral?: unknown;
+      fcAttitude?: unknown;
+    };
   },
 ): R {
   if (r.simulationVersion === SIM_VERSION) return r;
@@ -349,12 +357,30 @@ function upgradeRecording<R extends { simulationVersion: string }>(
     ],
   ];
   features.push(["0.13.0", r.environment.surfaceZones !== undefined]);
+  features.push([
+    "0.14.0",
+    r.frames.some((f) => f.fcMode !== undefined) ||
+      r.initialState.fcIntegral !== undefined ||
+      r.initialState.fcAttitude !== undefined,
+  ]);
   const order = (v: string) => v.split(".").map(Number);
   const before = (a: string, b: string) => {
     const [x, y] = [order(a), order(b)];
     for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i];
     return false;
   };
+  // 0.14.0 changed the slipstream over wings and tails (fuselage blockage,
+  // finite jet height): older propeller-driven fixed-wing flights would replay
+  // differently, so they are rejected. Multirotors, VTOL and gliders replay.
+  if (
+    before(r.simulationVersion, "0.14.0") &&
+    r.aircraft.motors.length > 0 &&
+    !r.aircraft.vtol &&
+    r.aircraft.vehicleType !== "multirotor"
+  )
+    throw new Error(
+      `Recording ${r.simulationVersion}: the propeller slipstream model changed in 0.14.0`,
+    );
   for (const [version, used] of features)
     if (used && before(r.simulationVersion, version))
       throw new Error(

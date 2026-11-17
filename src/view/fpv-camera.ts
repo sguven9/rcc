@@ -1,16 +1,14 @@
 import * as T from "three";
 import type { Aircraft } from "../core/schema";
-import { fpvLensOffset } from "../core/fpv";
+import { fpvLensOffset, fpvViewpoint } from "../core/fpv";
 import { componentRotation } from "./component-pose";
-import { buildFpvCockpit } from "./fpv-cockpit";
 
 /** Body/datum mount shared by the lens view and visible housing. */
 export function fpvMount(a: Aircraft, cg: readonly number[]) {
   const part = a.parts.find((p) => p.id === a.fpv?.partId);
   if (!part) {
-    // Pre-mounted, massless viewpoint from the aircraft file.
-    const v = a.viewpoint;
-    if (!v) return undefined;
+    // Pre-mounted, massless viewpoint (authored or derived).
+    const v = fpvViewpoint(a);
     const pitch = new T.Quaternion().setFromAxisAngle(
       new T.Vector3(0, 1, 0),
       (v.pitchDeg * Math.PI) / 180,
@@ -54,19 +52,7 @@ export function placeFpvCamera(
 }
 export function buildFpvHousing(a: Aircraft) {
   const part = a.parts.find((p) => p.id === a.fpv?.partId);
-  if (!part) {
-    // Viewpoint only: the decorative cockpit sits in front of it.
-    const v = a.viewpoint;
-    if (!v || a.vehicleType === "multirotor") return undefined;
-    const cockpit = buildFpvCockpit(0);
-    if (!cockpit) return undefined;
-    const holder = new T.Group();
-    holder.name = "fpv-viewpoint";
-    holder.position.set(...v.positionM);
-    holder.rotation.y = (v.pitchDeg * Math.PI) / 180;
-    holder.add(cockpit);
-    return holder;
-  }
+  if (!part) return undefined;
   const housing = new T.Group();
   housing.name = `fpv-camera:${part.id}`;
   housing.position.set(...part.positionM);
@@ -87,12 +73,6 @@ export function buildFpvHousing(a: Aircraft) {
   lens.rotation.z = -Math.PI / 2;
   lens.position.x = part.sizeM[0] / 2 + 0.0028;
   housing.add(body, lens);
-  // Decorative scale cockpit in front of the lens (static, see fpv-cockpit.ts).
-  const cockpit =
-    a.vehicleType === "multirotor"
-      ? undefined
-      : buildFpvCockpit(part.sizeM[0] / 2 + 0.006);
-  if (cockpit) housing.add(cockpit);
   body.castShadow = lens.castShadow = true;
   return housing;
 }

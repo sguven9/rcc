@@ -4,7 +4,7 @@ import type { Controls } from "../core/simulation";
 /** Show only commands wired to a physical surface or motor in this definition. */
 export function aircraftChannels(
   a: Aircraft,
-): Exclude<keyof Controls, "vtol" | "gust">[] {
+): Exclude<keyof Controls, "vtol" | "gust" | "fcMode">[] {
   if (a.vehicleType === "multirotor" || a.vtol)
     return ["pitch", "roll", "yaw", "throttle"];
   const axes = (["pitch", "roll", "yaw"] as const).filter(

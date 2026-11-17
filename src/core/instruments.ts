@@ -1,7 +1,7 @@
 /**
- * Instrument readings for the cockpit panel and the on-screen display, taken
- * directly from the simulation state (no rendering). Smoothing models needle
- * inertia; unit conversion and formatting are pure so they can be tested.
+ * Instrument readings for the on-screen display, taken
+ * directly from the simulation state (no rendering). Unit conversion and
+ * formatting are pure so they can be tested.
  *
  * Frames: the sim's local frame is runway-aligned (+X has true bearing
  * `headingOffsetDeg`); headings and wind directions are reported as true
@@ -134,52 +134,6 @@ export function readInstruments(
       context.location.longitude + d.east / (111320 * Math.cos(lat / DEG));
   }
   return readings;
-}
-
-/** Angle keys wrap at 360° when smoothed (no needle sweep across north). */
-const ANGLE_KEYS = new Set(["headingDeg", "windFromDeg", "homeBearingDeg"]);
-
-/**
- * First-order needle lag per instrument, τ in seconds: mechanical instruments
- * respond quickly but not instantly; the VSI is the classic slow one.
- */
-export const NEEDLE_TAU: Partial<Record<keyof InstrumentReadings, number>> = {
-  airspeedMps: 0.25,
-  altitudeM: 0.3,
-  verticalSpeedMps: 0.9,
-  pitchDeg: 0.08,
-  rollDeg: 0.08,
-  headingDeg: 0.25,
-  turnRateDegS: 0.4,
-  slip: 0.3,
-  rpm: 0.15,
-};
-
-export class GaugeSmoother {
-  private value?: InstrumentReadings;
-  reset() {
-    this.value = undefined;
-  }
-  /** Advance every lagged instrument towards the new reading by dt seconds. */
-  step(target: InstrumentReadings, dt: number): InstrumentReadings {
-    if (!this.value || !(dt > 0)) return (this.value = { ...target });
-    const next = { ...target } as InstrumentReadings;
-    for (const [key, tau] of Object.entries(NEEDLE_TAU) as [
-      keyof InstrumentReadings,
-      number,
-    ][]) {
-      const a = this.value[key],
-        b = target[key];
-      if (typeof a !== "number" || typeof b !== "number") continue;
-      const k = 1 - Math.exp(-dt / tau);
-      let delta = b - a;
-      if (ANGLE_KEYS.has(key)) delta = ((delta + 540) % 360) - 180;
-      let v = a + delta * k;
-      if (ANGLE_KEYS.has(key)) v = wrap360(v);
-      (next as unknown as Record<string, number>)[key] = v;
-    }
-    return (this.value = next);
-  }
 }
 
 export type SpeedUnit = "mps" | "kmh" | "kt";

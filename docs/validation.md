@@ -6,10 +6,15 @@ model's detailed boundaries and compatibility rules.
 
 ## Current compatibility
 
-Simulation **0.13.0** adds per-contact ground materials (paved, grass,
+Simulation **0.14.0** adds the ACRO gyro flight controller and corrects
+blown-wing lift (fuselage/nacelle blockage and finite jet height;
+[details](physics-engine.md#full-throttle-nose-up-moment-breakdown-and-fix-0140)).
+Recordings of propeller fixed-wing aircraft from earlier versions are
+rejected because their slipstream lift changed; other recordings from
+0.10.0–0.13.0 replay unchanged.
+Simulation 0.13.0 added per-contact ground materials (paved, grass,
 dirt) and documents the throttle/pitch diagnosis
-([details](physics-engine.md#throttle-and-pitch-diagnosis-0130)). It opens
-0.10.0–0.12.0 recordings unchanged.
+([details](physics-engine.md#throttle-and-pitch-diagnosis-0130)).
 Simulation 0.12.0 made the propeller shaft speed a state for motors
 with `motorPowerW` (spin-up torque, overspeed in a dive, windmilling, swirl,
 optional governor; [details](physics-engine.md#dynamic-shaft-speed-0120)).

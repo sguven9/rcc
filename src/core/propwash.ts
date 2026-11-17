@@ -56,10 +56,29 @@ export function spanCoverage(
   normalOffsetM: number,
   slipstreamRadiusM: number,
   spanM: number,
+  /**
+   * Span intervals (surface span coordinate, m) hidden inside a fuselage or
+   * nacelle: the slipstream there flows over the body, not the surface.
+   */
+  blocked: readonly (readonly [number, number])[] = [],
 ) {
   if (!(spanM > 0) || Math.abs(normalOffsetM) >= slipstreamRadiusM) return 0;
   const half = Math.sqrt(slipstreamRadiusM ** 2 - normalOffsetM ** 2);
   const lo = Math.max(spanOffsetM - half, -spanM / 2),
     hi = Math.min(spanOffsetM + half, spanM / 2);
-  return Math.max(0, hi - lo) / spanM;
+  let covered = Math.max(0, hi - lo);
+  for (const [a, b] of blocked)
+    covered -= Math.max(0, Math.min(hi, b) - Math.max(lo, a));
+  return Math.max(0, covered) / spanM;
+}
+
+/**
+ * Finite jet height: a slipstream about as tall as the chord turns less flow
+ * than an unbounded stream, so the blown section's extra lift is reduced by
+ * h/(h + 0.5·c) with h the slipstream diameter (engineering estimate after
+ * Ting et al., wing-in-slipstream lifting-line theory). 1 for a tall jet.
+ */
+export function jetHeightFactor(slipstreamRadiusM: number, chordM: number) {
+  const h = 2 * Math.max(0, slipstreamRadiusM);
+  return h > 0 ? h / (h + 0.5 * Math.max(0, chordM)) : 0;
 }

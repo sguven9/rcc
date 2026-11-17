@@ -4,6 +4,17 @@ Application releases are separate from physics/replay and aircraft format versio
 
 ## 0.8.0 — Unreleased
 
+- Full-throttle nose-up fixed at the root ([measurements](docs/physics-engine.md#full-throttle-nose-up-moment-breakdown-and-fix-0140)):
+  - an **ACRO** gyro flight controller (default; MANUAL selectable in Flight setup) holds the attitude with centred sticks, never reads throttle and takes its gains from each aircraft's measured control power;
+  - blown-wing lift no longer counts span inside the fuselage or nacelles and uses a finite-jet factor, so full-throttle ground lift-off happens near stall speed instead of at 3 m/s;
+  - per-preset regression tests for the throttle step, the throttle cut and the ground roll.
+
+  Also:
+  - the decorative 3D cockpit, its gauge smoothing and the cockpit panel styles are removed;
+  - the OSD is on by default, a stale saved "off" preference from the first OSD build is ignored, and the OSD shows ACRO/MANUAL.
+
+  Simulation compatibility is now 0.14.0.
+
 - Simplified flight app. Removed:
   - the brand, Docs, Local session, version and GitHub links;
   - the Experiments page;
@@ -14,7 +25,7 @@ Application releases are separate from physics/replay and aircraft format versio
 
   Added:
   - an **Expos** page with per-channel expo (1 − e)·x + e·x³, curve previews, reset and persistence;
-  - FPV as the default view from a massless `viewpoint` in every aircraft file, with a static 3D scale cockpit in front of the lens;
+  - FPV as the default view from a massless `viewpoint` in every aircraft file (the decorative 3D cockpit added here was removed again in the next change);
   - an OSD shown only in FPV during flight;
   - full-screen flight with every panel hidden (Esc pauses and restores);
   - instanced grass that sways with the simulated wind, with distance LOD;

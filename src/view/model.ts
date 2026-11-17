@@ -339,7 +339,7 @@ function broncoCabin(parent: T.Group, part: Aircraft["parts"][number]) {
           pos.getY(i),
         );
       geometry.computeVertexNormals();
-      mesh(geometry, glass, parent).name = "cockpit-window";
+      mesh(geometry, glass, parent).name = "cabin-window-decal";
     }
   // Narrow white roof mullion follows each curved station instead of floating
   // a flat rectangle above the skin. Paint adds no hidden component mass.
@@ -407,7 +407,7 @@ function broncoCabin(parent: T.Group, part: Aircraft["parts"][number]) {
   roof.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
   roof.setIndex(indices);
   roof.computeVertexNormals();
-  mesh(roof, foam, parent).name = "cockpit-mullion";
+  mesh(roof, foam, parent).name = "cabin-roof-stripe";
 }
 export function buildAircraft(
   a: Aircraft,

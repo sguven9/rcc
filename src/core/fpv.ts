@@ -66,3 +66,23 @@ export function removeFpvCamera(aircraft: Aircraft): Aircraft {
   };
   return parseAircraft(a);
 }
+
+/**
+ * The FPV viewpoint of an aircraft: its authored `viewpoint`, or a default
+ * derived from the generic camera position (massless; nothing is added to the
+ * mass ledger). Aircraft saved before viewpoints existed still get FPV.
+ */
+export function fpvViewpoint(a: Aircraft): NonNullable<Aircraft["viewpoint"]> {
+  if (a.viewpoint) return a.viewpoint;
+  const installed = installFpvCamera(a);
+  const part = installed.parts.find((p) => p.id === installed.fpv!.partId)!;
+  return {
+    positionM: [
+      part.positionM[0] + part.sizeM[0] / 2 + 0.006,
+      0,
+      part.positionM[2],
+    ],
+    pitchDeg: a.vehicleType === "multirotor" ? 20 : 0,
+    fovDeg: 90,
+  };
+}

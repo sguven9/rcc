@@ -319,18 +319,20 @@ function showScenery(env: typeof environment) {
 }
 // Physics debug overlay: force arrows in the scene plus a rolling energy graph.
 const energyGraph = new EnergyGraph($<HTMLCanvasElement>("energy-graph"));
-// On-screen display and cockpit panel, both fed by readInstruments().
+// On-screen display (FPV only), fed by readInstruments().
 const osd = new Osd();
 let osdHome: [number, number] = [0, 0];
 const osdUnits = (): { speed: SpeedUnit; altitude: AltitudeUnit } => ({
   speed: $<HTMLSelectElement>("osd-speed-unit").value as SpeedUnit,
   altitude: $<HTMLSelectElement>("osd-alt-unit").value as AltitudeUnit,
 });
+/** v2: the first OSD build saved "off" for everyone at start-up; ignore it. */
+const OSD_STORAGE_KEY = "rcforge.osd.v2";
 function applyOsdSettings() {
   osd.enabled = $<HTMLInputElement>("osd-toggle").checked;
   try {
     localStorage.setItem(
-      "rcforge.osd",
+      OSD_STORAGE_KEY,
       JSON.stringify({ on: osd.enabled, ...osdUnits() }),
     );
   } catch {
@@ -338,7 +340,7 @@ function applyOsdSettings() {
   }
 }
 try {
-  const saved = JSON.parse(localStorage.getItem("rcforge.osd") ?? "null");
+  const saved = JSON.parse(localStorage.getItem(OSD_STORAGE_KEY) ?? "null");
   if (saved) {
     $<HTMLInputElement>("osd-toggle").checked = !!saved.on;
     if (saved.speed in SPEED_UNITS)
@@ -352,6 +354,37 @@ try {
 for (const id of ["osd-toggle", "osd-speed-unit", "osd-alt-unit"])
   $(id).onchange = applyOsdSettings;
 applyOsdSettings();
+/**
+ * Fixed-wing flight-controller mode. ACRO (default, like the reference
+ * aircraft's iNav board) feeds stick rate commands to the gyro loop in
+ * core/flight-controller.ts; MANUAL sends the sticks straight to the servos.
+ */
+const FC_MODE_STORAGE_KEY = "rcforge.fc-mode";
+let fcMode: "acro" | "manual" = "acro";
+try {
+  if (localStorage.getItem(FC_MODE_STORAGE_KEY) === "manual") fcMode = "manual";
+} catch {
+  /* Preferences are optional. */
+}
+$<HTMLSelectElement>("fc-mode").value = fcMode;
+/** ACRO applies only to aircraft whose surfaces the controller can drive. */
+const acroActive = () => fcMode === "acro" && !!sim.controlPower;
+/** Seed the ACRO integrators with the trim so the hand-off is bumpless. */
+function seedFlightController() {
+  if (!acroActive()) return;
+  sim.state.fcIntegral = [lateralTrim.roll, pitchTrim, lateralTrim.yaw];
+  sim.state.fcAttitude = [0, 0, 0];
+}
+$("fc-mode").onchange = () => {
+  fcMode =
+    $<HTMLSelectElement>("fc-mode").value === "manual" ? "manual" : "acro";
+  try {
+    localStorage.setItem(FC_MODE_STORAGE_KEY, fcMode);
+  } catch {
+    /* Preferences are optional. */
+  }
+  seedFlightController();
+};
 /** OSD in FPV only (goggle overlay), fed by readInstruments(). */
 function updateOsd() {
   if (!osd.visible) return;
@@ -366,7 +399,9 @@ function updateOsd() {
   osd.update(readings, formatOsd(readings, osdUnits()), {
     mode: sim.aircraft.vtol
       ? (sim.state.vtol?.phase ?? "vtol").toUpperCase()
-      : "ACRO",
+      : acroActive()
+        ? "ACRO"
+        : "MANUAL",
     verticalFovDeg: scene?.camera.fov ?? 50,
     odometerFactor: 1,
     odometerLabel: "km",
@@ -411,6 +446,7 @@ function reset() {
     environment,
     placedLaunch(a, mode, placement, environment),
   );
+  seedFlightController();
   controls = {
     roll: lateralTrim.roll,
     pitch: pitchTrim,
@@ -982,8 +1018,6 @@ for (const id of [
     reset();
   };
 function setFlightCamera(camera: FlightCamera) {
-  if (camera === "fpv" && !sim.aircraft.fpv && !sim.aircraft.viewpoint)
-    camera = "ground";
   flightCamera = camera;
   if (camera !== "ground") {
     input.walking = false;
@@ -1362,13 +1396,20 @@ function frame(now: number) {
         } else {
           const raw = input.read(FIXED_DT);
           if (!running) break;
-          controls = cleanControls(
-            withTrim(applyExpo(raw, expoSettings()), {
-              roll: lateralTrim.roll,
-              pitch: sim.aircraft.vtol ? 0 : pitchTrim,
-              yaw: lateralTrim.yaw,
-            }),
-          );
+          // ACRO: centred sticks mean "hold this attitude"; the controller
+          // finds the surface trim itself, so the stick trim is not added.
+          controls = acroActive()
+            ? cleanControls({
+                ...applyExpo(raw, expoSettings()),
+                fcMode: "acro",
+              })
+            : cleanControls(
+                withTrim(applyExpo(raw, expoSettings()), {
+                  roll: lateralTrim.roll,
+                  pitch: sim.aircraft.vtol ? 0 : pitchTrim,
+                  yaw: lateralTrim.yaw,
+                }),
+              );
           if (gustRequested) {
             controls.gust = true;
             gustRequested = false;

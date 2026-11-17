@@ -224,6 +224,135 @@ results:
 - energy gain bounded by propulsive work;
 - a power-off glide.
 
+## Full-throttle nose-up: moment breakdown and fix (0.14.0)
+
+Report: "the nose rises at full throttle". Measured with a scripted test per
+preset: trimmed level flight, then a throttle step to 80 % and 100 % for 3 s,
+logging pitch, pitch rate and each moment item. A second run starts at rest
+on the runway at full throttle.
+
+**Moment items at the step.** Change in pitching moment (N·m, + nose up) at
+t = 0.3 s, 100 % throttle, elevator fixed:
+
+| Preset            | Thrust line | Slipstream (tail, wing root) | Propeller gyro + P-factor | All surfaces (CL·q, CM_α, tail) |
+| ----------------- | ----------: | ---------------------------: | ------------------------: | ------------------------------: |
+| Simple Cub        |      +0.001 |                       −0.010 |                    +0.005 |                          +0.009 |
+| Apprentice STS    |      +0.001 |                       −0.064 |                    +0.006 |                          +0.003 |
+| Spitfire          |      −0.001 |                       −0.003 |                    +0.003 |                          +0.012 |
+| FT-22 Raptor      |      −0.027 |                       +0.060 |                    +0.003 |                          +0.033 |
+| Mighty Mini Arrow |       0.000 |                        0.000 |                    +0.001 |                          +0.007 |
+
+The other items do not act about the pitch axis at the step:
+
+- The elevator is fixed in MANUAL.
+- Shaft spin-up reacts about the shaft (roll) axis.
+- Ground contact is absent in the air.
+
+None of these is large, and no item had a wrong sign. The sign tests in
+`tests/flight-controller.test.ts` check each item:
+
+- thrust below or above the CG;
+- down-thrust;
+- up elevator;
+- slipstream adding elevator authority;
+- static stability (CM_α);
+- pitch damping;
+- no pitch part from the propeller gyro and P-factor in straight flight.
+
+**Cause 1: the airframe flies speed-stable without a flight controller.** As
+the 0.13.0 diagnosis showed, the climb comes from the surfaces' moment
+growing with dynamic pressure as the aircraft accelerates (the "all surfaces"
+column grows to +0.05…+0.08 N·m by t = 1 s). With thrust-to-weight 1–3.5 this
+gives 25–73° of nose-up in 3 s with the stick centred (MANUAL, both before
+and after this change). The real aircraft does not fly like that: its iNav
+board runs ACRO (the reference OSD shows "ACRO"), a gyro loop that holds the
+attitude while the sticks are centred. The simulator had no flight
+controller, so it flew the bare airframe.
+
+**Cause 2 (model bug): blown-wing lift was overestimated.** The slipstream
+span coverage (`spanCoverage` in `simulation.ts`, slipstream loop) counted
+wing span hidden inside the fuselage or nacelle, and the extra lift assumed
+an unbounded jet. At full throttle on the runway this lifted the Simple Cub
+off at 3.1 m/s after 0.4 s and the Spitfire at 4.4 m/s. Now:
+
+- Fuselage and nacelle widths are subtracted from the covered span.
+- Blown lift is scaled by the finite-jet factor h/(h + 0.5·c), where h is the
+  slipstream diameter and c the chord. This is an engineering estimate after
+  Ting et al.'s wing-in-slipstream lifting-line results.
+- Ground lift-off moves to 4.6 m/s (Cub) and 6.5 m/s (Spitfire). The Simple
+  Trainer and Apprentice change little: 6.6 → 6.1 m/s and 12.2 → 12.9 m/s.
+
+**Fix: ACRO flight controller** (`src/core/flight-controller.ts`, default in
+the flight setup; MANUAL remains available). Sticks command body rates of
+220/160/90 °/s at full deflection. Per axis:
+
+- u = ff + kp·e + I, with İ = ki·e + ka·A and Ȧ = e − leak·|stick|·A.
+- e is the rate error.
+- A is the accumulated attitude error (Betaflight's "absolute control"). It
+  removes the drift a plain PI rate loop leaves while a disturbance keeps
+  growing during acceleration. It leaks while the stick is deflected, and yaw
+  has no A term.
+- ff is half the damping-based feedforward.
+
+Gains come from each aircraft's own control power and rate damping, measured
+once from the force model at the trim speed:
+
+- Authority scales with V² and damping with V.
+- Roll and pitch place a triple pole at 14 and 15 rad/s; yaw is a PI loop
+  with a double pole at 6 rad/s.
+- The integrators start at the trim commands, freeze on the ground and stop
+  while an output saturates.
+
+The controller never reads throttle; it reacts only to measured rotation, so
+it does not cancel throttle changes through trim.
+
+**Result (3 s after the step, sticks centred, ACRO).**
+
+| Preset                | 80 %: max Δθ / max q | 100 %: max Δθ / max q | ΔV at 100 % | MANUAL 100 %: max Δθ |
+| --------------------- | -------------------: | --------------------: | ----------: | -------------------: |
+| Simple Cub            |       0.4° / 0.6 °/s |        0.6° / 1.0 °/s |    +8.5 m/s |                  59° |
+| Apprentice STS        |       0.0° / 0.2 °/s |        0.1° / 0.3 °/s |   +11.7 m/s |                  44° |
+| Simple Trainer (VT)   |       0.1° / 0.2 °/s |        0.1° / 0.4 °/s |    +8.3 m/s |                  50° |
+| Explorer              |       0.1° / 0.3 °/s |        0.1° / 0.4 °/s |    +7.2 m/s |                  46° |
+| Tiny Trainer          |       0.1° / 0.3 °/s |        0.1° / 0.5 °/s |    +5.7 m/s |                  26° |
+| Spitfire              |       0.1° / 0.3 °/s |        0.1° / 0.5 °/s |    +8.7 m/s |                  45° |
+| Bronco                |       0.0° / 0.5 °/s |        0.1° / 0.7 °/s |    +6.4 m/s |                  27° |
+| Bronco (conventional) |       0.1° / 0.5 °/s |        0.1° / 0.7 °/s |    +6.2 m/s |                  29° |
+| Night Radian          |       0.0° / 0.2 °/s |        0.1° / 0.2 °/s |   +14.5 m/s |                  72° |
+| FT-22 Raptor          |       0.4° / 0.8 °/s |        0.5° / 1.2 °/s |    +7.2 m/s |                  62° |
+| Mighty Mini Arrow     |       1.0° / 3.1 °/s |        1.2° / 4.3 °/s |   +22.7 m/s |                  72° |
+
+On the full-throttle ground roll, no preset raises its nose while the wheels
+are down, with or without ACRO. Rotation needs up elevator. On a throttle cut
+the nose stays within 0.3° for 3 s on every preset but the FT-22 Raptor. The
+flying wing needs nearly full up elevon to stay level near 7.5 m/s; once the
+elevon saturates, the stall break lowers the nose by 7° (physics, not a
+controller fault).
+
+`tests/flight-controller.test.ts` makes this permanent:
+
+- the sign tests above;
+- the controller unit tests;
+- the throttle step per preset at 80 % and 100 % (< 3°, < 5 °/s);
+- the throttle cut;
+- no nose rise on the ground roll (ACRO and MANUAL);
+- elevator rotation on the takeoff roll;
+- exact replay of an ACRO recording.
+
+Limits and estimates:
+
+- The loop bandwidths, the 0.5 feedforward fraction and the leak rate are
+  tuning estimates, not values copied from a flight-controller dump.
+- Rudder-only aircraft (Simple Cub, Night Radian) keep a slow ±5–9° bank
+  wander at full throttle or idle. Their roll axis has no surface for the
+  controller.
+- In a bank with the sticks centred, ACRO holds a zero body pitch rate. The
+  pilot must pull to turn, as with the real board.
+
+**Cockpit.** The decorative 3D cockpit (panel, gauges, frame) and the 2D
+cockpit panel are removed. The FPV view is the bare camera with the OSD
+overlay.
+
 ## Ground materials (0.13.0)
 
 When `environment.surfaceZones` is set (the browser always sets it), every wheel

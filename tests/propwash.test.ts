@@ -3,6 +3,7 @@ import trainer from "../aircraft/vt-simple-trainer.json";
 import { parseAircraft } from "../src/core/schema";
 import {
   diskInducedVelocity,
+  jetHeightFactor,
   slipstreamAt,
   spanCoverage,
 } from "../src/core/propwash";
@@ -53,6 +54,21 @@ describe("actuator-disk slipstream", () => {
     expect(spanCoverage(0, 0.1, 0.1, 1)).toBe(0);
     expect(spanCoverage(2, 0, 0.1, 1)).toBe(0);
     expect(spanCoverage(0, 0, 5, 1)).toBe(1);
+  });
+  it("skips the span hidden inside the fuselage or a nacelle", () => {
+    // 0.2 m slipstream centred on a 6 cm wide fuselage: 0.14 m of wing blown.
+    expect(spanCoverage(0, 0, 0.1, 1, [[-0.03, 0.03]])).toBeCloseTo(0.14, 12);
+    // Blockage outside the slipstream changes nothing.
+    expect(spanCoverage(0, 0, 0.1, 1, [[0.3, 0.4]])).toBeCloseTo(0.2, 12);
+    // A body wider than the slipstream leaves no blown wing.
+    expect(spanCoverage(0, 0, 0.1, 1, [[-0.2, 0.2]])).toBe(0);
+  });
+  it("reduces blown lift for a slipstream not much taller than the chord", () => {
+    expect(jetHeightFactor(0.1, 0)).toBe(1);
+    // h = 0.2 m, c = 0.2 m: h/(h + c/2) = 2/3.
+    expect(jetHeightFactor(0.1, 0.2)).toBeCloseTo(2 / 3, 12);
+    expect(jetHeightFactor(0, 0.2)).toBe(0);
+    expect(jetHeightFactor(1, 0.2)).toBeGreaterThan(jetHeightFactor(0.1, 0.2));
   });
   it("adds no slipstream load when the motor is off", () => {
     const a = parseAircraft(trainer),

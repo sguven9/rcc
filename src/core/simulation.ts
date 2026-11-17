@@ -6,6 +6,7 @@ import {
   vtolThrustAxis,
 } from "./vtol";
 import { propellerMoments, propellerSpinAxis } from "./propeller-effects";
+import { acroStep, type ControlPower } from "./flight-controller";
 import {
   advanceRotorSpeed,
   equilibriumRotorSpeed,
@@ -24,7 +25,12 @@ import {
   downwashAngle,
   postStallMoment,
 } from "./aerodynamics";
-import { diskInducedVelocity, slipstreamAt, spanCoverage } from "./propwash";
+import {
+  diskInducedVelocity,
+  jetHeightFactor,
+  slipstreamAt,
+  spanCoverage,
+} from "./propwash";
 import {
   DrydenTurbulence,
   groundEffectLiftRatio,
@@ -71,6 +77,11 @@ export interface Controls {
   vtol?: VtolCommand;
   /** One-shot: start a discrete gust at this step (recorded for replay). */
   gust?: boolean;
+  /**
+   * Flight-controller mode (fixed-wing): "acro" = gyro rate hold, sticks
+   * command body rates. Omitted = MANUAL, sticks drive the surfaces directly.
+   */
+  fcMode?: "acro";
 }
 export const neutralControls = (): Controls => ({
   roll: 0,
@@ -132,6 +143,10 @@ export interface State {
   rotorRadS?: number[];
   /** Constant-speed governor integral (pitch factor) per motor. */
   rotorPitch?: number[];
+  /** ACRO flight-controller integrators (roll, pitch, yaw channel units). */
+  fcIntegral?: Vec3;
+  /** ACRO accumulated attitude error (roll, pitch, yaw), rad. */
+  fcAttitude?: Vec3;
   status: "flying" | "grounded" | "landed" | "crashed";
 }
 /** Per-motor shaft dynamics at one state (dynamic-rotor motors only). */
@@ -237,6 +252,7 @@ export function cleanControls(c: Controls): Controls {
     yaw: clamp(Number.isFinite(c.yaw) ? c.yaw : 0, -1, 1),
     throttle: clamp(Number.isFinite(c.throttle) ? c.throttle : 0, 0, 1),
     ...(c.gust === true ? { gust: true } : {}),
+    ...(c.fcMode === "acro" ? { fcMode: "acro" as const } : {}),
   };
 }
 export class Simulation {
@@ -250,6 +266,10 @@ export class Simulation {
   ) => "asphalt" | "grass" | "dirt";
   /** Discrete gust generator (seeded; idle unless enabled or triggered). */
   readonly gusts: DiscreteGusts;
+  /** Control power per channel for the ACRO flight controller (fixed-wing). */
+  readonly controlPower?: ControlPower;
+  /** Per surface: span intervals covered by a fuselage or nacelle (no blown lift). */
+  private slipstreamBlocked: [number, number][][];
   /** Dynamic shaft-speed model per motor (null: quasi-static rpm). */
   readonly rotorModels: (RotorModel | null)[];
   readonly actuations: ReturnType<typeof surfaceActuation>[];
@@ -271,6 +291,7 @@ export class Simulation {
     public readonly aircraft: Aircraft,
     public environment: Environment = calmEnvironment(),
     state?: State,
+    withFlightController = true,
   ) {
     this.properties = massProperties(aircraft);
     this.collisions = new ObstacleCollisions(aircraft, this.properties.cg);
@@ -279,6 +300,23 @@ export class Simulation {
     );
     this.state = structuredClone(state ?? initialState(aircraft));
     this.gusts = new DiscreteGusts(environment.seed);
+    // Bodies whose length spans a surface's position hide that part of its
+    // span from the slipstream (in the surface's span coordinate).
+    this.slipstreamBlocked = aircraft.surfaces.map((w) => {
+      const spanY = Math.cos(radians(w.rollDeg));
+      if (Math.abs(spanY) < 0.3) return [];
+      return aircraft.parts
+        .filter(
+          (p) =>
+            p.kind === "body" &&
+            Math.abs(p.positionM[0] - w.positionM[0]) < p.sizeM[0] / 2,
+        )
+        .map((p) => {
+          const a = (p.positionM[1] - p.sizeM[1] / 2 - w.positionM[1]) / spanY,
+            b = (p.positionM[1] + p.sizeM[1] / 2 - w.positionM[1]) / spanY;
+          return [Math.min(a, b), Math.max(a, b)] as [number, number];
+        });
+    });
     const site =
       environment.surfaceZones && environment.sceneryId
         ? (sceneries as Record<string, Scenery>)[environment.sceneryId]
@@ -300,6 +338,7 @@ export class Simulation {
         environment.windProfile,
       );
     }
+    if (withFlightController) this.controlPower = this.measureControlPower();
     // Start each dynamic rotor at its steady speed for the initial command
     // and airspeed (a trimmed launch is then in rotor equilibrium too).
     if (this.rotorModels.some(Boolean)) {
@@ -312,6 +351,42 @@ export class Simulation {
       if (!this.state.rotorPitch && this.rotorModels.some((m) => m?.governed))
         this.state.rotorPitch = this.aircraft.motors.map(() => 1);
     }
+  }
+  /** Angular acceleration per unit roll/pitch/yaw command at the trim speed. */
+  private measureControlPower(): ControlPower | undefined {
+    const a = this.aircraft;
+    if (
+      a.vtol ||
+      a.vehicleType === "multirotor" ||
+      !a.surfaces.some((w) => w.control)
+    )
+      return undefined;
+    const speed = a.reference.trimSpeedMps ?? 12;
+    const probe = initialState(a, speed, 200, 0);
+    probe.motors = probe.motors.map(() => 0);
+    delete probe.surfaceCommands;
+    const calm = new Simulation(a, calmEnvironment(), probe, false);
+    const perCommand = (["roll", "pitch", "yaw"] as const).map((axis, i) => {
+      const at = (u: number) =>
+        matVec(
+          calm.properties.inverseInertia,
+          calm.forces(probe, { ...neutralControls(), [axis]: u }).torque,
+        )[i];
+      return (at(0.2) - at(-0.2)) / 0.4;
+    }) as Vec3;
+    // Aerodynamic rate damping: −∂(angular acceleration)/∂(body rate).
+    const damping = [0, 1, 2].map((i) => {
+      const at = (w: number) => {
+        const omega: Vec3 = [0, 0, 0];
+        omega[i] = w;
+        return matVec(
+          calm.properties.inverseInertia,
+          calm.forces({ ...probe, omega }, neutralControls()).torque,
+        )[i];
+      };
+      return Math.max(0, (at(-0.3) - at(0.3)) / 0.6);
+    }) as Vec3;
+    return { perCommand, damping, referenceSpeed: speed };
   }
   /** World air velocity at the CG: sheared mean wind, gusts and turbulence. */
   airVelocity(s: State): Vec3 {
@@ -480,8 +555,12 @@ export class Simulation {
             dot(offset, normal),
             slip.radius,
             wing.spanM,
+            this.slipstreamBlocked[surfaceIndex],
           );
-          extra += fraction * ((axial + slip.increment) ** 2 - axial * axial);
+          extra +=
+            fraction *
+            jetHeightFactor(slip.radius, wing.chordM) *
+            ((axial + slip.increment) ** 2 - axial * axial);
           // Swirl: the slipstream turns with the propeller, so a surface off
           // the axis meets a tangential flow u = ω_s·ŝ × r_⊥ (left-turning
           // tendency on a fin above a CW propeller's axis).
@@ -764,6 +843,28 @@ export class Simulation {
       return this.state;
     const c = cleanControls(raw),
       s = this.state;
+    // ACRO: the flight controller turns stick rate commands into channels.
+    if (c.fcMode === "acro" && this.controlPower) {
+      const air = rotate(
+        inverseQ(s.orientation),
+        sub(s.velocity, this.airVelocity(s)),
+      );
+      const out = acroStep(
+        [c.roll, c.pitch, c.yaw],
+        s.omega,
+        length(air),
+        {
+          integral: s.fcIntegral ?? [0, 0, 0],
+          attitude: s.fcAttitude ?? [0, 0, 0],
+        },
+        this.controlPower,
+        dt,
+        s.status === "grounded",
+      );
+      [c.roll, c.pitch, c.yaw] = out.channels;
+      s.fcIntegral = out.state.integral;
+      s.fcAttitude = out.state.attitude;
+    }
     if (c.gust)
       this.gusts.trigger(
         s.time,

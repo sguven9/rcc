@@ -11,11 +11,13 @@
     Consolas,
     monospace;
   letter-spacing: 0.22em;
+  /* Solid outline plus a soft halo: readable on sky, snow and dark ground. */
   text-shadow:
-    -1px -1px 0 #000a,
-    1px -1px 0 #000a,
-    -1px 1px 0 #000a,
-    1px 1px 0 #000a;
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 0 4px rgba(0, 0, 0, 0.85);
   z-index: 4;
 }
 .osd b {
@@ -130,14 +132,6 @@
   .osd-compass {
     width: 280px;
   }
-}
-/* Cockpit instrument panel over the cockpit camera. */
-/* Expos page */
-.expo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  padding: 0 24px 24px;
 }
 .expo-card {
   display: flex;
